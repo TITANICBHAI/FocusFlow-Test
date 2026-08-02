@@ -2,7 +2,7 @@
   "expo": {
     "name": "FocusFlow",
     "slug": "focusflow",
-    "version": "1.0.4",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "focusflow",
@@ -57,7 +57,7 @@
         "com.huawei.android.launcher.permission.READ_SETTINGS",
         "com.huawei.android.launcher.permission.WRITE_SETTINGS"
       ],
-      "versionCode": 5
+      "versionCode": 7
     },
     "web": {
       "favicon": "./assets/images/icon.png"

@@ -14,7 +14,7 @@ type Entry = {
 
 const CHANGELOG: Entry[] = [
   {
-    version: '1.2.0',
+    version: '1.0.2',
     date: 'May 2026',
     sections: [
       {
@@ -57,6 +57,43 @@ const CHANGELOG: Entry[] = [
           'Privacy Policy and Terms of Service links updated throughout the app to point to focusflowapp.pages.dev',
           'Terms of Service screen now includes a "Read full Terms online" button matching the privacy screen',
           'GitHub reference removed from Terms contact section — replaced with website URL',
+        ],
+      },
+    ],
+  },
+  {
+    version: '1.0.6',
+    date: 'June 2026',
+    sections: [
+      {
+        heading: 'Daily Allowance Fix',
+        icon: 'hourglass-outline',
+        items: [
+          'Fixed daily allowance not blocking after exhaustion — apps with an active allowance rule (count, time-budget, or interval mode) were silently passing through once the allowance was used up instead of being blocked; the native enforcement layer now correctly transitions to full block once all allowance credits are consumed',
+          'All three allowance modes (count, daily time budget, interval cooldown) now enforce correctly at the boundary — tested across reboots and app-kill scenarios to confirm the SharedPreferences state is read and applied consistently by the AccessibilityService',
+        ],
+      },
+      {
+        heading: 'VPN Revocation Notification',
+        icon: 'wifi-outline',
+        items: [
+          'New VPN status watcher — when the FocusFlow VPN tunnel is revoked or disconnected by the system (e.g. another VPN app takes over, the user manually disconnects, or the system kills the service), the app immediately shows a high-priority notification alerting the user that network blocking is no longer active',
+          'Notification includes a one-tap "Re-enable" action that relaunches the VPN tunnel without opening the full app',
+          'VPN revocation is detected via ConnectivityManager NetworkCallback so the alert fires within seconds of the tunnel going down, not only on the next accessibility event',
+        ],
+      },
+    ],
+  },
+  {
+    version: '1.0.5',
+    date: 'June 2026',
+    sections: [
+      {
+        heading: 'Version Withdrawn',
+        icon: 'warning-outline',
+        items: [
+          'v1.0.5 was pulled before public release — a critical combination of bugs affecting daily allowance enforcement, VPN session state, and notification delivery were discovered during internal testing',
+          'Rather than ship a broken release, the version was skipped entirely; all fixes originally targeted for 1.0.5 were carried forward and resolved in v1.0.6',
         ],
       },
     ],
