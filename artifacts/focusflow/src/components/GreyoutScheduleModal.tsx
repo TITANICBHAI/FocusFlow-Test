@@ -26,6 +26,13 @@ interface Props {
   windows: GreyoutWindow[];
   onSave: (windows: GreyoutWindow[]) => Promise<void>;
   onClose: () => void;
+  /** Freeze delete and disallow weakening edits while a standalone block is active. */
+  standaloneActive?: boolean;
+  /**
+   * Gate destructive / weakening actions behind the defense password.
+   * If undefined, actions proceed freely (no PIN configured).
+   */
+  requireDefensePin?: (title: string, description: string, action: () => void) => void;
 }
 
 const DAY_LABELS  = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -48,7 +55,7 @@ const BLANK_WINDOW: GreyoutWindow = {
 
 type SelectedApp = { pkg: string; name: string };
 
-export function GreyoutScheduleModal({ visible, windows, onSave, onClose }: Props) {
+export function GreyoutScheduleModal({ visible, windows, onSave, onClose, standaloneActive = false, requireDefensePin }: Props) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const [localWindows, setLocalWindows] = useState<GreyoutWindow[]>([]);
@@ -56,6 +63,8 @@ export function GreyoutScheduleModal({ visible, windows, onSave, onClose }: Prop
   const [draft, setDraft] = useState<GreyoutWindow>(BLANK_WINDOW);
   const [editIndex, setEditIndex] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  // Track the window being edited so we can detect time-decrease at commit time.
+  const [originalWindow, setOriginalWindow] = useState<GreyoutWindow | null>(null);
 
   // ── App search state ──────────────────────────────────────────────────────
   const [allApps, setAllApps] = useState<InstalledApp[]>([]);
@@ -127,14 +136,29 @@ export function GreyoutScheduleModal({ visible, windows, onSave, onClose }: Prop
     setDraft((d) => ({ ...d, [field]: (d[field] + delta + 60) % 60 }));
   };
 
+  /** Returns the block window's duration in minutes (handles overnight spans). */
+  const windowDurationMinutes = (w: GreyoutWindow) => {
+    const start = w.startHour * 60 + w.startMin;
+    const end = w.endHour * 60 + w.endMin;
+    return end > start ? end - start : 24 * 60 - start + end;
+  };
+
   const selectApp = useCallback((app: InstalledApp) => {
     setSelectedApps((prev) => [...prev, { pkg: app.packageName, name: app.appName }]);
     setAppSearch('');
   }, []);
 
   const removeSelectedApp = useCallback((pkg: string) => {
-    setSelectedApps((prev) => prev.filter((a) => a.pkg !== pkg));
-  }, []);
+    if (requireDefensePin) {
+      requireDefensePin(
+        'Remove App from Window',
+        'Enter your defense password to remove this app from the block window.',
+        () => setSelectedApps((prev) => prev.filter((a) => a.pkg !== pkg)),
+      );
+    } else {
+      setSelectedApps((prev) => prev.filter((a) => a.pkg !== pkg));
+    }
+  }, [requireDefensePin]);
 
   const openAdd = () => {
     setDraft(BLANK_WINDOW);
@@ -144,15 +168,28 @@ export function GreyoutScheduleModal({ visible, windows, onSave, onClose }: Prop
     setMode('add');
   };
 
-  const openEdit = (idx: number) => {
+  const doOpenEdit = (idx: number) => {
     const w = localWindows[idx];
     const pkgs = w.pkgs && w.pkgs.length > 0 ? w.pkgs : w.pkg ? [w.pkg] : [];
     const selApps = pkgs.map((pkg) => ({ pkg, name: pkgToName.get(pkg) ?? pkg }));
     setSelectedApps(selApps);
     setDraft({ ...w });
     setEditIndex(idx);
+    setOriginalWindow({ ...w });
     setAppSearch('');
     setMode('add');
+  };
+
+  const openEdit = (idx: number) => {
+    if (requireDefensePin) {
+      requireDefensePin(
+        'Edit Block Window',
+        'Enter your defense password to edit this block window.',
+        () => doOpenEdit(idx),
+      );
+    } else {
+      doOpenEdit(idx);
+    }
   };
 
   const toggleWindowEnabled = (idx: number) => {
@@ -161,18 +198,7 @@ export function GreyoutScheduleModal({ visible, windows, onSave, onClose }: Prop
     );
   };
 
-  const commitDraft = () => {
-    if (selectedApps.length === 0) {
-      Alert.alert(
-        'Select at least one app',
-        'Search for apps by name and tap to add them to this window.',
-      );
-      return;
-    }
-    if (draft.days.length === 0) {
-      Alert.alert('Select at least one day');
-      return;
-    }
+  const doCommitDraft = () => {
     const pkgs = selectedApps.map((a) => a.pkg);
     const updated = [...localWindows];
     const window: GreyoutWindow = {
@@ -191,17 +217,65 @@ export function GreyoutScheduleModal({ visible, windows, onSave, onClose }: Prop
     setMode('list');
   };
 
+  const commitDraft = () => {
+    if (selectedApps.length === 0) {
+      Alert.alert(
+        'Select at least one app',
+        'Search for apps by name and tap to add them to this window.',
+      );
+      return;
+    }
+    if (draft.days.length === 0) {
+      Alert.alert('Select at least one day');
+      return;
+    }
+    // When editing: if the user shortened the block window (weakens protection),
+    // require the defense password before committing.
+    if (editIndex !== null && originalWindow && requireDefensePin) {
+      const origDuration = windowDurationMinutes(originalWindow);
+      const newDuration = windowDurationMinutes(draft);
+      if (newDuration < origDuration) {
+        requireDefensePin(
+          'Shorten Block Window',
+          'You\'re decreasing the block duration. Enter your defense password to confirm.',
+          doCommitDraft,
+        );
+        return;
+      }
+    }
+    doCommitDraft();
+  };
+
   const deleteWindow = (idx: number) => {
-    const w = localWindows[idx];
-    const label = windowDisplayLabel(w);
-    Alert.alert('Remove Window', `Remove block window for ${label}?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: () => setLocalWindows((prev) => prev.filter((_, i) => i !== idx)),
-      },
-    ]);
+    // Frozen during standalone — same pattern as System Protection, YT Shorts, etc.
+    if (standaloneActive) {
+      Alert.alert(
+        'Block is Active',
+        'Cannot delete a block window while a standalone block is active.',
+      );
+      return;
+    }
+    const doDelete = () => {
+      const w = localWindows[idx];
+      const label = windowDisplayLabel(w);
+      Alert.alert('Remove Window', `Remove block window for ${label}?`, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => setLocalWindows((prev) => prev.filter((_, i) => i !== idx)),
+        },
+      ]);
+    };
+    if (requireDefensePin) {
+      requireDefensePin(
+        'Delete Block Window',
+        'Enter your defense password to delete this block window.',
+        doDelete,
+      );
+    } else {
+      doDelete();
+    }
   };
 
   const handleSave = async () => {
@@ -319,8 +393,15 @@ export function GreyoutScheduleModal({ visible, windows, onSave, onClose }: Prop
                         </View>
                         <Ionicons name="create-outline" size={18} color={theme.muted} style={{ marginRight: 8 }} />
                       </TouchableOpacity>
-                      <TouchableOpacity onPress={() => deleteWindow(idx)} style={styles.deleteBtn}>
-                        <Ionicons name="trash-outline" size={18} color={COLORS.red} />
+                      <TouchableOpacity
+                        onPress={() => deleteWindow(idx)}
+                        style={[styles.deleteBtn, standaloneActive && { opacity: 0.38 }]}
+                      >
+                        {standaloneActive ? (
+                          <Ionicons name="lock-closed-outline" size={16} color={theme.muted} />
+                        ) : (
+                          <Ionicons name="trash-outline" size={18} color={COLORS.red} />
+                        )}
                       </TouchableOpacity>
                     </View>
                   );
@@ -503,6 +584,16 @@ export function GreyoutScheduleModal({ visible, windows, onSave, onClose }: Prop
                   pad
                 />
               </View>
+
+              {/* Time protection hint — only shown when editing with defense PIN active */}
+              {editIndex !== null && requireDefensePin && (
+                <View style={[styles.hintBanner, { backgroundColor: COLORS.primary + '14', borderColor: COLORS.primary + '40' }]}>
+                  <Ionicons name="information-circle-outline" size={15} color={COLORS.primary} />
+                  <Text style={[styles.hintText, { color: COLORS.primary }]}>
+                    {'Tap ▲ to increase time — no password needed. Decreasing the window will ask for your Defense Password when you tap "Update Window".'}
+                  </Text>
+                </View>
+              )}
 
               {/* Days */}
               <Text style={[styles.formLabel, { color: theme.muted }]}>ACTIVE DAYS</Text>
@@ -800,4 +891,20 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md,
   },
   confirmAddText: { color: '#fff', fontSize: FONT.sm, fontWeight: '700' },
+
+  hintBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.xs,
+    padding: SPACING.sm,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.xs,
+  },
+  hintText: {
+    flex: 1,
+    fontSize: FONT.xs,
+    lineHeight: 17,
+  },
 });

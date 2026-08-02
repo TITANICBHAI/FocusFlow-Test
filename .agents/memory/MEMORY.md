@@ -1,0 +1,1 @@
+- [User preferences](user-prefs.md) — do not launch subagents (explore or otherwise); work directly.

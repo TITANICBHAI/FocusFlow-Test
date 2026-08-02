@@ -804,6 +804,8 @@ function SettingsScreen() {
         windows={settings.greyoutSchedule ?? []}
         onSave={async (windows: GreyoutWindow[]) => { await update({ greyoutSchedule: windows }); }}
         onClose={() => setGreyoutModalVisible(false)}
+        standaloneActive={standaloneActive}
+        requireDefensePin={withDefensePin}
       />
 
       <OverlayAppearanceModal

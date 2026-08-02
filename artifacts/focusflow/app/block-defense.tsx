@@ -786,6 +786,8 @@ export default function BlockDefenseScreen() {
         windows={settings.greyoutSchedule ?? []}
         onSave={async (windows: GreyoutWindow[]) => { await update({ greyoutSchedule: windows }); }}
         onClose={() => setGreyoutModalVisible(false)}
+        standaloneActive={standaloneActive}
+        requireDefensePin={requireDefensePin}
       />
 
       <PinVerifyModal
