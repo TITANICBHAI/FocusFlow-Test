@@ -338,8 +338,10 @@ function FocusScreen() {
     const alwaysOnActive = alwaysOnHasList && enforcementOn;
     const autoCopyOn = settings.autoCopyToAlwaysOn ?? false;
     const withDefensePin = (action: () => void) => {
-      // Always check the hash first — if a PIN is configured it must be
-      // entered regardless of the pinProtectionEnabled toggle state.
+      if (!settings.pinProtectionEnabled) {
+        action();
+        return;
+      }
       SharedPrefsModule.getString('defense_pin_hash')
         .then((hash) => {
           if (hash) {
