@@ -127,8 +127,13 @@ class VpnWatchdogReceiver : BroadcastReceiver() {
             }
         }
 
-        if (!focusActive && !saActive) {
-            // Session has ended — cancel the alarm so it stops firing
+        // Also keep the watchdog alive when always-on VPN packages are configured.
+        // net_block_packages is persisted by NetworkBlockerVpnService.startVpn() and
+        // reflects the last active package list, so it serves as the always-on indicator.
+        val alwaysOnPkgs    = prefs.getString("net_block_packages", "[]") ?: "[]"
+        val hasAlwaysOnPkgs = try { org.json.JSONArray(alwaysOnPkgs).length() > 0 } catch (_: Exception) { false }
+        if (!focusActive && !saActive && !hasAlwaysOnPkgs) {
+            // No active session and no always-on packages — cancel the alarm
             cancel(context)
             return
         }

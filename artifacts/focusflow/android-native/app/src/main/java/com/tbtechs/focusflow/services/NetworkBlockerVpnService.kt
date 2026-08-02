@@ -77,6 +77,10 @@ class NetworkBlockerVpnService : VpnService() {
         private const val NOTIFICATION_ID = 1002
         private const val PREFS_NAME      = "focusday_prefs"
 
+        /** Separate high-importance channel for the VPN-revoked alert. */
+        private const val ALERT_CHANNEL_ID     = "focusday_vpn_alert"
+        private const val VPN_REVOKED_NOTIF_ID = 1003
+
         /**
          * These packages are ALWAYS excluded from VPN routing so that
          * emergency calls, SMS, and the Android OS itself remain reachable.
@@ -125,8 +129,12 @@ class NetworkBlockerVpnService : VpnService() {
                 val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 val focusActive = prefs.getBoolean("focus_active", false)
                 val saActive    = prefs.getBoolean("standalone_block_active", false)
-                if (focusActive || saActive) {
-                    val pkgs = prefs.getString("net_block_packages", "[]") ?: "[]"
+                val pkgs        = prefs.getString("net_block_packages", "[]") ?: "[]"
+                // Also restore when always-on VPN packages are configured. net_block_packages
+                // is persisted by startVpn() on every successful tunnel start, so it survives
+                // process kills and device reboots and reflects the last active package list.
+                val hasAlwaysOnPkgs = try { JSONArray(pkgs).length() > 0 } catch (_: Exception) { false }
+                if (focusActive || saActive || hasAlwaysOnPkgs) {
                     val mode = prefs.getString("net_block_mode", MODE_PER_APP) ?: MODE_PER_APP
                     startVpn(pkgs, mode)
                 } else {
@@ -173,17 +181,23 @@ class NetworkBlockerVpnService : VpnService() {
 
         stopVpn()   // close the TUN fd first
 
-        // Signal to the JS layer that VPN permission was lost.
-        // This flag is read by NetworkBlockModule.isVpnPermissionGranted() and
-        // used to surface the re-grant prompt in the UI. The flag is cleared
-        // by startVpn() if a subsequent restart succeeds.
-        if (focusOn || saOn) {
+        // Determine whether always-on packages are configured. Computed here so both
+        // the permission-lost flag and the self-heal block can use the same value.
+        val revokePkgs      = prefs.getString("net_block_packages", "[]") ?: "[]"
+        val hasAlwaysOnPkgs = try { JSONArray(revokePkgs).length() > 0 } catch (_: Exception) { false }
+
+        // Signal to the JS layer that VPN permission was lost so the in-app banner
+        // can prompt a re-grant. Also fire a system notification so the user is
+        // alerted even when the app is backgrounded or the screen is off.
+        // The flag is cleared by startVpn() on a successful subsequent restart.
+        if (focusOn || saOn || hasAlwaysOnPkgs) {
             prefs.edit().putBoolean("vpn_permission_lost", true).apply()
+            postVpnRevokedNotification()
         }
 
-        if (selfHeal && (focusOn || saOn)) {
+        if (selfHeal && (focusOn || saOn || hasAlwaysOnPkgs)) {
             val ctx  = applicationContext
-            val pkgs = prefs.getString("net_block_packages", "[]") ?: "[]"
+            val pkgs = revokePkgs
             val mode = prefs.getString("net_block_mode", MODE_PER_APP) ?: MODE_PER_APP
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
@@ -310,6 +324,54 @@ class NetworkBlockerVpnService : VpnService() {
     }
 
     // ─── Notification ─────────────────────────────────────────────────────────
+
+    /**
+     * Posts a high-priority heads-up notification when Android revokes the VPN
+     * permission. This fires even when the app is fully backgrounded or the screen
+     * is off, ensuring the user knows network blocking has stopped.
+     * Tapping the notification opens MainActivity where [VpnPermissionLostBanner]
+     * guides them through the re-grant flow.
+     * The notification is auto-cancelled on tap and dismissed automatically if the
+     * VPN restarts successfully (startVpn clears the vpn_permission_lost flag and
+     * the banner disappears; the stale notification is harmless but unobtrusive).
+     */
+    private fun postVpnRevokedNotification() {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (nm.getNotificationChannel(ALERT_CHANNEL_ID) == null) {
+                val ch = NotificationChannel(
+                    ALERT_CHANNEL_ID,
+                    "VPN Protection Alerts",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Alerts when Android revokes FocusFlow's VPN permission"
+                    enableVibration(true)
+                }
+                nm.createNotificationChannel(ch)
+            }
+        }
+        val tapPending = PendingIntent.getActivity(
+            this,
+            VPN_REVOKED_NOTIF_ID,
+            Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle("VPN protection interrupted")
+            .setContentText("Tap to re-grant VPN permission and resume network blocking.")
+            .setStyle(
+                NotificationCompat.BigTextStyle()
+                    .bigText("Android revoked FocusFlow's VPN permission. Network blocking is paused. Tap to open the app and re-grant access.")
+            )
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(tapPending)
+            .setAutoCancel(true)
+            .build()
+        nm.notify(VPN_REVOKED_NOTIF_ID, notification)
+    }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

@@ -1023,8 +1023,52 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             return
         }
 
-        // If neither session nor always-on enforcement is active, nothing to enforce.
+        // ── Session-independent daily allowance enforcement ───────────────────
+        // When no blocking session (focus / standalone / always-on) is active,
+        // we still need to:
+        //   1. TRACK opens toward the daily limit — without this, all opens that
+        //      happen outside a session go unrecorded, so the limit is never hit
+        //      even if the user opened the app a dozen times before a session starts.
+        //   2. BLOCK the app once the allowance is exhausted — without this, an
+        //      app whose limit was used up inside a session opens freely the moment
+        //      the session ends, making the allowance ineffective.
+        //
+        // This block runs BEFORE the session guard below so both behaviours work
+        // regardless of whether a blocking session is active.
         if (!focusActive && !saActive && !alwaysBlockActive) {
+            val allowanceEntry = findAllowanceEntry(pkg)
+            if (allowanceEntry != null) {
+                if (!isAllowanceAvailable(pkg, allowanceEntry)) {
+                    // Allowance exhausted — block even with no session running.
+                    val samePackage    = pkg == lastBlockedPkg
+                    val cooldownExpired = (now - lastBlockedAtMs) > 2_000L
+                    if (!samePackage || cooldownExpired) {
+                        lastBlockedPkg  = pkg
+                        lastBlockedAtMs = now
+                        handleBlockedApp(pkg)
+                        scheduleRetryCheck(pkg, 1, false, false, false)
+                    }
+                    return
+                }
+                // Still within quota — record this open toward the daily limit.
+                // The currentTimedPkg != pkg guard prevents double-recording when
+                // Android fires multiple accessibility events for the same foreground
+                // instance (same behaviour as the in-session block below).
+                if (currentTimedPkg != pkg) {
+                    val sessionEndMs = recordAllowanceOpen(pkg, allowanceEntry)
+                    currentTimedPkg        = pkg
+                    currentTimedOpenAtMs   = System.currentTimeMillis()
+                    if (allowanceEntry.mode != "count" && sessionEndMs > 0L) {
+                        currentTimedSessionEndMs = sessionEndMs
+                        scheduleTimedExpiry(pkg, sessionEndMs)
+                    } else {
+                        currentTimedSessionEndMs = 0L
+                        timedExpireRunnable?.let { handler.removeCallbacks(it) }
+                        timedExpireRunnable = null
+                    }
+                }
+            }
+            // No session and no exhausted allowance — nothing to enforce.
             lastBlockedPkg = null
             return
         }
@@ -1172,7 +1216,11 @@ class AppBlockerAccessibilityService : AccessibilityService() {
                 untilMs <= 0L || now < untilMs
             }
         }
-        if (!focusActive && !saActive) return
+        // Also heal when always-on VPN packages are configured — the VPN must stay
+        // alive 24/7 even when no timed focus or standalone session is active.
+        val alwaysOnPkgs = prefs.getString("net_block_packages", "[]") ?: "[]"
+        val hasAlwaysOnPkgs = try { org.json.JSONArray(alwaysOnPkgs).length() > 0 } catch (_: Exception) { false }
+        if (!focusActive && !saActive && !hasAlwaysOnPkgs) return
 
         // Bail out if VPN permission was revoked — cannot restart silently.
         // Write the permission-lost flag so the JS layer can show a re-grant prompt.
@@ -2269,7 +2317,12 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         val global = prefs.getBoolean("net_block_global", false)
         val mode   = if (global) NetworkBlockerVpnService.MODE_GLOBAL
                      else        NetworkBlockerVpnService.MODE_PER_APP
-        val pkgs   = JSONArray().apply { put(blockedPackage) }.toString()
+        // Use the full configured VPN package list so all network-blocked apps lose
+        // connectivity simultaneously. Without this, once the VPN starts for the first
+        // blocked app detected, every subsequent blocked app still has network access
+        // because triggerNetworkBlock() exits early on isRunning == true.
+        val pkgs = vpnSelectedJson.takeIf { it != "[]" && it != "null" && it.isNotBlank() }
+                   ?: JSONArray().apply { put(blockedPackage) }.toString()
 
         try {
             val intent = Intent(this, NetworkBlockerVpnService::class.java).apply {
