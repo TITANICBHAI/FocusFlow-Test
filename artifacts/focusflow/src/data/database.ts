@@ -65,6 +65,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   alwaysOnEnforcementEnabled: false,
   lastShownStreakMilestone: 0,
   vpnBlockEnabled: false,
+  vpnSelfHealEnabled: true,
   standaloneVpnPackages: [],
   launcherEnabled: false,
   launcherHiddenPackages: [],
@@ -628,8 +629,12 @@ function rowToTask(row: Record<string, unknown>): Task {
     startTime: row.start_time as string,
     endTime: row.end_time as string,
     durationMinutes: row.duration_minutes as number,
-    status: row.status as Task['status'],
-    priority: row.priority as Task['priority'],
+    status: (['scheduled', 'active', 'completed', 'skipped', 'overdue'].includes(row.status as string)
+      ? row.status as Task['status']
+      : 'scheduled'),
+    priority: (['low', 'medium', 'high', 'critical'].includes(row.priority as string)
+      ? row.priority as Task['priority']
+      : 'medium'),
     // Individual try/catch via safeJsonParse — a single malformed row
     // no longer throws through the whole rows.map() and wipes today's tasks.
     tags: safeJsonParse<string[]>(row.tags, []),

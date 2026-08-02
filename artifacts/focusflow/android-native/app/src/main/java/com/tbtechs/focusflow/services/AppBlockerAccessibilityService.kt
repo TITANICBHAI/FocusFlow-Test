@@ -273,8 +273,6 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             "com.nokia.phone",
             // HTC
             "com.htc.phone",
-            // ZTE / Blade
-            "com.android.contacts",                    // default contacts (dialer link)
             // ── WhatsApp (messaging / calls) ─────────────────────────────────
             "com.whatsapp",
             "com.whatsapp.w4b",                        // WhatsApp Business
@@ -291,8 +289,6 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             "com.android.deskclock",
             "com.google.android.deskclock",
         )
-
-        val ALWAYS_BLOCKED: Set<String> = emptySet()
 
         /**
          * Package names for Android system package installers and uninstallers across OEMs.

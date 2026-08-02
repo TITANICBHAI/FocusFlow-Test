@@ -37,10 +37,6 @@ export async function startFocusMode(
 
   if (focusActive) await stopFocusMode();
 
-  focusActive = true;
-  currentTask = task;
-  onFocusViolation = onViolation ?? null;
-
   const session: FocusSession = {
     taskId: task.id,
     startedAt: new Date().toISOString(),
@@ -48,7 +44,14 @@ export async function startFocusMode(
     allowedPackages: allowedExtras,
   };
 
+  // Write the session row before mutating JS state so that if the DB write
+  // fails the in-memory flag stays false and the session is not left in an
+  // unrecoverable state after a reboot (no DB row to restore from).
   await dbStartFocusSession(session);
+
+  focusActive = true;
+  currentTask = task;
+  onFocusViolation = onViolation ?? null;
 
   const nextTask = getUpcomingTask(allTasks.length > 1 ? allTasks : [task]);
   const startMs = new Date(task.startTime).getTime();
