@@ -62,6 +62,21 @@ export default function AlwaysOnScreen() {
 
   // Track the original selection at mount time to detect removals
   const originalPkgsRef = useRef<Set<string>>(new Set(settings.alwaysOnPackages ?? []));
+  // Pending action to run after defense PIN is verified
+  const pendingPinAction = useRef<(() => void) | null>(null);
+
+  const withDefensePin = useCallback((action: () => void) => {
+    SharedPrefsModule.getString('defense_pin_hash')
+      .then((hash) => {
+        if (hash) {
+          pendingPinAction.current = action;
+          setPinVerifyVisible(true);
+        } else {
+          action();
+        }
+      })
+      .catch(() => action());
+  }, []);
 
   useEffect(() => {
     InstalledAppsModule.getInstalledApps()
@@ -125,41 +140,35 @@ export default function AlwaysOnScreen() {
     }
   }, [selected, vpnSelected, settings, updateSettings]);
 
-  const handleSave = async () => {
-    // Detect if any originally-present packages are being removed
+  const handleSave = () => {
     const originalPkgs = originalPkgsRef.current;
     const isRemoving = [...originalPkgs].some((pkg) => !selected.has(pkg));
-
     if (isRemoving) {
-      try {
-        const hash = await SharedPrefsModule.getString('defense_pin_hash');
-        if (hash) {
-          setPinVerifyVisible(true);
-          return;
-        }
-      } catch {}
+      withDefensePin(() => void doSave());
+      return;
     }
-
-    await doSave();
+    void doSave();
   };
 
   const handleClearAll = () => {
     if (selected.size === 0) return;
-    Alert.alert(
-      'Clear all?',
-      'This removes all apps from the always-on enforcement list. They will no longer be blocked.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear all',
-          style: 'destructive',
-          onPress: () => {
-            setSelected(new Set());
-            setVpnSelected(new Set());
+    withDefensePin(() => {
+      Alert.alert(
+        'Clear all?',
+        'This removes all apps from the always-on enforcement list. They will no longer be blocked.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Clear all',
+            style: 'destructive',
+            onPress: () => {
+              setSelected(new Set());
+              setVpnSelected(new Set());
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    });
   };
 
   const renderItem = ({ item }: { item: InstalledApp }) => {
@@ -335,7 +344,8 @@ export default function AlwaysOnScreen() {
         description="You are removing apps from the always-on block list. Enter your defense password to confirm."
         onVerified={() => {
           setPinVerifyVisible(false);
-          void doSave();
+          pendingPinAction.current?.();
+          pendingPinAction.current = null;
         }}
         onCancel={() => setPinVerifyVisible(false)}
       />

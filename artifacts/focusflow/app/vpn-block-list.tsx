@@ -56,6 +56,20 @@ export default function VpnBlockListScreen() {
   const [pinVerifyVisible, setPinVerifyVisible] = useState(false);
 
   const originalPkgsRef = useRef<Set<string>>(new Set(settings.alwaysOnVpnPackages ?? []));
+  const pendingPinAction = useRef<(() => void) | null>(null);
+
+  const withDefensePin = useCallback((action: () => void) => {
+    SharedPrefsModule.getString('defense_pin_hash')
+      .then((hash) => {
+        if (hash) {
+          pendingPinAction.current = action;
+          setPinVerifyVisible(true);
+        } else {
+          action();
+        }
+      })
+      .catch(() => action());
+  }, []);
 
   useEffect(() => {
     InstalledAppsModule.getInstalledApps()
@@ -99,37 +113,32 @@ export default function VpnBlockListScreen() {
     }
   }, [selected, settings, updateSettings]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     const originalPkgs = originalPkgsRef.current;
     const isRemoving = [...originalPkgs].some((pkg) => !selected.has(pkg));
-
     if (isRemoving) {
-      try {
-        const hash = await SharedPrefsModule.getString('defense_pin_hash');
-        if (hash) {
-          setPinVerifyVisible(true);
-          return;
-        }
-      } catch {}
+      withDefensePin(() => void doSave());
+      return;
     }
-
-    await doSave();
+    void doSave();
   };
 
   const handleClearAll = () => {
     if (selected.size === 0) return;
-    Alert.alert(
-      'Clear VPN block list?',
-      'This removes all apps from network blocking. Their internet access will no longer be restricted.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear all',
-          style: 'destructive',
-          onPress: () => setSelected(new Set()),
-        },
-      ]
-    );
+    withDefensePin(() => {
+      Alert.alert(
+        'Clear VPN block list?',
+        'This removes all apps from network blocking. Their internet access will no longer be restricted.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Clear all',
+            style: 'destructive',
+            onPress: () => setSelected(new Set()),
+          },
+        ]
+      );
+    });
   };
 
   const renderItem = ({ item }: { item: InstalledApp }) => {
@@ -282,7 +291,8 @@ export default function VpnBlockListScreen() {
         description="You are removing apps from the VPN block list. Enter your defense password to confirm."
         onVerified={() => {
           setPinVerifyVisible(false);
-          void doSave();
+          pendingPinAction.current?.();
+          pendingPinAction.current = null;
         }}
         onCancel={() => setPinVerifyVisible(false)}
       />
