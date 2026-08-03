@@ -17,7 +17,7 @@ if [ -z "$GITHUB_PERSONAL_ACCESS_TOKEN" ]; then
   exit 1
 fi
 
-REPO="https://${GITHUB_PERSONAL_ACCESS_TOKEN}@github.com/TITANICBHAI/FocusFlow-jvm.git"
+REPO="https://${GITHUB_PERSONAL_ACCESS_TOKEN}@github.com/TITANICBHAI/FocusFlow-Test.git"
 
 # Stage and commit any pending changes
 export GIT_AUTHOR_NAME="FocusFlow Bot"
