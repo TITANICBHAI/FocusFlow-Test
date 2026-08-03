@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FocusFlow — Deep Focus App Blocker for Windows | TBTechs</title>
+  <meta name="description" content="Block distracting apps, lock your Windows desktop with Focus Launcher kiosk mode, and stop website procrastination. Free on the Microsoft Store." />
+  <meta name="keywords" content="focus app Windows, app blocker Windows, distraction blocker, pomodoro Windows, deep work, nuclear mode, focus launcher, website blocker Windows, screen time Windows, productivity app Windows, ADHD focus tool, unbypassable app blocker, strict focus app, hard lock screen screen time, force close distracting apps, free Windows store productivity apps, no account productivity tool, " />
+  <meta name="author" content="TBTechs" />
+    <meta name="google-site-verification" content="sou-98cZYPWFJmbwxJgJptO-ZaIPNJqz2ven_iS4NjI" />
+  <meta name="msvalidate.01" content="FC2887EF2F94BFFE090CAB25A456AE86" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://focusflowpc.pages.dev/" />
+
+  <link rel="alternate" hreflang="en" href="https://focusflowpc.pages.dev/" />
+  <link rel="alternate" hreflang="es" href="https://focusflowpc.pages.dev/es/" />
+  <link rel="alternate" hreflang="fr" href="https://focusflowpc.pages.dev/fr/" />
+  <link rel="alternate" hreflang="de" href="https://focusflowpc.pages.dev/de/" />
+  <link rel="alternate" hreflang="ja" href="https://focusflowpc.pages.dev/ja/" />
+  <link rel="alternate" hreflang="zh" href="https://focusflowpc.pages.dev/zh/" />
+  <link rel="alternate" hreflang="ko" href="https://focusflowpc.pages.dev/ko/" />
+  <link rel="alternate" hreflang="x-default" href="https://focusflowpc.pages.dev/" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:locale:alternate" content="de_DE" />
+  <meta property="og:locale:alternate" content="es_ES" />
+  <meta property="og:locale:alternate" content="fr_FR" />
+  <meta property="og:locale:alternate" content="ja_JP" />
+  <meta property="og:locale:alternate" content="zh_CN" />
+  <meta property="og:locale:alternate" content="ko_KR" />
+  <meta property="og:title" content="FocusFlow — Deep Focus App Blocker for Windows" />
+  <meta property="og:description" content="Block distracting apps, lock your desktop with Focus Launcher, and enforce deep work sessions. Real Win32 enforcement — no soft timers, no workarounds. Free on the Microsoft Store." />
+  <meta property="og:url" content="https://focusflowpc.pages.dev/" />
+  <meta property="og:site_name" content="FocusFlow by TBTechs" />
+  <meta property="og:image" content="https://focusflowpc.pages.dev/assets/focusflow-app-icon.jpeg" />
+  <meta property="og:image:width" content="1024" />
+  <meta property="og:image:height" content="1024" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="FocusFlow — Deep Focus App Blocker for Windows" />
+  <meta name="twitter:description" content="Real app blocking for Windows. Kills processes, locks the desktop, blocks websites. No soft timers." />
+  <meta name="twitter:image" content="https://focusflowpc.pages.dev/assets/focusflow-app-icon.jpeg" />
+
+  <link rel="icon" href="https://focusflowpc.pages.dev/assets/focusflow-icon.png" type="image/png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "FocusFlow",
+    "operatingSystem": "Windows 10, Windows 11",
+    "applicationCategory": "ProductivityApplication",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "description": "FocusFlow is a free Windows productivity app that enforces deep focus sessions by killing distracting processes via Win32 APIs, locking the desktop in kiosk mode, and blocking websites at the hosts-file level.",
+    "author": { "@type": "Organization", "name": "TBTechs", "url": "https://titanicbhai.github.io" },
+    "url": "https://focusflowpc.pages.dev/",
+    "downloadUrl": "https://github.com/TITANICBHAI/FocusFlow-jvm/releases",
+    "softwareVersion": "1.0.6",
+    "inLanguage": ["en","es","fr","de","ja","zh","ko"]
+  }
+  </script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Is FocusFlow free?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes — completely free on the Microsoft Store. No subscriptions, no in-app purchases, no account required."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does FocusFlow work on Windows 11?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. FocusFlow is fully compatible with Windows 10 and Windows 11."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is Focus Launcher?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Focus Launcher is FocusFlow's kiosk mode. It locks your entire Windows desktop to only the apps you choose, hides the taskbar, and blocks all other processes until your session ends."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does FocusFlow block apps?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "FocusFlow uses Win32 APIs to terminate blocked processes in real time. It kills the actual process — there is no soft timer and no way around it."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I get my taskbar back if something goes wrong?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. FocusFlow has three independent recovery layers: a startup restore, a JVM shutdown hook, and a global crash handler — your taskbar is always restored."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does FocusFlow block websites?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. FocusFlow blocks websites at the Windows hosts file level, which works in every browser simultaneously without requiring any extension."
+      }
+    }
+  ]
+}
+  </script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0b0f; --surface: #111318; --surface2: #181b22; --surface3: #1e212b;
+      --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.12);
+      --purple: #7c4dff; --purple-light: #a78bfa; --purple-glow: rgba(124,77,255,0.25);
+      --cyan: #4fc3f7; --cyan-glow: rgba(79,195,247,0.2);
+      --text: #f1f5f9; --muted: #94a3b8; --muted2: #64748b; --radius: 14px;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
+
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 2rem; background: rgba(10,11,15,0.9); backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-brand { display: flex; align-items: center; gap: 0.75rem; font-weight: 700; font-size: 1.05rem; color: var(--text); text-decoration: none; }
+    .nav-logo { width: 28px; height: 28px; border-radius: 6px; }
+    .nav-links { display: flex; align-items: center; gap: 1.75rem; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.875rem; font-weight: 500; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-right { display: flex; align-items: center; gap: 0.75rem; }
+    .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.25rem; border-radius: 8px; font-size: 0.875rem; font-weight: 600; text-decoration: none; cursor: pointer; border: none; transition: all 0.2s; white-space: nowrap; }
+    .btn-primary { background: var(--purple); color: #fff; box-shadow: 0 0 24px var(--purple-glow); }
+    .btn-primary:hover { background: #6c3fff; transform: translateY(-1px); box-shadow: 0 0 32px var(--purple-glow); }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--text); border-color: var(--border2); }
+    .btn-store { background: #0078d4; color: #fff; box-shadow: 0 0 20px rgba(0,120,212,0.3); }
+    .btn-store:hover { background: #106ebe; transform: translateY(-1px); }
+
+    .lang-switcher { position: relative; }
+    .lang-btn { display: flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.85rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+    .lang-btn:hover, .lang-switcher.open .lang-btn { color: var(--text); border-color: var(--border2); }
+    .lang-menu { position: absolute; top: calc(100% + 8px); right: 0; background: var(--surface); border: 1px solid var(--border2); border-radius: 10px; padding: 0.4rem; min-width: 160px; display: none; z-index: 200; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+    .lang-switcher.open .lang-menu { display: block; }
+    .lang-menu a { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; border-radius: 6px; color: var(--muted); text-decoration: none; font-size: 0.82rem; font-weight: 500; transition: all 0.15s; }
+    .lang-menu a:hover { background: var(--surface2); color: var(--text); }
+    .lang-menu a.active { color: var(--purple-light); background: rgba(124,77,255,0.08); }
+
+    .hero {
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center;
+      padding: 8rem 2rem 5rem; position: relative; overflow: hidden;
+    }
+    .hero-glow {
+      position: absolute; top: 35%; left: 50%; transform: translate(-50%,-50%);
+      width: 800px; height: 600px; border-radius: 50%; pointer-events: none;
+      background: radial-gradient(ellipse, rgba(124,77,255,0.08) 0%, rgba(79,195,247,0.04) 40%, transparent 70%);
+    }
+    .badges { display: flex; justify-content: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.75rem; }
+    .badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.85rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; }
+    .badge-purple { border: 1px solid rgba(124,77,255,0.35); background: rgba(124,77,255,0.1); color: var(--purple-light); }
+    .badge-cyan { border: 1px solid rgba(79,195,247,0.3); background: rgba(79,195,247,0.08); color: var(--cyan); }
+    .badge-grey { border: 1px solid var(--border); background: rgba(255,255,255,0.04); color: var(--muted); }
+    .badge-android { border: 1px solid rgba(52,211,153,0.4); background: rgba(52,211,153,0.08); color: #34d399; text-decoration: none; transition: all 0.2s; }
+    .badge-android:hover { background: rgba(52,211,153,0.2); border-color: rgba(52,211,153,0.7); }
+    h1 { font-size: clamp(2.6rem,6.5vw,4.75rem); font-weight: 800; line-height: 1.08; letter-spacing: -0.035em; margin-bottom: 1.25rem; }
+    h1 .line-purple { color: var(--purple-light); }
+    h1 .line-cyan { color: var(--cyan); }
+    .hero-sub { font-size: clamp(1rem,2vw,1.15rem); color: var(--muted); max-width: 580px; margin: 0 auto 2.75rem; line-height: 1.7; }
+    .hero-cta { display: flex; gap: 0.875rem; flex-wrap: wrap; justify-content: center; }
+
+    .section { padding: 5.5rem 2rem; max-width: 1100px; margin: 0 auto; }
+    .section-label { font-size: 0.73rem; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: var(--purple-light); margin-bottom: 0.75rem; }
+    .section-title { font-size: clamp(1.8rem,4vw,2.6rem); font-weight: 800; letter-spacing: -0.025em; margin-bottom: 1rem; }
+    .section-desc { color: var(--muted); font-size: 1rem; max-width: 560px; line-height: 1.7; }
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px,1fr)); gap: 1.25rem; margin-top: 3rem; }
+    .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px,1fr)); gap: 1.25rem; margin-top: 3rem; }
+    .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 1rem; margin-top: 3rem; }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; transition: border-color 0.25s, transform 0.25s; }
+    .card:hover { border-color: rgba(124,77,255,0.3); transform: translateY(-3px); }
+    .card-featured { background: linear-gradient(135deg, rgba(124,77,255,0.08) 0%, rgba(79,195,247,0.04) 100%); border-color: rgba(124,77,255,0.2); }
+    .card-featured:hover { border-color: rgba(124,77,255,0.45); }
+    .card-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 1.1rem; }
+    .icon-purple { background: rgba(124,77,255,0.12); border: 1px solid rgba(124,77,255,0.25); color: var(--purple-light); }
+    .icon-cyan { background: rgba(79,195,247,0.1); border: 1px solid rgba(79,195,247,0.2); color: var(--cyan); }
+    .icon-grey { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--muted); }
+    .card h3 { font-size: 1.02rem; font-weight: 700; margin-bottom: 0.55rem; }
+    .card p { font-size: 0.875rem; color: var(--muted); line-height: 1.7; }
+    .card-tag { display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.15rem 0.55rem; border-radius: 4px; background: rgba(124,77,255,0.15); color: var(--purple-light); margin-bottom: 0.75rem; }
+
+    .feature-list { list-style: none; margin: 1rem 0 0; display: flex; flex-direction: column; gap: 0.5rem; }
+    .feature-list li { display: flex; align-items: flex-start; gap: 0.6rem; font-size: 0.875rem; color: var(--muted); }
+    .feature-list li::before { content: '✓'; color: var(--purple-light); font-weight: 700; flex-shrink: 0; margin-top: 0.05rem; }
+
+    .stack-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 2rem; }
+    .tag { font-family: 'JetBrains Mono', monospace; font-size: 0.73rem; font-weight: 500; padding: 0.3rem 0.7rem; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); }
+
+    .stat-row { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 3rem; }
+    .stat-box { flex: 1; min-width: 160px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; text-align: center; }
+    .stat-num { font-size: 2rem; font-weight: 800; color: var(--purple-light); letter-spacing: -0.03em; }
+    .stat-label { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+
+    .divider { height: 1px; background: var(--border); max-width: 1100px; margin: 0 auto; }
+
+    .cta-section { padding: 5.5rem 2rem; text-align: center; }
+    .cta-box { max-width: 640px; margin: 0 auto; background: var(--surface); border: 1px solid rgba(124,77,255,0.2); border-radius: 22px; padding: 3.5rem 2.5rem; position: relative; overflow: hidden; }
+    .cta-box::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 220px; height: 1px; background: linear-gradient(90deg, transparent, var(--purple), transparent); }
+    .cta-box::after { content: ''; position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); width: 400px; height: 300px; border-radius: 50%; background: radial-gradient(ellipse, rgba(124,77,255,0.07) 0%, transparent 70%); pointer-events: none; }
+    .cta-box h2 { font-size: 2rem; font-weight: 800; margin-bottom: 0.75rem; letter-spacing: -0.025em; }
+    .cta-box p { color: var(--muted); margin-bottom: 2.25rem; font-size: 1rem; }
+    .cta-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+
+    footer { border-top: 1px solid var(--border); padding: 2.25rem 2rem; text-align: center; color: var(--muted2); font-size: 0.83rem; }
+    footer a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
+    footer a:hover { color: var(--text); }
+    .footer-links { display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+
+    @media (max-width: 640px) {
+      nav { padding: 0.9rem 1.25rem; }
+      .nav-links { display: none; }
+      .hero { padding: 7rem 1.25rem 4rem; }
+      .section { padding: 4rem 1.25rem; }
+    }
+
+    .faq-list { display:flex; flex-direction:column; gap:1rem; max-width:760px; margin:0 auto; }
+    .faq-item { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.25rem 1.5rem; }
+    .faq-q { font-weight:700; color:var(--text); margin-bottom:0.5rem; font-size:0.97rem; }
+    .faq-a { color:var(--muted); font-size:0.875rem; line-height:1.7; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="https://focusflowpc.pages.dev/" class="nav-brand">
+      <img src="https://focusflowpc.pages.dev/assets/focusflow-icon.png" alt="FocusFlow" class="nav-logo" />
+      FocusFlow
+    </a>
+    <div class="nav-links">
+      <a href="#launcher">Focus Launcher</a>
+      <a href="#blocking">Blocking</a>
+      <a href="#features">Features</a>
+      <a href="#stack">Stack</a>
+      <a href="/features/">Features</a>
+      <a href="/blog/">Blog</a>
+      <a href="https://github.com/TITANICBHAI/FocusFlow-jvm" target="_blank" rel="noopener">GitHub</a>
+    </div>
+    <div class="nav-right">
+      <div class="lang-switcher" id="langSwitcher">
+        <button class="lang-btn" onclick="document.getElementById('langSwitcher').classList.toggle('open')">🌐 EN ▾</button>
+        <div class="lang-menu">
+          <a href="https://focusflowpc.pages.dev/" class="active">🇺🇸 English</a>
+          <a href="https://focusflowpc.pages.dev/es/">🇪🇸 Español</a>
+          <a href="https://focusflowpc.pages.dev/fr/">🇫🇷 Français</a>
+          <a href="https://focusflowpc.pages.dev/de/">🇩🇪 Deutsch</a>
+          <a href="https://focusflowpc.pages.dev/ja/">🇯🇵 日本語</a>
+          <a href="https://focusflowpc.pages.dev/zh/">🇨🇳 中文</a>
+          <a href="https://focusflowpc.pages.dev/ko/">🇰🇷 한국어</a>
+        </div>
+      </div>
+      <a href="https://apps.microsoft.com/detail/9NJN9FPRQ7T1?cid=website" class="btn btn-store" target="_blank" rel="noopener">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M0 0h11.5v11.5H0V0zm12.5 0H24v11.5H12.5V0zM0 12.5h11.5V24H0V12.5zm12.5 0H24V24H12.5V12.5z"/></svg>
+        Microsoft Store
+      </a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="hero-glow"></div>
+    <div class="badges">
+      <div class="badge badge-purple">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm0 22C6.48 22 2 17.52 2 12S6.48 2 12 2s10 4.48 10 10-4.48 10-10 10z"/></svg>
+        Windows 10 / 11
+      </div>
+      <div class="badge badge-cyan">Focus Launcher — NEW</div>
+      <div class="badge badge-grey">Free on Microsoft Store</div>
+      <a href="https://focusflowapp.pages.dev" class="badge badge-android" target="_blank" rel="noopener">📱 Also on Android →</a>
+    </div>
+    <h1>
+      Real blocking.<br />
+      <span class="line-purple">Lock your desktop.</span><br />
+      <span class="line-cyan">Do deep work.</span>
+    </h1>
+    <p class="hero-sub">FocusFlow kills blocked processes via Win32, locks your Windows desktop into a distraction-free kiosk with Focus Launcher, and enforces focus sessions with a PIN gate. No soft timers. No workarounds. Real enforcement.</p>
+    <div class="hero-cta">
+      <a href="https://apps.microsoft.com/detail/9NJN9FPRQ7T1?cid=website" class="btn btn-store" target="_blank" rel="noopener">
+          <img src="https://get.microsoft.com/images/en-US%20dark.svg" alt="Get it from Microsoft" style="height:52px;" />
+        </a>
+      <a href="https://github.com/TITANICBHAI/FocusFlow-jvm" class="btn btn-ghost" target="_blank" rel="noopener">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        Source Code
+      </a>
+      <a href="https://github.com/TITANICBHAI/FocusFlow-jvm/releases" class="btn btn-ghost" target="_blank" rel="noopener">Download EXE</a>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <section class="section" id="launcher">
+    <div class="section-label">Focus Launcher</div>
+    <h2 class="section-title">Lock your entire desktop.<br />No escape without your PIN.</h2>
+    <p class="section-desc">Focus Launcher is a CBT-inspired kiosk mode that replaces your Windows desktop with a distraction-free workspace the moment a session begins.</p>
+    <div class="grid-2" style="margin-top: 3rem;">
+      <div class="card card-featured">
+        <div class="card-tag">New Feature</div>
+        <div class="card-icon icon-purple">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 3v18M3 9h18"/></svg>
+        </div>
+        <h3>Kiosk Desktop Mode</h3>
+        <p>Hides the Windows taskbar and activates Nuclear Mode the instant your session starts. No quick notifications check. No taskbar distractions. Just your work.</p>
+        <ul class="feature-list">
+          <li>Taskbar hidden for the entire session</li>
+          <li>Nuclear Mode auto-enabled at session start</li>
+          <li>Full-screen focus overlay covers the desktop</li>
+        </ul>
+      </div>
+      <div class="card card-featured">
+        <div class="card-tag">Commitment Device</div>
+        <div class="card-icon icon-cyan">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <h3>PIN-Gated Breaks</h3>
+        <p>Every break requires your session PIN. Hard Lock mode skips breaks entirely. This CBT-based friction between impulse and action is what makes the difference.</p>
+        <ul class="feature-list">
+          <li>5-minute PIN-gated breaks</li>
+          <li>Hard Lock mode — no breaks at all</li>
+          <li>SHA-256 PIN — cannot be bypassed</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-icon icon-purple">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h3>Crash-Safe Design</h3>
+        <p>Your taskbar is guaranteed to be restored even if FocusFlow crashes. Three independent safety layers fire on exit — a startup restore, a JVM shutdown hook, and a global crash handler.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon icon-grey">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 14.14 14.14"/></svg>
+        </div>
+        <h3>Safe Input Whitelist</h3>
+        <p>55+ system processes are always protected — keyboard drivers, OEM touchpad software, mouse peripherals, audio, UAC, and accessibility tools. FocusFlow never breaks your input devices.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <section class="section" id="blocking">
+    <div class="section-label">Real Enforcement</div>
+    <h2 class="section-title">Process killed. Firewall rule added.<br />Attempt logged.</h2>
+    <p class="section-desc">Every enforcement action fires immediately using two independent detection methods — no grace period, no warning dialog, no snooze button.</p>
+    <div class="grid-2" style="margin-top: 3rem;">
+      <div class="card">
+        <div class="card-icon icon-purple">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 6l10.5 7L22 6"/><rect x="1" y="4" width="22" height="16" rx="2"/></svg>
+        </div>
+        <h3>Instant Detection via WinEventHook</h3>
+        <p>A <code style="font-family:monospace;font-size:0.8rem;background:rgba(124,77,255,0.1);padding:0.1rem 0.35rem;border-radius:3px;color:var(--purple-light)">SetWinEventHook</code> fires the moment any blocked app comes to the foreground. A 500ms polling loop catches anything the hook misses, including UWP apps.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon icon-purple">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        <h3>Process Kill via Win32/JNA</h3>
+        <p><code style="font-family:monospace;font-size:0.8rem;background:rgba(124,77,255,0.1);padding:0.1rem 0.35rem;border-radius:3px;color:var(--purple-light)">ProcessHandle.destroyForcibly()</code> fires first. A <code style="font-family:monospace;font-size:0.8rem;background:rgba(124,77,255,0.1);padding:0.1rem 0.35rem;border-radius:3px;color:var(--purple-light)">taskkill /F /IM</code> fallback ensures the kill succeeds.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon icon-cyan">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h3>Windows Firewall Rules</h3>
+        <p>Network blocking adds a live outbound <code style="font-family:monospace;font-size:0.8rem;background:rgba(79,195,247,0.1);padding:0.1rem 0.35rem;border-radius:3px;color:var(--cyan)">netsh advfirewall</code> rule for the blocked app — enforced at the Windows firewall layer.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon icon-cyan">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </div>
+        <h3>Temptation Diary</h3>
+        <p>Every blocked attempt is written to a local SQLite database. Charts show your distraction patterns over time so you can understand and change your habits.</p>
+      </div>
+    </div>
+    <div class="grid-3" style="margin-top: 1.25rem;">
+      <div class="card">
+        <div class="card-icon icon-grey"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+        <h3>Website Blocker</h3>
+        <p>Blocks domains at the hosts-file level — works for every browser simultaneously. No extension needed.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon icon-grey"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+        <h3>Keyword Blocker</h3>
+        <p>Block any window whose title contains a keyword — catch social media tabs, news sites, and chat apps without listing every domain.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon icon-grey"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+        <h3>Nuclear Mode</h3>
+        <p>Maximum enforcement — blocks Task Manager, PowerShell, Run dialog, CMD, and 30+ other escape routes.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon icon-grey"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <h3>Block Schedules</h3>
+        <p>Set recurring time windows when apps are automatically blocked — e.g. social media blocked 9am–5pm every weekday.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon icon-grey"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
+        <h3>Daily Allowances</h3>
+        <p>Give any app a daily time budget — e.g. 30 minutes of YouTube per day. When the budget runs out, it's blocked for the rest of the day.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon icon-grey"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg></div>
+        <h3>Block Defense</h3>
+        <p>Configure how hard it is to disable your own blocking rules mid-session. Make it easy, require a PIN, or lock it until the session ends.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <section class="section" id="features">
+    <div class="section-label">Everything Else</div>
+    <h2 class="section-title">A complete productivity system,<br />not just a timer.</h2>
+    <p class="section-desc">Beyond blocking, FocusFlow gives you every tool you need to plan, track, and review your focused work.</p>
+    <div class="stat-row">
+      <div class="stat-box"><div class="stat-num">55+</div><div class="stat-label">Safe input processes whitelisted</div></div>
+      <div class="stat-box"><div class="stat-num">30+</div><div class="stat-label">Escape routes blocked in Nuclear Mode</div></div>
+      <div class="stat-box"><div class="stat-num">4</div><div class="stat-label">Independent crash recovery layers</div></div>
+      <div class="stat-box"><div class="stat-num">0</div><div class="stat-label">Data sent off your PC</div></div>
+    </div>
+    <div class="grid-3" style="margin-top: 3rem;">
+      <div class="card">
+        <div class="card-icon icon-purple"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <h3>Focus Sessions</h3>
+        <p>Pomodoro or custom length sessions with a session PIN, break enforcer, and sound aversion tones that fire every time you try to open a blocked app.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon icon-purple"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+        <h3>Stats &amp; Reports</h3>
+        <p>Focus streaks, session history, temptation log charts, and a weekly focus report automatically delivered every Sunday via Windows notification.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon icon-purple"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/><path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/><path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/><path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"/><path d="M14 14.5c0-.83.67-1.5 1.5-1.5h5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5z"/><path d="M15.5 19H14v1.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5-.67-1.5-1.5-1.5z"/><path d="M10 9.5C10 8.67 9.33 8 8.5 8h-5C2.67 8 2 8.67 2 9.5S2.67 11 3.5 11h5c.83 0 1.5-.67 1.5-1.5z"/><path d="M8.5 5H10V3.5C10 2.67 9.33 2 8.5 2S7 2.67 7 3.5 7.67 5 8.5 5z"/></svg></div>
+        <h3>Habit Tracker</h3>
+        <p>Build daily habits with a 7-day streak grid. Habits linked to your focus sessions so you see what disciplines drive your most productive days.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon icon-grey"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
+        <h3>Task Manager</h3>
+        <p>Full task CRUD with priorities, due dates, recurring rules (daily / weekday / weekly / monthly), and Windows alarm notifications.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon icon-grey"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+        <h3>Daily Notes</h3>
+        <p>A private daily journal linked to your session data. Plan your day before a session and review it after — all stored locally, never synced anywhere.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon icon-grey"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+        <h3>100% Private</h3>
+        <p>No account. No internet required. No analytics. All data in a local SQLite database with automatic rolling backups. Delete the app, delete the folder — gone completely.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <section class="section" id="stack">
+    <div class="section-label">Tech Stack</div>
+    <h2 class="section-title">Kotlin + Compose Desktop.<br />Ships as a standalone Windows EXE.</h2>
+    <p class="section-desc">Built with Kotlin 1.9 and Compose Multiplatform Desktop 1.6. Packaged via jpackage as a standalone EXE, MSI, or MSIX — no separate JVM installation needed.</p>
+    <div class="stack-row">
+      <span class="tag">Kotlin 1.9.22</span><span class="tag">Compose Multiplatform 1.6.1</span><span class="tag">Material 3</span><span class="tag">JNA 5.14</span><span class="tag">Win32 API</span><span class="tag">SetWinEventHook</span><span class="tag">ProcessHandle (JVM 9+)</span><span class="tag">netsh advfirewall</span><span class="tag">PowerShell</span><span class="tag">SQLite (xerial)</span><span class="tag">SHA-256 PIN</span><span class="tag">jpackage (EXE / MSI / MSIX)</span><span class="tag">Gradle 8.14.2</span><span class="tag">GraalVM CE 19</span><span class="tag">GitHub Actions</span>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <section class="cta-section" id="download">
+    <div class="cta-box">
+      <h2>Try FocusFlow Free</h2>
+      <p>Available on the Microsoft Store and as a direct Windows download. All features free. No account needed.</p>
+      <div class="cta-buttons">
+  <a href="https://apps.microsoft.com/detail/9NJN9FPRQ7T1?cid=website" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;line-height:0;">
+          <img src="https://get.microsoft.com/images/en-US%20dark.svg" alt="Get it from Microsoft" style="height:52px;" />
+        </a>
+        <a href="https://github.com/TITANICBHAI/FocusFlow-jvm/releases" class="btn btn-primary" target="_blank" rel="noopener">Download EXE</a>
+        <a href="https://focusflowapp.pages.dev" class="btn btn-ghost" target="_blank" rel="noopener">Android Version</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+  <section class="section" id="faq">
+    <div class="section-label">FAQ</div>
+    <h2 class="section-title">Frequently Asked Questions</h2>
+    <div class="faq-list">
+        <div class="faq-item">
+          <div class="faq-q">Is FocusFlow free?</div>
+          <div class="faq-a">Yes — completely free on the Microsoft Store. No subscriptions, no in-app purchases, no account required.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">Does FocusFlow work on Windows 11?</div>
+          <div class="faq-a">Yes. FocusFlow is fully compatible with Windows 10 and Windows 11.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">What is Focus Launcher?</div>
+          <div class="faq-a">Focus Launcher is FocusFlow's kiosk mode. It locks your entire Windows desktop to only the apps you choose, hides the taskbar, and blocks all other processes until your session ends.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">How does FocusFlow block apps?</div>
+          <div class="faq-a">FocusFlow uses Win32 APIs to terminate blocked processes in real time. It kills the actual process — there is no soft timer and no way around it.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">Can I get my taskbar back if something goes wrong?</div>
+          <div class="faq-a">Yes. FocusFlow has three independent recovery layers: a startup restore, a JVM shutdown hook, and a global crash handler — your taskbar is always restored.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">Does FocusFlow block websites?</div>
+          <div class="faq-a">Yes. FocusFlow blocks websites at the Windows hosts file level, which works in every browser simultaneously without requiring any extension.</div>
+        </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-links">
+      <a href="https://focusflowpc.pages.dev/">Home</a>
+      <a href="privacy-policy/">Privacy Policy</a>
+      <a href="terms-of-service/">Terms of Service</a>
+      <a href="/features/">Features</a>
+      <a href="/blog/">Blog</a>
+      <a href="https://github.com/TITANICBHAI/FocusFlow-jvm" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/TITANICBHAI/FocusFlow-jvm/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="https://focusflowapp.pages.dev" target="_blank" rel="noopener">Android App</a>
+    </div>
+    <p>FocusFlow by <a href="https://titanicbhai.github.io" target="_blank" rel="noopener">TBTechs</a> &mdash; Deep Focus App Blocker for Windows &mdash; Free on the Microsoft Store</p>
+  </footer>
+
+  <script>
+    document.addEventListener('click', function(e) {
+      var sw = document.getElementById('langSwitcher');
+      if (sw && !sw.contains(e.target)) sw.classList.remove('open');
+    });
+  </script>
+</body>
+</html>

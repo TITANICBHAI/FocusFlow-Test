@@ -1,0 +1,87 @@
+name: Build Linux Deb / Rpm / AppImage
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 19
+        uses: actions/setup-java@v4
+        with:
+          java-version: '19'
+          distribution: 'temurin'
+          architecture: 'x64'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.6'
+          cache-read-only: false
+
+      - name: Generate PNG icon (focusflow.png)
+        shell: bash
+        run: |
+          mkdir -p src/main/resources
+          # Use ImageMagick to create a 256x256 PNG placeholder icon
+          # Falls back gracefully if ImageMagick not present
+          if command -v magick &>/dev/null; then
+            magick -size 256x256 xc:'#09090f' \
+              -fill '#4fc3f7' -draw "arc 40,40 216,216 -50,140" \
+              -fill '#7c4dff' -draw "arc 40,40 216,216 130,260" \
+              -fill '#6699ee' -draw "rectangle 106,128 150,135" \
+              src/main/resources/focusflow.png
+          else
+            # Minimal valid 1-pixel PNG as placeholder
+            echo "ImageMagick not found, creating minimal icon placeholder"
+            python3 -c "
+    import struct, zlib
+    def png_chunk(chunk_type, data):
+        c = chunk_type + data
+        return struct.pack('>I', len(data)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)
+    ihdr = struct.pack('>IIBBBBB', 1, 1, 8, 2, 0, 0, 0)
+    idat = zlib.compress(b'\x00\x09\x09\x0f')
+    with open('src/main/resources/focusflow.png', 'wb') as f:
+        f.write(b'\x89PNG\r\n\x1a\n')
+        f.write(png_chunk(b'IHDR', ihdr))
+        f.write(png_chunk(b'IDAT', idat))
+        f.write(png_chunk(b'IEND', b''))
+            "
+          fi
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Linux distribution
+        run: ./gradlew packageDeb packageRpm packageAppImage
+
+      - name: Upload Deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: focusflow-deb
+          path: build/compose/binaries/main/deb/*.deb
+          if-no-files-found: error
+
+      - name: Upload Rpm artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: focusflow-rpm
+          path: build/compose/binaries/main/rpm/*.rpm
+          if-no-files-found: error
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: focusflow-appimage
+          path: build/compose/binaries/main/appImage/*.AppImage
+          if-no-files-found: error

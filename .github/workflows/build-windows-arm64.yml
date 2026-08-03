@@ -1,0 +1,12 @@
+# This workflow was removed — it was redundant with build-windows.yml
+# which already produces an MSIX that covers all Windows Desktop devices.
+# Kept as a stub so git history is clean. Never triggers automatically.
+name: ARM64 MSIX (Removed)
+on:
+  workflow_dispatch:
+jobs:
+  removed:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Removed — use build-windows.yml"

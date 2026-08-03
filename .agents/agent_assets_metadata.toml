@@ -1,0 +1,187 @@
+uploads = []
+
+[[generated]]
+id = "COEZoyOIZ7ZYgdoeIb5E4"
+uri = "file://store_screenshots/screenshot_01_dashboard.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "1V9yr-ttOo3BFKSgMGVLG"
+uri = "file://store_screenshots/screenshot_02_focus_session.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "WFaPbe3kYUveNN_hthhiS"
+uri = "file://store_screenshots/screenshot_03_app_blocker.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "7r4TAjUAXWtMElH-oKcBt"
+uri = "file://store_screenshots/screenshot_04_stats.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "q-SRSx-xmJAfuYuY6hSPF"
+uri = "file://store_screenshots/screenshot_05_block_overlay.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "ja9MVdHQYFT0pl3-njkL0"
+uri = "file://store_screenshots/store_logo_poster_9x16.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "z77a2zjGdvWdz-Jwz6buX"
+uri = "file://store_screenshots/store_logo_box_1x1.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "fxkJ-qhCyRb_ikkLSut_4"
+uri = "file://store_screenshots/banner_16x9.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "qNmaRvkNjIrp31ZwClQhm"
+uri = "file://store_screenshots/store_box_1x1_v2.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "ddcgAkN6XEwQJHJYEx-F6"
+uri = "file://public/images/process-list.png"
+type = "image"
+title = "Dark process list UI"
+
+[[generated]]
+id = "eYjAS-8lGSkkYPcB4w-WX"
+uri = "file://public/images/kiosk-grid.png"
+type = "image"
+title = "Dark geometric kiosk grid"
+
+[[generated]]
+id = "gCe77Q2KJqF1QeB9dBfvR"
+uri = "file://artifacts/mockup-sandbox/public/images/chaotic-desktop.png"
+type = "image"
+title = "Chaotic desktop with many windows"
+
+[[generated]]
+id = "B11kmsr2XFgUpjzpR7g1V"
+uri = "file://artifacts/mockup-sandbox/public/images/circuit-overlay.png"
+type = "image"
+title = "Dark high-tech circuit grid"
+
+[[generated]]
+id = "f7yzo8fRPHE_dTs58sjY7"
+uri = "file://artifacts/mockup-sandbox/public/images/logo-mark.png"
+type = "image"
+title = "FocusFlow logo mark"
+
+[[outputs]]
+id = "hya-B3kGynbWK_lMSvVtq"
+uri = "file://store_screenshots/screenshot_01_dashboard.png"
+type = "image"
+title = "Screenshot 1 — Dashboard"
+
+[[outputs]]
+id = "WepGJqTrWIjyZXsArDbAh"
+uri = "file://store_screenshots/screenshot_02_focus_session.png"
+type = "image"
+title = "Screenshot 2 — Focus Session (Active Timer)"
+
+[[outputs]]
+id = "4-_f5k4czmndR7FkSiRBR"
+uri = "file://store_screenshots/screenshot_03_app_blocker.png"
+type = "image"
+title = "Screenshot 3 — App Blocker"
+
+[[outputs]]
+id = "sV-slKmtMDgV8nOIf9ppg"
+uri = "file://store_screenshots/screenshot_04_stats.png"
+type = "image"
+title = "Screenshot 4 — Stats & Reports"
+
+[[outputs]]
+id = "b_eQwVSxAyUnKh3jSqH6L"
+uri = "file://store_screenshots/screenshot_05_block_overlay.png"
+type = "image"
+title = "Screenshot 5 — Block Enforcement Overlay"
+
+[[outputs]]
+id = "fAZqFsoDbI6uReaNshflY"
+uri = "file://store_screenshots/store_logo_poster_9x16.png"
+type = "image"
+title = "Store Logo — 9:16 Poster Art (720×1080)"
+
+[[outputs]]
+id = "K1XIlI9TN-GNMGafS2-p4"
+uri = "file://store_screenshots/store_logo_box_1x1.png"
+type = "image"
+title = "Store Logo — 1:1 Box Art (1080×1080)"
+
+[[outputs]]
+id = "uQj7_CB6rOlm3n1Bj737L"
+uri = "file://store_screenshots/banner_16x9.png"
+type = "image"
+title = "FocusFlow Banner (YouTube/Hero style, 16:9)"
+
+[[outputs]]
+id = "cHOZsSI39jwAm-PFf5UFF"
+uri = "file://store_screenshots/store_box_1x1_v2.png"
+type = "image"
+title = "Store Box Art (1:1)"
+
+[[outputs]]
+id = "7zydgEJoZriG_VxtQtG3W"
+uri = "file://src/main/resources/focusflow_logo_nobg.png"
+type = "image"
+title = "Logo — No Background (transparent PNG)"
+
+[[outputs]]
+id = "JZ__bWsYnretRAAUof8fY"
+uri = "file://store_screenshots/banner_final_16x9.png"
+type = "image"
+title = "FocusFlow Banner — Real logo composited (16:9)"
+
+[[outputs]]
+id = "015f9337mvBDGBloIOiCI"
+uri = "file://store_screenshots/poster_9x16_v2.png"
+type = "image"
+title = "9:16 Poster Art — 1440×2160 (real logo)"
+
+[[outputs]]
+id = "zKo7BAUZTT_p5sc7GgPpN"
+uri = "file://store_screenshots/box_1x1_v2.png"
+type = "image"
+title = "1:1 Box Art — 2160×2160 (real logo)"
+
+[[outputs]]
+id = "6rqzlXXB1uZ-_g4Kg9V6d"
+uri = "file://store_screenshots/store_display_300x300.png"
+type = "image"
+title = "1:1 App Tile Icon — 300×300"
+
+[[outputs]]
+id = "PCVjUrrTuRZTsk0E_CRht"
+uri = "file://store_screenshots/store_display_150x150.png"
+type = "image"
+title = "1:1 — 150×150"
+
+[[outputs]]
+id = "1ICyFds3CbaS6gUTkzOPR"
+uri = "file://store_screenshots/store_display_71x71.png"
+type = "image"
+title = "1:1 — 71×71"
+
+[[outputs]]
+id = "Hdm3aCAEs4zRjVG-jnfp3"
+uri = "file://focusflow-audit.pdf"
+type = "pdf"
+title = "FocusFlow — Product & Competitive Audit (May 2026)"

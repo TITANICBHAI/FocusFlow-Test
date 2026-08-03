@@ -1,0 +1,571 @@
+package com.focusflow.ui.screens
+
+import com.focusflow.ui.components.FfVerticalScrollbar
+import com.focusflow.ui.components.ShortcutTooltip
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.rememberScrollbarAdapter
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.focusflow.data.Database
+import com.focusflow.data.models.Habit
+import com.focusflow.data.models.HabitEntry
+import com.focusflow.i18n.LocalizationManager
+import com.focusflow.ui.theme.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.LocalDate
+import java.util.UUID
+
+private val EMOJI_OPTIONS = listOf("✅", "💪", "📚", "🏃", "💧", "🧘", "🥗", "😴", "✍️", "🎯", "🚶", "🎵", "🌿", "💊", "🧹")
+
+@Composable
+fun HabitsScreen() {
+    val strings = LocalizationManager.strings
+    val today = LocalDate.now()
+    val scope = rememberCoroutineScope()
+
+    var habits   by remember { mutableStateOf(listOf<Habit>()) }
+    var entries  by remember { mutableStateOf(mapOf<String, List<HabitEntry>>()) }
+    var streaks  by remember { mutableStateOf(mapOf<String, Int>()) }
+    var showAdd  by remember { mutableStateOf(false) }
+    var editTarget by remember { mutableStateOf<Habit?>(null) }
+
+    fun reload() {
+        scope.launch {
+            val h = withContext(Dispatchers.IO) { Database.getHabits() }
+            val since = today.minusDays(6)
+            val e = withContext(Dispatchers.IO) {
+                h.associate { habit ->
+                    habit.id to Database.getHabitEntries(habit.id, since)
+                }
+            }
+            val s = withContext(Dispatchers.IO) {
+                h.associate { habit -> habit.id to Database.getHabitStreak(habit.id) }
+            }
+            habits  = h
+            entries = e
+            streaks = s
+        }
+    }
+
+    LaunchedEffect(Unit) { reload() }
+
+    Column(
+        modifier = Modifier.fillMaxSize().background(Surface).padding(32.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(strings.habitsTitle, style = MaterialTheme.typography.headlineLarge, color = OnSurface)
+                if (habits.isNotEmpty()) {
+                    val doneToday = habits.count { h ->
+                        entries[h.id]?.any { it.date == today && it.done } == true
+                    }
+                    val pct = if (habits.isNotEmpty()) (doneToday * 100 / habits.size) else 0
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "$doneToday / ${habits.size} ${strings.habitsDoneToday}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (doneToday == habits.size) Success else OnSurface2
+                        )
+                        if (habits.isNotEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(
+                                        when {
+                                            pct == 100 -> Success.copy(alpha = 0.15f)
+                                            pct >= 50  -> Warning.copy(alpha = 0.12f)
+                                            else       -> Surface3
+                                        }
+                                    )
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    "$pct%",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = when {
+                                        pct == 100 -> Success
+                                        pct >= 50  -> Warning
+                                        else       -> OnSurface2
+                                    },
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            Button(
+                onClick = { showAdd = true },
+                colors = ButtonDefaults.buttonColors(containerColor = Purple80)
+            ) {
+                Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(strings.habitsAddHabit)
+            }
+        }
+
+        // Week header
+        if (habits.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 200.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                (6 downTo 0).forEach { daysAgo ->
+                    val date = today.minusDays(daysAgo.toLong())
+                    val dayLabel = date.dayOfWeek.name.take(2)
+                    Box(
+                        modifier = Modifier.size(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            dayLabel,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (daysAgo == 0) Purple80 else OnSurface2,
+                            fontWeight = if (daysAgo == 0) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = 9.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        if (habits.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(horizontal = 48.dp)
+                ) {
+                    Text("🔄", fontSize = 52.sp)
+                    Text(
+                        strings.habitsNoHabitsYet,
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = OnSurface,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                    )
+                    Text(
+                        strings.habitsTrackDesc,
+                        color = OnSurface2,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    // How it works hint
+                    Column(
+                        modifier = Modifier
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                            .background(Surface2)
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(
+                            "✅  Tap a day square to mark a habit done",
+                            "🔥  Build streaks by completing habits daily",
+                            "✏️  Long-press or tap Edit to change a habit"
+                        ).forEach { hint ->
+                            Text(
+                                hint,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = OnSurface2
+                            )
+                        }
+                    }
+                    Button(
+                        onClick = { showAdd = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = Purple80)
+                    ) { Text(strings.habitsAddFirstHabit) }
+                }
+            }
+        } else {
+            val habitsListState = rememberLazyListState()
+            Box(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(state = habitsListState, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(habits, key = { it.id }) { habit ->
+                    val habitEntries = entries[habit.id] ?: emptyList()
+                    val streak       = streaks[habit.id] ?: 0
+                    HabitRow(
+                        habit   = habit,
+                        entries = habitEntries,
+                        today   = today,
+                        streak  = streak,
+                        onToggle = { date, done ->
+                            scope.launch {
+                                withContext(Dispatchers.IO) {
+                                    Database.setHabitEntry(habit.id, date, done)
+                                }
+                                reload()
+                            }
+                        },
+                        onEdit = { editTarget = it },
+                        onDelete = {
+                            scope.launch {
+                                withContext(Dispatchers.IO) { Database.deleteHabit(habit.id) }
+                                reload()
+                            }
+                        }
+                    )
+                }
+            }
+            FfVerticalScrollbar(
+                listState = habitsListState,
+                modifier  = Modifier.align(Alignment.CenterEnd).fillMaxHeight()
+            )
+            }
+        }
+    }
+
+    if (showAdd) {
+        AddHabitDialog(
+            onDismiss = { showAdd = false },
+            onSave = { habit ->
+                scope.launch {
+                    withContext(Dispatchers.IO) { Database.upsertHabit(habit) }
+                    reload()
+                    showAdd = false
+                }
+            }
+        )
+    }
+
+    editTarget?.let { habit ->
+        EditHabitDialog(
+            habit = habit,
+            onDismiss = { editTarget = null },
+            onSave = { updated ->
+                scope.launch {
+                    withContext(Dispatchers.IO) { Database.upsertHabit(updated) }
+                    reload()
+                    editTarget = null
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun HabitRow(
+    habit: Habit,
+    entries: List<HabitEntry>,
+    today: LocalDate,
+    streak: Int,
+    onToggle: (LocalDate, Boolean) -> Unit,
+    onEdit: (Habit) -> Unit,
+    onDelete: () -> Unit
+) {
+    val strings = LocalizationManager.strings
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Surface2)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Emoji + name block (fixed width)
+        Row(
+            modifier = Modifier.width(160.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(habit.emoji, fontSize = 22.sp)
+            Column {
+                Text(
+                    habit.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = OnSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1
+                )
+                if (streak > 0) {
+                    val (streakEmoji, streakColor) = when {
+                        streak >= 30 -> "🌟" to Purple80
+                        streak >= 14 -> "⚡" to Success
+                        streak >= 7  -> "🔥" to Warning
+                        else         -> "🔥" to Warning.copy(alpha = 0.7f)
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Text(streakEmoji, fontSize = 10.sp)
+                        Text(
+                            "$streak day${if (streak == 1) "" else "s"}",
+                            style      = MaterialTheme.typography.bodySmall,
+                            color      = streakColor,
+                            fontSize   = 10.sp,
+                            fontWeight = if (streak >= 7) androidx.compose.ui.text.font.FontWeight.SemiBold else androidx.compose.ui.text.font.FontWeight.Normal
+                        )
+                        if (streak >= 7) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(3.dp))
+                                    .background(streakColor.copy(alpha = 0.15f))
+                                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                            ) {
+                                Text(
+                                    when {
+                                        streak >= 30 -> strings.habitsLegendary
+                                        streak >= 14 -> strings.habitsOnFire
+                                        else         -> strings.habitsStreakBadge
+                                    },
+                                    style    = MaterialTheme.typography.bodySmall,
+                                    color    = streakColor,
+                                    fontSize = 8.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 7-day grid
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            (6 downTo 0).forEach { daysAgo ->
+                val date  = today.minusDays(daysAgo.toLong())
+                val entry = entries.find { it.date == date }
+                val done  = entry?.done == true
+                val isToday = daysAgo == 0
+
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(
+                            when {
+                                done && isToday -> Purple80
+                                done            -> Purple80.copy(alpha = 0.5f)
+                                isToday         -> Surface3
+                                else            -> Surface3.copy(alpha = 0.5f)
+                            }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isToday) {
+                        Checkbox(
+                            checked = done,
+                            onCheckedChange = { onToggle(date, it) },
+                            modifier = Modifier.size(20.dp),
+                            colors = CheckboxDefaults.colors(
+                                checkedColor   = androidx.compose.ui.graphics.Color.Transparent,
+                                checkmarkColor = androidx.compose.ui.graphics.Color.White,
+                                uncheckedColor = OnSurface2
+                            )
+                        )
+                    } else if (done) {
+                        Icon(
+                            Icons.Default.Check,
+                            null,
+                            tint = androidx.compose.ui.graphics.Color.White,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.weight(1f))
+
+        // Edit button
+        ShortcutTooltip("Edit habit") {
+            IconButton(
+                onClick = { onEdit(habit) },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(Icons.Default.Edit, strings.btnEdit, tint = OnSurface2.copy(alpha = 0.5f), modifier = Modifier.size(15.dp))
+            }
+        }
+
+        ShortcutTooltip("Delete habit") {
+            IconButton(
+                onClick = { showDeleteConfirm = true },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(Icons.Default.DeleteOutline, null, tint = OnSurface2.copy(alpha = 0.5f), modifier = Modifier.size(16.dp))
+            }
+        }
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            containerColor = Surface2,
+            title = { Text(strings.habitsDeleteHabit, color = Error) },
+            text = { Text("Delete \"${habit.name}\" and all its history?", color = OnSurface2) },
+            confirmButton = {
+                Button(
+                    onClick = { showDeleteConfirm = false; onDelete() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Error)
+                ) { Text(strings.btnDelete) }
+            },
+            dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text(strings.btnCancel, color = OnSurface2) } }
+        )
+    }
+}
+
+@Composable
+private fun AddHabitDialog(onDismiss: () -> Unit, onSave: (Habit) -> Unit) {
+    val strings = LocalizationManager.strings
+    var name         by remember { mutableStateOf("") }
+    var selectedEmoji by remember { mutableStateOf("✅") }
+    var nameError    by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Surface2,
+        title = { Text(strings.habitsNewHabit, color = OnSurface) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it; nameError = false },
+                    label = { Text(strings.habitsHabitName) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    isError = nameError,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor   = Purple80,
+                        unfocusedBorderColor = OnSurface2,
+                        errorBorderColor     = Error
+                    )
+                )
+                if (nameError) Text(strings.habitsEnterName, color = Error, style = MaterialTheme.typography.bodySmall)
+
+                Text(strings.habitsPickEmoji, style = MaterialTheme.typography.bodySmall, color = OnSurface2)
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    EMOJI_OPTIONS.chunked(5).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            row.forEach { emoji ->
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(
+                                            if (emoji == selectedEmoji) Purple80.copy(alpha = 0.25f)
+                                            else Surface3
+                                        )
+                                        .clickable { selectedEmoji = emoji },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(emoji, fontSize = 20.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (name.isBlank()) { nameError = true; return@Button }
+                    onSave(Habit(
+                        id        = UUID.randomUUID().toString(),
+                        name      = name.trim(),
+                        emoji     = selectedEmoji,
+                        createdAt = LocalDate.now()
+                    ))
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Purple80)
+            ) { Text(strings.habitsAddHabit) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(strings.btnCancel, color = OnSurface2) } }
+    )
+}
+
+@Composable
+private fun EditHabitDialog(habit: Habit, onDismiss: () -> Unit, onSave: (Habit) -> Unit) {
+    val strings = LocalizationManager.strings
+    var name          by remember { mutableStateOf(habit.name) }
+    var selectedEmoji by remember { mutableStateOf(habit.emoji) }
+    var nameError     by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Surface2,
+        title = { Text(strings.habitsEditHabit, color = OnSurface) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it; nameError = false },
+                    label = { Text(strings.habitsHabitName) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    isError = nameError,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor   = Purple80,
+                        unfocusedBorderColor = OnSurface2,
+                        errorBorderColor     = Error
+                    )
+                )
+                if (nameError) Text(strings.habitsEnterName, color = Error, style = MaterialTheme.typography.bodySmall)
+
+                Text(strings.habitsPickEmoji, style = MaterialTheme.typography.bodySmall, color = OnSurface2)
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    EMOJI_OPTIONS.chunked(5).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            row.forEach { emoji ->
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(
+                                            if (emoji == selectedEmoji) Purple80.copy(alpha = 0.25f)
+                                            else Surface3
+                                        )
+                                        .clickable { selectedEmoji = emoji },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(emoji, fontSize = 20.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (name.isBlank()) { nameError = true; return@Button }
+                    onSave(habit.copy(name = name.trim(), emoji = selectedEmoji))
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Purple80)
+            ) { Text(strings.habitsSaveChanges) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(strings.btnCancel, color = OnSurface2) } }
+    )
+}
