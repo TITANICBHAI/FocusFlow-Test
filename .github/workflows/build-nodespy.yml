@@ -1,0 +1,189 @@
+name: Build NodeSpy APK
+
+# Pure Kotlin/Jetpack Compose Android app — no Expo, no JS, no pnpm needed.
+# Always produces a debug APK. Also produces a signed release APK when the
+# RELEASE_KEYSTORE_base64 secret is set (reuse the same FocusFlow keystore).
+#
+# Signing:
+#   A Python patch step rewrites app/build.gradle to add a signingConfigs.release
+#   block with v1SigningEnabled + v2SigningEnabled + v3SigningEnabled all true.
+#   Credentials are read from env vars so no -P flags are needed.
+#
+# ── Optional secrets for signed release build ─────────────────────────────────
+#   RELEASE_KEYSTORE_BASE64   base64-encoded .jks keystore file
+#   RELEASE_STORE_PASSWORD    keystore store password
+#   RELEASE_KEY_ALIAS         key alias inside the keystore
+#   RELEASE_KEY_PASSWORD      key password
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/build-nodespy.yml"
+      - "artifacts/nodespy/**"
+
+permissions:
+  contents: write
+
+env:
+  GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m -Dorg.gradle.daemon=false"
+
+jobs:
+  build:
+    name: Build NodeSpy APKs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-nodespy-gradle-${{ hashFiles('artifacts/nodespy/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-nodespy-gradle-
+
+      - name: Build debug APK
+        working-directory: artifacts/nodespy
+        run: |
+          gradle assembleDebug --no-daemon --stacktrace
+          echo "── Debug APK output ──"
+          find app/build/outputs/apk/debug/ -name "*.apk" -exec ls -lh {} \;
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: nodespy-debug-${{ github.run_number }}
+          path: artifacts/nodespy/app/build/outputs/apk/debug/*.apk
+          retention-days: 30
+
+      - name: Check keystore secret
+        id: keystore-check
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+
+      - name: Patch signing config — enable v1 + v2 + v3
+        if: steps.keystore-check.outputs.available == 'true'
+        working-directory: artifacts/nodespy
+        run: |
+          python3 - << 'PYEOF'
+          import re, os
+
+          path = 'app/build.gradle'
+          if not os.path.exists(path):
+              print(f'Skipping patch: {path} not found')
+              exit(0)
+
+          text = open(path).read()
+
+          sig_block = '''
+              signingConfigs {
+                  release {
+                      storeFile file("release.keystore")
+                      storePassword (System.getenv("RELEASE_STORE_PASSWORD") ?: "")
+                      keyAlias     (System.getenv("RELEASE_KEY_ALIAS")        ?: "")
+                      keyPassword  (System.getenv("RELEASE_KEY_PASSWORD")     ?: "")
+                      v1SigningEnabled true
+                      v2SigningEnabled true
+                      v3SigningEnabled true
+                  }
+              }'''
+
+          # Remove any pre-existing signingConfigs block
+          text = re.sub(
+              r'\n?[ \t]*signingConfigs\s*\{(?:[^{}]|\{[^{}]*\})*\}',
+              '',
+              text,
+              flags=re.DOTALL,
+          )
+
+          # Insert before buildTypes
+          text = re.sub(
+              r'(\n[ \t]*buildTypes\s*\{)',
+              sig_block + r'\1',
+              text,
+              count=1,
+          )
+
+          # Patch buildTypes.release to reference signingConfigs.release
+          def patch_release(m):
+              s = m.group(0)
+              s = re.sub(r'signingConfig\s+\S+', 'signingConfig signingConfigs.release', s)
+              if 'signingConfig' not in s:
+                  s = re.sub(r'(release\s*\{)', r'\1\n            signingConfig signingConfigs.release', s, count=1)
+              return s
+
+          text = re.sub(r'(?s)\brelease\s*\{[^{}]*\}', patch_release, text)
+
+          open(path, 'w').write(text)
+          print('v1+v2+v3 signing patched into app/build.gradle')
+          PYEOF
+
+      - name: Decode release keystore
+        if: steps.keystore-check.outputs.available == 'true'
+        working-directory: artifacts/nodespy/app
+        run: echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
+
+      - name: Build release APK (signed)
+        if: steps.keystore-check.outputs.available == 'true'
+        working-directory: artifacts/nodespy
+        env:
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          gradle assembleRelease --no-daemon
+          rm -f app/release.keystore
+          echo "── Release APK output ──"
+          find app/build/outputs/apk/release/ -name "*.apk" -exec ls -lh {} \;
+
+      - name: Upload release APK
+        if: steps.keystore-check.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nodespy-release-${{ github.run_number }}
+          path: artifacts/nodespy/app/build/outputs/apk/release/*.apk
+          retention-days: 30
+
+      - name: Prepare direct APK release assets
+        run: |
+          mkdir -p artifacts/nodespy/release-assets
+          cp artifacts/nodespy/app/build/outputs/apk/debug/*.apk artifacts/nodespy/release-assets/nodespy-debug.apk
+          if [ "${{ steps.keystore-check.outputs.available }}" = "true" ]; then
+            cp artifacts/nodespy/app/build/outputs/apk/release/*.apk artifacts/nodespy/release-assets/nodespy-release.apk
+          fi
+          ls -lh artifacts/nodespy/release-assets
+
+      - name: Create direct APK GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: NodeSpy APK ${{ github.run_number }}
+          tag_name: nodespy-${{ github.run_id }}
+          target_commitish: ${{ github.sha }}
+          draft: false
+          prerelease: true
+          generate_release_notes: false
+          body: Direct NodeSpy APK downloads from workflow run ${{ github.run_number }}.
+          files: artifacts/nodespy/release-assets/*.apk

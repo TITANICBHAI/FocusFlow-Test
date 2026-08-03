@@ -1,0 +1,44 @@
+{
+  "cli": {
+    "version": ">= 8.0.0",
+    "appVersionSource": "local",
+    "requireCommit": false
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "NPM_CONFIG_NODE_LINKER": "hoisted",
+        "EXPO_ROUTER_APP_ROOT": "app"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "NPM_CONFIG_NODE_LINKER": "hoisted",
+        "EXPO_ROUTER_APP_ROOT": "app"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "credentialsSource": "local",
+      "env": {
+        "NPM_CONFIG_NODE_LINKER": "hoisted",
+        "EXPO_ROUTER_APP_ROOT": "app"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

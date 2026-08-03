@@ -1,0 +1,234 @@
+name: Release (Tag)
+
+# Builds a signed release APK + AAB via Expo Prebuild and publishes a
+# GitHub Release whenever a version tag is pushed (e.g. v1.0.0).
+# Skips automatically if the tag ends with -debug (those go to debug-tag.yml).
+#
+# Signing:
+#   A Python patch step rewrites app/build.gradle after expo prebuild to add a
+#   signingConfigs.release block with v1SigningEnabled + v2SigningEnabled +
+#   v3SigningEnabled all set to true.  Credentials are read from env vars so
+#   no -P flags are needed on the Gradle command.
+#
+# ── How to trigger ────────────────────────────────────────────────────────────
+#   git tag v1.0.0
+#   git push origin v1.0.0
+#
+# ── Required secrets ──────────────────────────────────────────────────────────
+#   RELEASE_KEYSTORE_BASE64   base64-encoded .jks keystore file
+#   RELEASE_STORE_PASSWORD    keystore store password
+#   RELEASE_KEY_ALIAS         key alias inside the keystore
+#   RELEASE_KEY_PASSWORD      key password
+#   SLACK_WEBHOOK_URL         Slack incoming webhook URL (optional)
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  NPM_CONFIG_NODE_LINKER: hoisted
+  EXPO_ROUTER_APP_ROOT: app
+
+jobs:
+  release:
+    name: Release ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    if: ${{ !endsWith(github.ref_name, '-debug') }}
+
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Get pnpm store path
+        id: pnpm-cache
+        run: echo "STORE=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Read app version
+        id: app-version
+        working-directory: artifacts/focusflow
+        run: |
+          VERSION=$(node -e "const j=require('./app.json'); console.log(j.expo.version)")
+          VCODE=$(node -e "const j=require('./app.json'); console.log(j.expo.android.versionCode)")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "versionCode=$VCODE" >> $GITHUB_OUTPUT
+          echo "### Release Build Info" >> $GITHUB_STEP_SUMMARY
+          echo "- **App Version:** $VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- **versionCode:** $VCODE" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Type:** Signed Release APK + AAB" >> $GITHUB_STEP_SUMMARY
+
+      - name: Expo Prebuild
+        working-directory: artifacts/focusflow
+        run: npx expo prebuild --platform android --clean --no-install
+
+      - name: Inject ProGuard rules
+        working-directory: artifacts/focusflow
+        run: |
+          if [ -f proguard-rules.pro ]; then
+            cp proguard-rules.pro android/app/proguard-rules.pro
+          fi
+
+      - name: Enable R8 full mode
+        working-directory: artifacts/focusflow/android
+        run: |
+          echo "" >> gradle.properties
+          echo "android.enableR8.fullMode=true" >> gradle.properties
+
+      - name: Patch signing config — enable v1 + v2 + v3
+        working-directory: artifacts/focusflow/android
+        run: |
+          python3 - << 'PYEOF'
+          import re
+
+          path = 'app/build.gradle'
+          text = open(path).read()
+
+          sig_block = '''
+              signingConfigs {
+                  release {
+                      storeFile file("release.keystore")
+                      storePassword (System.getenv("RELEASE_STORE_PASSWORD") ?: "")
+                      keyAlias     (System.getenv("RELEASE_KEY_ALIAS")        ?: "")
+                      keyPassword  (System.getenv("RELEASE_KEY_PASSWORD")     ?: "")
+                      v1SigningEnabled true
+                      v2SigningEnabled true
+                      v3SigningEnabled true
+                  }
+              }'''
+
+          # Remove any pre-existing signingConfigs block (Expo generates a debug-only one)
+          text = re.sub(
+              r'\n?[ \t]*signingConfigs\s*\{(?:[^{}]|\{[^{}]*\})*\}',
+              '',
+              text,
+              flags=re.DOTALL,
+          )
+
+          # Insert our block immediately before buildTypes
+          text = re.sub(
+              r'(\n[ \t]*buildTypes\s*\{)',
+              sig_block + r'\1',
+              text,
+              count=1,
+          )
+
+          # Patch buildTypes.release to reference signingConfigs.release
+          def patch_release(m):
+              s = m.group(0)
+              s = re.sub(r'signingConfig\s+\S+', 'signingConfig signingConfigs.release', s)
+              if 'signingConfig' not in s:
+                  s = re.sub(r'(release\s*\{)', r'\1\n            signingConfig signingConfigs.release', s, count=1)
+              return s
+
+          text = re.sub(r'(?s)\brelease\s*\{[^{}]*\}', patch_release, text)
+
+          open(path, 'w').write(text)
+          print('v1+v2+v3 signing patched into app/build.gradle')
+          PYEOF
+
+      - name: Decode release keystore
+        working-directory: artifacts/focusflow/android/app
+        run: |
+          echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
+          echo "Keystore size: $(du -sh release.keystore)"
+
+      - name: Build release APK
+        working-directory: artifacts/focusflow/android
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Build release AAB
+        working-directory: artifacts/focusflow/android
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          ./gradlew bundleRelease --no-daemon
+
+      - name: Rename build outputs
+        run: |
+          APK=$(find artifacts/focusflow/android/app/build/outputs/apk/release/ \
+            -name "app-universal-release.apk" -o -name "app-release.apk" | head -1)
+          if [ -z "$APK" ]; then
+            APK=$(find artifacts/focusflow/android/app/build/outputs/apk/release/ \
+              -name "*.apk" | head -1)
+          fi
+          echo "Using APK: $APK"
+          cp "$APK" focusflow-${{ github.ref_name }}.apk
+          cp artifacts/focusflow/android/app/build/outputs/bundle/release/app-release.aab \
+             focusflow-${{ github.ref_name }}.aab
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: FocusFlow ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            focusflow-${{ github.ref_name }}.apk
+            focusflow-${{ github.ref_name }}.aab
+
+      - name: Remove keystore from runner
+        if: always()
+        working-directory: artifacts/focusflow/android/app
+        run: rm -f release.keystore
+
+      - name: Notify Slack
+        if: env.SLACK_WEBHOOK_URL != ''
+        run: |
+          curl -s -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"attachments\":[{\"color\":\"good\",\"text\":\":rocket: *FocusFlow ${{ github.ref_name }}* released! APK + AAB on GitHub Releases.\",\"mrkdwn_in\":[\"text\"]}]}"

@@ -1,0 +1,24 @@
+User-agent: *
+Allow: /
+Disallow: /preview/
+
+# AI retrieval agents — allow full access for citation eligibility
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+Sitemap: https://focusflow-tbtechs.replit.app/sitemap.xml

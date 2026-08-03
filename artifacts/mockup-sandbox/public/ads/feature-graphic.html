@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Feature Graphic</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100vw;height:100vh;overflow:hidden;font-family:'Poppins',sans-serif}
+.wrap{width:100vw;height:100vh;background:#0D0D0D;display:flex;align-items:center;justify-content:space-between;padding:0 8vw;position:relative;overflow:hidden}
+.bg-glow{position:absolute;top:-20vh;right:15vw;width:50vw;height:80vh;background:radial-gradient(ellipse at center,rgba(255,60,0,0.12) 0%,transparent 70%);pointer-events:none}
+.left{flex:1;z-index:1}
+.logo-row{display:flex;align-items:center;gap:1.5vw;margin-bottom:3vh}
+.logo-mark{width:5vw;height:5vw;background:#FF3C00;border-radius:1vw;display:flex;align-items:center;justify-content:center}
+.logo-mark svg{width:70%;height:70%}
+.logo-text{font-size:2.2vw;font-weight:700;color:#fff;letter-spacing:0.02em}
+.logo-text em{color:#FF3C00;font-style:normal}
+.headline{font-size:5.5vw;font-weight:900;color:#fff;line-height:1.08;margin-bottom:2.5vh;max-width:55vw}
+.headline em{color:#FF3C00;font-style:normal}
+.tagline{font-size:1.8vw;color:rgba(255,255,255,0.5);margin-bottom:4vh;line-height:1.5;max-width:48vw}
+.trust-row{display:flex;gap:2vw;flex-wrap:wrap}
+.trust-pill{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:5vw;padding:0.8vh 2.5vw;font-size:1.2vw;font-weight:600;color:rgba(255,255,255,0.7);display:flex;align-items:center;gap:0.8vw}
+.trust-dot{width:0.8vw;height:0.8vw;background:#FF3C00;border-radius:50%}
+.right{flex:0 0 32vw;position:relative;height:80vh;display:flex;align-items:center;justify-content:center}
+.phone-mockup{width:24vw;max-width:260px;background:#111;border-radius:3vw;border:0.4vw solid #222;overflow:hidden;box-shadow:0 3vh 8vh rgba(0,0,0,0.6)}
+.ph-notch{height:2.5vh;background:#0D0D0D}
+.ph-screen{padding:2vh 3vw;background:#0D0D0D}
+.ph-task{background:#1a1a1a;border-radius:1vw;padding:1.2vh 2vw;margin-bottom:0.8vh;border-left:3px solid #FF3C00}
+.ph-task-name{font-size:1.1vw;color:#fff;font-weight:700}
+.ph-task-sub{font-size:0.8vw;color:rgba(255,255,255,0.35);margin-top:0.2vh}
+.ph-arrow{text-align:center;color:rgba(255,60,0,0.4);font-size:1.5vw;padding:0.5vh 0}
+.ph-block{background:#1a0000;border-radius:1vw;padding:1.2vh 2vw;border:1px solid rgba(255,60,0,0.3)}
+.ph-block-title{font-size:0.9vw;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.5vh}
+.ph-apps{display:flex;gap:0.5vw;flex-wrap:wrap}
+.ph-app{background:rgba(255,60,0,0.15);color:#FF3C00;font-size:0.8vw;font-weight:700;padding:0.3vh 0.8vw;border-radius:0.5vw}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bg-glow"></div>
+  <div class="left">
+    <div class="logo-row">
+      <div class="logo-mark"><img src="logo.png" style="width:100%;height:100%;object-fit:contain;border-radius:inherit"></div>
+      <div class="logo-text">Focus<em>Flow</em></div>
+    </div>
+    <div class="headline">Block distracting apps.<br><em>On-device.</em> No bypass.</div>
+    <div class="tagline">Task-linked app blocking that starts automatically when your work begins — and lifts when it ends. No subscription. Ever.</div>
+    <div class="trust-row">
+      <div class="trust-pill"><div class="trust-dot"></div>Works offline</div>
+      <div class="trust-pill"><div class="trust-dot"></div>No subscription</div>
+      <div class="trust-pill"><div class="trust-dot"></div>Free & open source</div>
+    </div>
+    <div style="margin-top:2vh;font-size:1.1vw;color:rgba(255,255,255,0.25);letter-spacing:0.04em">github.com/TITANICBHAI/FocusFlow</div>
+  </div>
+  <div class="right">
+    <div class="phone-mockup">
+      <div class="ph-notch"></div>
+      <div class="ph-screen">
+        <div class="ph-task">
+          <div class="ph-task-name">Write Report · 9–11 AM</div>
+          <div class="ph-task-sub">Focus Mode ON · Blocking active</div>
+        </div>
+        <div class="ph-arrow">↓ auto-blocks</div>
+        <div class="ph-block">
+          <div class="ph-block-title">Blocked now</div>
+          <div class="ph-apps">
+            <span class="ph-app">Instagram</span>
+            <span class="ph-app">YouTube</span>
+            <span class="ph-app">Reddit</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

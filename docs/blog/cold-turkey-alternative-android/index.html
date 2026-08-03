@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cold Turkey Alternative for Android — Hard App Blocking Without a PC | FocusFlow</title>
+  <meta name="description" content="Cold Turkey is PC-only. If you need the same hard-enforcement app blocking on Android — no bypass, no workarounds — FocusFlow is the closest equivalent. Free, no root." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://focusflowapp.pages.dev/blog/cold-turkey-alternative-android/" />
+  <meta name="google-site-verification" content="sou-98cZYPWFJmbwxJgJptO-ZaIPNJqz2ven_iS4NjI" />
+  <meta name="msvalidate.01" content="FC2887EF2F94BFFE090CAB25A456AE86" />
+  <meta property="og:title" content="Cold Turkey Alternative for Android — Hard Blocking Without a PC" />
+  <meta property="og:description" content="Cold Turkey is Windows/Mac only. FocusFlow brings the same no-bypass enforcement to Android — Accessibility Service, VPN, Device Admin. Free." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://focusflowapp.pages.dev/blog/cold-turkey-alternative-android/" />
+  <meta property="og:site_name" content="FocusFlow by TBTechs" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:image" content="https://focusflowapp.pages.dev/og-image.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Cold Turkey Alternative for Android — FocusFlow" />
+  <meta name="twitter:description" content="Cold Turkey's hard-enforcement philosophy, on Android. Free, no root required." />
+  <meta name="twitter:image" content="https://focusflowapp.pages.dev/og-image.jpg" />
+  <link rel="icon" href="../../logo-transparent.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'" />
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" /></noscript>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://focusflowapp.pages.dev/" },
+      { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://focusflowapp.pages.dev/blog/" },
+      { "@type": "ListItem", "position": 3, "name": "Cold Turkey Alternative for Android", "item": "https://focusflowapp.pages.dev/blog/cold-turkey-alternative-android/" }
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": "Cold Turkey Alternative for Android — Hard App Blocking Without a PC",
+    "description": "Cold Turkey is Windows and Mac only. This article covers how FocusFlow delivers the same hard-enforcement blocking philosophy on Android.",
+    "url": "https://focusflowapp.pages.dev/blog/cold-turkey-alternative-android/",
+    "datePublished": "2025-05-22",
+    "dateModified": "2025-05-22",
+    "author": { "@type": "Organization", "name": "TBTechs", "url": "https://focusflowapp.pages.dev/" },
+    "publisher": { "@type": "Organization", "name": "TBTechs", "url": "https://focusflowapp.pages.dev/" },
+    "inLanguage": "en-US",
+    "image": "https://focusflowapp.pages.dev/og-image.jpg",
+    "keywords": "Cold Turkey alternative Android, Cold Turkey Android, hard app blocker Android, no bypass app blocker Android"
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Is there a Cold Turkey app for Android?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Cold Turkey does not make an Android app. The closest Android equivalent to Cold Turkey's hard-enforcement philosophy is FocusFlow, which uses Accessibility Service, an on-device VPN, and Device Admin mode to make blocked apps genuinely inaccessible during sessions. It is free." }
+      },
+      {
+        "@type": "Question",
+        "name": "What makes FocusFlow similar to Cold Turkey?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Both Cold Turkey and FocusFlow take a hard-enforcement approach: once a session starts, you cannot bypass it. Cold Turkey achieves this by modifying Windows/Mac system files. FocusFlow achieves this on Android through Accessibility Service enforcement, an on-device null-routing VPN, Android Device Admin mode, and a SHA-256 hashed session PIN stored at the native Android layer." }
+      }
+    ]
+  }
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --bg: #0D0D14; --surface: #13131F; --border: rgba(255,255,255,0.07); --accent: #6C63FF; --text: #F0F0F8; --muted: #9090B0; --green: #34D399; --red: #F87171; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; line-height: 1.75; }
+    a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+    nav { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; border-bottom: 1px solid var(--border); background: rgba(13,13,20,0.92); backdrop-filter: blur(14px); z-index: 100; }
+    .brand { display: flex; align-items: center; gap: 0.5rem; font-weight: 800; font-size: 1.05rem; color: var(--text); }
+    .brand img { width: 28px; height: 28px; border-radius: 7px; }
+    .nav-links { display: flex; gap: 1.4rem; align-items: center; }
+    .nav-links a { color: var(--muted); font-size: 0.88rem; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta { background: var(--accent); color: #fff !important; padding: 0.45rem 1rem; border-radius: 8px; font-weight: 600; font-size: 0.82rem !important; }
+    .breadcrumb { padding: 1rem 2rem; font-size: 0.8rem; color: var(--muted); }
+    .breadcrumb a { color: var(--accent); }
+    .breadcrumb span { margin: 0 0.4rem; }
+    article { max-width: 740px; margin: 0 auto; padding: 2.5rem 2rem 6rem; }
+    .post-tag { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+    h1 { font-size: clamp(1.7rem, 4vw, 2.3rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.2; margin: 0.75rem 0 1rem; }
+    .post-meta { font-size: 0.8rem; color: var(--muted); margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
+    h2 { font-size: 1.3rem; font-weight: 700; margin: 2.5rem 0 0.75rem; }
+    h3 { font-size: 1.05rem; font-weight: 600; margin: 1.75rem 0 0.5rem; }
+    p { margin-bottom: 1.1rem; color: #D0D0E8; }
+    ul, ol { margin: 0.5rem 0 1.25rem 1.5rem; color: #D0D0E8; }
+    li { margin-bottom: 0.45rem; }
+    .bluf { background: linear-gradient(135deg, rgba(108,99,255,0.12), rgba(108,99,255,0.04)); border: 1px solid rgba(108,99,255,0.3); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 2rem; }
+    .bluf strong { color: var(--accent); }
+    .compare-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.5rem 0; }
+    .compare-col { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+    .compare-col h3 { font-size: 0.95rem; margin: 0 0 0.75rem; }
+    .compare-col ul { margin: 0; padding-left: 1.1rem; }
+    .compare-col li { font-size: 0.88rem; color: var(--muted); margin-bottom: 0.35rem; }
+    .compare-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 1.5rem 0; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+    .compare-table th { background: var(--accent); color: #fff; padding: 0.75rem 0.85rem; text-align: left; }
+    .compare-table td { padding: 0.65rem 0.85rem; border-bottom: 1px solid var(--border); color: var(--muted); }
+    .compare-table td:first-child { color: var(--text); font-weight: 600; }
+    .compare-table tr:last-child td { border-bottom: none; }
+    .check { color: #4ade80; } .cross { color: #f87171; } .na { color: #6b7280; }
+    .verdict { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.2); border-radius: 12px; padding: 1.25rem 1.5rem; margin: 2rem 0; }
+    .verdict strong { color: var(--green); }
+    .cta-box { background: linear-gradient(135deg, rgba(108,99,255,0.18), rgba(108,99,255,0.06)); border: 1px solid rgba(108,99,255,0.35); border-radius: 16px; padding: 2rem; text-align: center; margin-top: 3rem; }
+    .cta-box h2 { font-size: 1.4rem; margin: 0 0 0.5rem; }
+    .cta-box p { font-size: 0.92rem; margin-bottom: 1.25rem; }
+    .btn { display: inline-block; background: var(--accent); color: #fff; padding: 0.75rem 1.75rem; border-radius: 10px; font-weight: 700; font-size: 0.9rem; margin: 0.3rem; }
+    .btn:hover { background: #7a72ff; text-decoration: none; }
+    .internal-links { margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--border); }
+    .internal-links h2 { font-size: 1rem; margin-bottom: 0.75rem; color: var(--muted); font-weight: 600; }
+    .internal-links ul { list-style: none; margin: 0; padding: 0; }
+    .internal-links li { margin-bottom: 0.4rem; }
+    footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center; color: var(--muted); font-size: 0.8rem; }
+    footer a { color: var(--accent); }
+    @media (max-width: 640px) { .compare-row { grid-template-columns: 1fr; } nav { flex-wrap: wrap; gap: 0.75rem; } article { padding: 2rem 1.25rem 4rem; } }
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="brand" href="../../"><img src="../../logo-transparent.png" alt="FocusFlow" />FocusFlow</a>
+    <div class="nav-links">
+      <a href="../../features/">Features</a>
+      <a href="../../compare/">Compare</a>
+      <a href="../../blog/">Blog</a>
+      <a class="nav-cta" href="https://github.com/TITANICBHAI/FocusFlow/releases">Download APK</a>
+    </div>
+  </nav>
+
+  <div class="breadcrumb">
+    <a href="../../">Home</a><span>›</span><a href="../../blog/">Blog</a><span>›</span>Cold Turkey Alternative for Android
+  </div>
+
+  <article>
+    <p class="post-tag">Alternatives</p>
+    <h1>Cold Turkey Alternative for Android — Hard Blocking Without a PC</h1>
+    <p class="post-meta">By TBTechs · May 2025 · 8 min read</p>
+
+    <div class="bluf">
+      <strong>The answer:</strong> Cold Turkey has no Android app and hasn't announced one. For the same hard-enforcement, no-bypass philosophy on Android, <strong>FocusFlow</strong> is the closest equivalent — it's free, uses Accessibility Service + VPN + Device Admin, and includes features Cold Turkey doesn't have (Temptation Log, Weekly Report, content-specific blocking).
+    </div>
+
+    <h2>What Cold Turkey Does Well (and Why It's PC-Only)</h2>
+    <p>Cold Turkey Blocker has earned a loyal following on Windows and Mac because it takes blocking seriously. Once you start a Cold Turkey session, you can't bypass it — not by changing system time, not by uninstalling the app, not by using Task Manager. It modifies the Windows hosts file and uses a system-level service that survives reboots. That's the key insight: <em>Cold Turkey treats willpower as a finite resource that shouldn't be tested.</em></p>
+    <p>The reason there's no Android version is architectural. Cold Turkey's approach requires deep OS integration that Android's permission model doesn't easily allow through standard APIs. Getting the equivalent enforcement on Android requires using a different but equally robust set of tools.</p>
+
+    <h2>How FocusFlow Matches Cold Turkey's Philosophy on Android</h2>
+    <p>Android's version of "system-level enforcement" uses three components that, combined, produce the same outcome Cold Turkey achieves on Windows: once a session starts, the blocked apps are genuinely inaccessible.</p>
+
+    <h3>The Android Equivalent of Cold Turkey's System Lock</h3>
+    <div class="compare-row">
+      <div class="compare-col">
+        <h3>Cold Turkey (Windows/Mac)</h3>
+        <ul>
+          <li>Modifies hosts file to block sites</li>
+          <li>System service survives reboots</li>
+          <li>Uninstallation blocked during sessions</li>
+          <li>Clock change detection</li>
+          <li>No bypass dialogs</li>
+        </ul>
+      </div>
+      <div class="compare-col">
+        <h3>FocusFlow (Android)</h3>
+        <ul>
+          <li>Accessibility Service blocks apps at UI level</li>
+          <li>BootReceiver restores session after reboot</li>
+          <li>Device Admin blocks uninstallation via Settings</li>
+          <li>Clock tamper detection on startup</li>
+          <li>No bypass dialogs — block screen is non-dismissible</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2>Features Cold Turkey Has That FocusFlow Also Has</h2>
+    <ul>
+      <li><strong>Locked sessions:</strong> Once a block starts with a session PIN, it cannot be stopped until the timer expires (or you enter the correct PIN).</li>
+      <li><strong>Scheduled blocking:</strong> Block apps automatically on a Mon–Sun schedule, without starting sessions manually each day.</li>
+      <li><strong>Surviving reboots:</strong> FocusFlow's BootReceiver restores active sessions after device restart. Clock-change detection prevents the "change system time" bypass.</li>
+      <li><strong>Allowlist mode:</strong> Like Cold Turkey's allowlist, FocusFlow can operate in "everything blocked except these apps" mode.</li>
+    </ul>
+
+    <h2>Features FocusFlow Has That Cold Turkey Doesn't</h2>
+    <ul>
+      <li><strong>Temptation Log:</strong> Every blocked-app attempt is recorded with app name and timestamp — up to 500 entries. Cold Turkey doesn't track attempts.</li>
+      <li><strong>Weekly Temptation Report:</strong> Push notification every Sunday with 7-day blocked-attempt totals by app. No equivalent in Cold Turkey.</li>
+      <li><strong>Content-specific blocking:</strong> Block YouTube Shorts without blocking YouTube. Block Instagram Reels without blocking Instagram. Cold Turkey can only block entire sites/apps.</li>
+      <li><strong>Aversive feedback:</strong> Screen dim + vibration + sound triggers the moment a blocked app opens. Conditions a negative response rather than just a barrier.</li>
+      <li><strong>Sideload guard:</strong> New apps installed during a session are automatically blocked and trigger aversive feedback. Closing the "install another browser" bypass that Cold Turkey users sometimes exploit.</li>
+      <li><strong>Free:</strong> Cold Turkey Blocker costs $39 for a lifetime license. FocusFlow is free with no in-app purchases.</li>
+    </ul>
+
+    <h2>Feature Comparison Table</h2>
+    <table class="compare-table">
+      <thead><tr><th>Feature</th><th>FocusFlow (Android)</th><th>Cold Turkey (Win/Mac)</th></tr></thead>
+      <tbody>
+        <tr><td>Hard enforcement (no dismiss)</td><td><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+        <tr><td>Session lock (PIN)</td><td><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+        <tr><td>Scheduled blocking</td><td><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+        <tr><td>Survives reboot</td><td><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+        <tr><td>Clock-change detection</td><td><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+        <tr><td>Allowlist mode</td><td><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+        <tr><td>Network-level blocking (VPN)</td><td><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+        <tr><td>Temptation Log</td><td><span class="check">✓</span></td><td><span class="cross">✗</span></td></tr>
+        <tr><td>Weekly behavioural report</td><td><span class="check">✓</span></td><td><span class="cross">✗</span></td></tr>
+        <tr><td>Content-specific blocking</td><td><span class="check">✓</span></td><td><span class="cross">✗</span></td></tr>
+        <tr><td>Aversive feedback</td><td><span class="check">✓</span></td><td><span class="cross">✗</span></td></tr>
+        <tr><td>Android support</td><td><span class="check">✓</span></td><td><span class="cross">✗</span></td></tr>
+        <tr><td>iOS support</td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
+        <tr><td>Windows / Mac</td><td><span class="cross">✗</span></td><td><span class="check">✓</span></td></tr>
+        <tr><td>Price</td><td><span class="check">Free</span></td><td>$39 one-time</td></tr>
+      </tbody>
+    </table>
+
+    <h2>What FocusFlow Can't Do That Cold Turkey Can</h2>
+    <p>Cold Turkey blocks websites in desktop browsers — something an Android app can't replicate without root. If you need to block Twitter.com in Chrome on your PC while also blocking the Twitter app on your Android phone, you'd need Cold Turkey on the PC side and FocusFlow on Android. They're complementary rather than competing for the same use case.</p>
+
+    <h2>Setting Up FocusFlow Like Cold Turkey's "Frozen Turkey" Mode</h2>
+    <p>Cold Turkey's signature feature is "Frozen Turkey" — a session that can't be cancelled for any reason. To replicate this in FocusFlow:</p>
+    <ol>
+      <li>Go to <strong>Block Controls → Standalone Block</strong></li>
+      <li>Select the apps you want to block</li>
+      <li>Set a duration (e.g., 4 hours)</li>
+      <li>Enable <strong>Lock session</strong></li>
+      <li>Set a session PIN you won't easily remember (write it down somewhere inconvenient)</li>
+      <li>Start the block</li>
+    </ol>
+    <p>Once started, the block cannot be ended without the PIN. The PIN prompt appears in native Android UI — it cannot be bypassed even if the JavaScript bridge is compromised.</p>
+
+    <div class="verdict">
+      <strong>Verdict:</strong> FocusFlow is the only free Android app that matches Cold Turkey's core philosophy — hard enforcement, no bypass, session lock, reboot survival. It adds features Cold Turkey doesn't have (Temptation Log, Weekly Report, content-specific blocking) and works on 30+ Android OEM brands.
+    </div>
+
+    <div class="cta-box">
+      <h2>Get Cold Turkey-Level Blocking on Android — Free</h2>
+      <p>FocusFlow is free, open-source, and requires no root. Download and have your first session running in 5 minutes.</p>
+      <a class="btn" href="https://github.com/TITANICBHAI/FocusFlow/releases">⬇ Download APK →</a>
+      <a class="btn" style="background:#1a1a2e;border:1px solid rgba(108,99,255,0.4);" href="https://appgallery.huawei.com/app/C117698039">Huawei AppGallery</a>
+    </div>
+
+    <div class="internal-links">
+      <h2>Related</h2>
+      <ul>
+        <li><a href="../best-free-app-blocker-android/">Best Free App Blocker for Android 2025</a></li>
+        <li><a href="../freedom-app-alternative/">Freedom App Alternative for Android</a></li>
+        <li><a href="../how-to-block-tiktok-android/">How to Block TikTok on Android</a></li>
+        <li><a href="../../features/">All FocusFlow Features</a></li>
+        <li><a href="../../how-it-works/">How FocusFlow's 3-Layer Enforcement Works</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <footer>
+    <p>© 2025 TBTechs · <a href="../../privacy-policy/">Privacy</a> · <a href="../../terms-of-service/">Terms</a> · <a href="https://github.com/TITANICBHAI/FocusFlow">GitHub</a></p>
+  </footer>
+</body>
+</html>

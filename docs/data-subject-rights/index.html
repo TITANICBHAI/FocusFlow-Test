@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Data Subject Rights — FocusFlow</title>
+  <meta name="description" content="Submit a data access, correction, or deletion request for FocusFlow by TBTechs." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://focusflowapp.pages.dev/data-subject-rights/" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --accent: #6C63FF;
+      --accent-dark: #4B44CC;
+      --bg: #0D0D14;
+      --surface: #16161F;
+      --surface2: #1E1E2E;
+      --text: #F0F0FF;
+      --muted: #B0B0C8;
+      --border: rgba(108, 99, 255, 0.22);
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: radial-gradient(circle at top, rgba(108,99,255,0.15), transparent 34rem), var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+    }
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(13, 13, 20, 0.88);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .brand {
+      color: var(--text);
+      font-weight: 800;
+      text-decoration: none;
+      letter-spacing: -0.02em;
+    }
+    .nav-links {
+      display: flex;
+      gap: 1.2rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--text); }
+    .nav-links a { color: var(--muted); font-size: 0.95rem; }
+    #lang-toggle {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 0.28rem 0.7rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-family: inherit;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    #lang-toggle:hover { border-color: var(--accent); color: var(--text); }
+    .zh { display: none; }
+    [data-lang="zh"] .zh { display: block; }
+    [data-lang="zh"] .en { display: none; }
+    main {
+      width: min(920px, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: 4.5rem 0;
+    }
+    .eyebrow {
+      color: var(--accent);
+      font-weight: 800;
+      font-size: 0.82rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 0.7rem;
+    }
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.4rem);
+      line-height: 1.08;
+      letter-spacing: -0.04em;
+      margin-bottom: 1rem;
+    }
+    .intro {
+      max-width: 720px;
+      color: var(--muted);
+      font-size: 1.08rem;
+      margin-bottom: 2rem;
+    }
+    .updated {
+      display: inline-block;
+      color: var(--muted);
+      background: rgba(108, 99, 255, 0.12);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.35rem 0.8rem;
+      font-size: 0.86rem;
+      margin-bottom: 2.5rem;
+    }
+    section {
+      background: rgba(22, 22, 31, 0.78);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    h2 {
+      font-size: 1.25rem;
+      margin-bottom: 0.65rem;
+      letter-spacing: -0.01em;
+    }
+    p, li { color: var(--muted); }
+    ul { padding-left: 1.25rem; display: grid; gap: 0.35rem; }
+    strong { color: var(--text); }
+    .rights-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+      margin-top: 0.5rem;
+    }
+    .right-card {
+      background: rgba(108,99,255,0.07);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.1rem 1.2rem;
+    }
+    .right-card .icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .right-card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.3rem;
+    }
+    .right-card p {
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+    .cta-box {
+      background: rgba(108,99,255,0.1);
+      border: 1.5px solid rgba(108,99,255,0.4);
+      border-radius: 18px;
+      padding: 2rem;
+      text-align: center;
+      margin-top: 1rem;
+    }
+    .cta-box h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .cta-box p {
+      margin-bottom: 1.25rem;
+    }
+    .cta-btn {
+      display: inline-block;
+      background: var(--accent);
+      color: #fff !important;
+      font-weight: 700;
+      padding: 0.75rem 2rem;
+      border-radius: 999px;
+      font-size: 1rem;
+      transition: background 0.2s;
+    }
+    .cta-btn:hover { background: var(--accent-dark); }
+    .note {
+      font-size: 0.88rem;
+      color: var(--muted);
+      margin-top: 0.75rem;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      text-align: center;
+      padding: 2rem;
+      font-size: 0.9rem;
+    }
+    @media (max-width: 720px) {
+      nav { flex-direction: column; gap: 1rem; }
+      .nav-links { justify-content: center; }
+      main { padding-top: 3rem; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="brand" href="../" style="display:flex;align-items:center;gap:0.5rem;">
+      <img src="../logo-transparent.png" alt="FocusFlow" width="28" height="28" style="border-radius:7px;" />
+      FocusFlow
+    </a>
+    <div class="nav-links">
+      <a href="../">Home</a>
+      <a href="../features/">Features</a>
+      <a href="../privacy-policy/">Privacy Policy</a>
+      <a href="../terms-of-service/">Terms</a>
+      <a href="https://github.com/TITANICBHAI/FocusFlow">GitHub</a>
+      <button id="lang-toggle">中文</button>
+    </div>
+  </nav>
+
+  <main>
+    <p class="eyebrow en">Data Subject Rights</p>
+    <p class="eyebrow zh">数据主体权利</p>
+
+    <h1 class="en">Your data rights, clearly explained.</h1>
+    <h1 class="zh">您的数据权利，清晰说明。</h1>
+
+    <p class="intro en">FocusFlow stores all your data locally on your device — nothing is ever sent to our servers. This page explains your rights and how to exercise them.</p>
+    <p class="intro zh">FocusFlow 将您的所有数据本地存储在您的设备上——任何内容都不会发送到我们的服务器。本页说明您的权利及如何行使这些权利。</p>
+
+    <p class="updated en">Last updated: May 2026</p>
+    <p class="updated zh">最后更新：2026年5月</p>
+
+    <section>
+      <h2 class="en">Your rights at a glance</h2>
+      <h2 class="zh">您的权利一览</h2>
+      <div class="rights-grid">
+        <div class="right-card">
+          <div class="icon">🔍</div>
+          <h3 class="en">Right to Access</h3>
+          <h3 class="zh">访问权</h3>
+          <p class="en">You can view all data FocusFlow stores at any time directly inside the app — tasks, block lists, stats, and settings.</p>
+          <p class="zh">您可以随时直接在应用内查看 FocusFlow 存储的所有数据——任务、屏蔽列表、统计数据和设置。</p>
+        </div>
+        <div class="right-card">
+          <div class="icon">✏️</div>
+          <h3 class="en">Right to Correction</h3>
+          <h3 class="zh">更正权</h3>
+          <p class="en">Edit or update any information (tasks, rules, preferences) at any time from within the app.</p>
+          <p class="zh">随时在应用内编辑或更新任何信息（任务、规则、偏好设置）。</p>
+        </div>
+        <div class="right-card">
+          <div class="icon">🗑️</div>
+          <h3 class="en">Right to Deletion</h3>
+          <h3 class="zh">删除权</h3>
+          <p class="en">Delete individual records in the app, or wipe all data instantly via Android Settings → Apps → FocusFlow → Clear Data, or by uninstalling the app.</p>
+          <p class="zh">在应用内删除单个记录，或通过 Android 设置 → 应用 → FocusFlow → 清除数据立即清除所有数据，或通过卸载应用来删除。</p>
+        </div>
+        <div class="right-card">
+          <div class="icon">📦</div>
+          <h3 class="en">Right to Portability</h3>
+          <h3 class="zh">可携带权</h3>
+          <p class="en">Export a full backup of your data at any time using the Backup &amp; Restore feature inside FocusFlow Settings.</p>
+          <p class="zh">随时使用 FocusFlow 设置中的备份与恢复功能导出您数据的完整备份。</p>
+        </div>
+        <div class="right-card">
+          <div class="icon">🚫</div>
+          <h3 class="en">Right to Object</h3>
+          <h3 class="zh">反对权</h3>
+          <p class="en">Revoke any Android permission (Accessibility, Usage Stats, Draw over Other Apps) at any time in Android Settings. The affected features will stop collecting that data.</p>
+          <p class="zh">随时在 Android 设置中撤销任何 Android 权限（无障碍功能、使用情况统计、显示在其他应用上层）。受影响的功能将停止收集该数据。</p>
+        </div>
+        <div class="right-card">
+          <div class="icon">🔒</div>
+          <h3 class="en">No Server Data</h3>
+          <h3 class="zh">无服务器数据</h3>
+          <p class="en">FocusFlow has no backend database. There is no account, no cloud sync, and no personal data stored on TBTechs servers — ever.</p>
+          <p class="zh">FocusFlow 没有后端数据库。没有账户，没有云同步，TBTechs 服务器上永远不会存储任何个人数据。</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="en">What data FocusFlow stores</h2>
+      <h2 class="zh">FocusFlow 存储的数据</h2>
+      <ul class="en">
+        <li><strong>Tasks &amp; schedules</strong> — stored on-device in SQLite.</li>
+        <li><strong>App block lists &amp; allowlists</strong> — stored on-device in SQLite and SharedPreferences.</li>
+        <li><strong>Focus session history &amp; statistics</strong> — stored locally; never transmitted.</li>
+        <li><strong>App settings &amp; preferences</strong> — stored in Android SharedPreferences.</li>
+        <li><strong>Blocked-app intercept log</strong> — stored locally; viewable and clearable inside the app.</li>
+        <li><strong>Custom overlay wallpaper</strong> (if set) — stored in app-private storage on your device.</li>
+      </ul>
+      <ul class="zh">
+        <li><strong>任务和日程</strong>——存储在设备上的 SQLite 中。</li>
+        <li><strong>应用屏蔽列表和允许列表</strong>——存储在设备上的 SQLite 和 SharedPreferences 中。</li>
+        <li><strong>专注会话历史和统计数据</strong>——本地存储；从不传输。</li>
+        <li><strong>应用设置和偏好</strong>——存储在 Android SharedPreferences 中。</li>
+        <li><strong>被屏蔽应用拦截日志</strong>——本地存储；可在应用内查看和清除。</li>
+        <li><strong>自定义覆盖层壁纸</strong>（如已设置）——存储在设备上的应用私有存储中。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 class="en">How to delete your data right now</h2>
+      <h2 class="zh">如何立即删除您的数据</h2>
+      <ul class="en">
+        <li><strong>Individual records:</strong> Delete tasks, block rules, or logs directly inside the FocusFlow app.</li>
+        <li><strong>All app data:</strong> Android Settings → Apps → FocusFlow → Storage → <em>Clear Data</em>. This is instant and permanent.</li>
+        <li><strong>Uninstall:</strong> Uninstalling FocusFlow removes all associated data from your device.</li>
+      </ul>
+      <ul class="zh">
+        <li><strong>单个记录：</strong>直接在 FocusFlow 应用内删除任务、屏蔽规则或日志。</li>
+        <li><strong>所有应用数据：</strong>Android 设置 → 应用 → FocusFlow → 存储 → <em>清除数据</em>。此操作即时且永久。</li>
+        <li><strong>卸载：</strong>卸载 FocusFlow 会从您的设备中删除所有相关数据。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 class="en">Third-party data sharing</h2>
+      <h2 class="zh">第三方数据共享</h2>
+      <p class="en">FocusFlow does <strong>not</strong> share any data with third parties. There are no analytics SDKs, advertising networks, crash-reporting services, or cloud APIs embedded in the app.</p>
+      <p class="zh">FocusFlow <strong>不</strong>与第三方共享任何数据。应用中没有嵌入分析 SDK、广告网络、崩溃报告服务或云 API。</p>
+    </section>
+
+    <div class="cta-box">
+      <h2 class="en">Have a question or request?</h2>
+      <h2 class="zh">有问题或请求？</h2>
+      <p class="note en" style="margin-bottom:1rem;">Even though all data is local, if you have a privacy question, a concern about our policies, or need any assistance, email us — we respond within 72 hours.</p>
+      <p class="note zh" style="margin-bottom:1rem;">即使所有数据都是本地存储的，如果您有隐私问题、对我们政策的疑虑或需要任何帮助，请发送电子邮件给我们——我们将在72小时内回复。</p>
+      <a class="cta-btn" href="mailto:tbtechsdev@gmail.com?subject=Data%20Subject%20Request%20%E2%80%94%20FocusFlow">
+        Email tbtechsdev@gmail.com
+      </a>
+      <p class="note en">Please include "Data Subject Request" in the subject line.</p>
+      <p class="note zh">请在主题行中注明"数据主体请求"。</p>
+    </div>
+  </main>
+
+  <footer>
+    <p><a href="../">Home</a> · <a href="../privacy-policy/">Privacy Policy</a> · <a href="../terms-of-service/">Terms of Service</a> · <a href="https://github.com/TITANICBHAI/FocusFlow">GitHub</a></p>
+  </footer>
+
+  <script>
+  (function(){
+    var stored = localStorage.getItem('ff-lang');
+    var auto = (navigator.language || navigator.userLanguage || '').startsWith('zh');
+    var isZh = stored ? stored === 'zh' : auto;
+    function apply(zh){
+      document.documentElement.setAttribute('data-lang', zh ? 'zh' : 'en');
+      localStorage.setItem('ff-lang', zh ? 'zh' : 'en');
+      var btn = document.getElementById('lang-toggle');
+      if(btn) btn.textContent = zh ? 'EN' : '中文';
+    }
+    apply(isZh);
+    document.addEventListener('DOMContentLoaded', function(){
+      apply(isZh);
+      var btn = document.getElementById('lang-toggle');
+      if(btn) btn.addEventListener('click', function(){
+        var cur = document.documentElement.getAttribute('data-lang');
+        apply(cur !== 'zh');
+      });
+    });
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Device Admin policy for FocusDayDeviceAdminReceiver.
+
+  Declared policies:
+    force-lock  — Allows FocusFlow to call DevicePolicyManager.lockNow(), which
+                  is used as a last-resort enforcement step when Device Admin is
+                  deactivated while a focus session is running.
+
+  Intentionally NOT declared:
+    wipe-data   — Factory-resetting the user's phone is not an appropriate
+                  enforcement action for a productivity app. Never add this.
+    reset-password / limit-password / watch-login — Not needed; FocusFlow does
+                  not manage the device lock screen credential.
+-->
+<device-admin xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-policies>
+        <force-lock />
+    </uses-policies>
+</device-admin>

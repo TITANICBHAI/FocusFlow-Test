@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Story A</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100vw;height:100vh;overflow:hidden;font-family:'Poppins',sans-serif}
+.ad{width:100vw;height:100vh;background:#0D0D0D;display:flex;flex-direction:column;justify-content:space-between;padding:6vh 8vw}
+.logo{display:flex;align-items:center;gap:2vw}
+.logo-icon{width:6vh;height:6vh;background:#FF3C00;border-radius:1.5vw;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-icon svg{width:65%;height:65%}
+.logo-text{font-size:2.5vh;font-weight:700;color:#fff}
+.logo-text em{color:#FF3C00;font-style:normal}
+.middle{flex:1;display:flex;flex-direction:column;justify-content:center;gap:3vh}
+.eyebrow{font-size:1.6vh;font-weight:700;color:#FF3C00;letter-spacing:0.15em;text-transform:uppercase}
+.headline{font-size:7.5vw;font-weight:900;color:#fff;line-height:1.08}
+.headline em{color:#FF3C00;font-style:normal}
+.proof-block{background:rgba(255,60,0,0.08);border:1px solid rgba(255,60,0,0.2);border-radius:2vw;padding:2.5vh 4vw}
+.proof-line{font-size:1.8vh;color:rgba(255,255,255,0.7);padding:0.6vh 0;display:flex;align-items:center;gap:2vw;border-bottom:1px solid rgba(255,255,255,0.05)}
+.proof-line:last-child{border-bottom:none}
+.proof-check{color:#FF3C00;font-weight:900;font-size:2vh}
+.benefit{font-size:2.2vh;color:rgba(255,255,255,0.5);line-height:1.6}
+.cta{display:inline-block;background:#FF3C00;color:#fff;font-size:2.2vh;font-weight:700;padding:2vh 6vw;border-radius:1.5vw;align-self:flex-start}
+.footer{font-size:1.6vh;color:rgba(255,255,255,0.2)}
+</style>
+</head>
+<body>
+<div class="ad">
+  <div class="logo">
+    <div class="logo-icon"><img src="logo.png" style="width:100%;height:100%;object-fit:contain;border-radius:inherit"></div>
+    <div class="logo-text">Focus<em>Flow</em></div>
+  </div>
+  <div class="middle">
+    <div class="eyebrow">For Stay Focused users</div>
+    <div class="headline">Your lifetime blocker just <em>expired.</em><br>Ours won't.</div>
+    <div class="proof-block">
+      <div class="proof-line"><span class="proof-check">✓</span> Free and open source. Forever.</div>
+      <div class="proof-line"><span class="proof-check">✓</span> Code is public — nothing to hide</div>
+      <div class="proof-line"><span class="proof-check">✓</span> No revocation. No fine print.</div>
+    </div>
+    <div class="benefit">Free and open source. No purchase, no subscription, no fine print. The code is public — we can't hide anything.</div>
+    <div class="cta">Download Free</div>
+  </div>
+  <div class="footer">focusflow.app</div>
+</div>
+</body>
+</html>

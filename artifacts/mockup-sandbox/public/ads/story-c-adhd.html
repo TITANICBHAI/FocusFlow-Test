@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Story C</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100vw;height:100vh;overflow:hidden;font-family:'Poppins',sans-serif}
+.ad{width:100vw;height:100vh;background:#110A0A;display:flex;flex-direction:column;justify-content:space-between;padding:6vh 8vw}
+.logo{display:flex;align-items:center;gap:2vw}
+.logo-icon{width:6vh;height:6vh;background:#FF3C00;border-radius:1.5vw;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-icon svg{width:65%;height:65%}
+.logo-text{font-size:2.5vh;font-weight:700;color:#fff}
+.logo-text em{color:#FF3C00;font-style:normal}
+.middle{flex:1;display:flex;flex-direction:column;justify-content:center;gap:3vh}
+.eyebrow{font-size:1.6vh;font-weight:700;color:#FF3C00;letter-spacing:0.15em;text-transform:uppercase}
+.headline{font-size:7.5vw;font-weight:900;color:#fff;line-height:1.08}
+.headline em{color:#FF3C00;font-style:normal}
+.contrast-block{display:flex;flex-direction:column;gap:1.5vh}
+.contrast-row{display:flex;align-items:center;gap:3vw;background:rgba(255,255,255,0.03);border-radius:2vw;padding:2vh 4vw;border:1px solid rgba(255,255,255,0.06)}
+.contrast-row.theirs{border-color:rgba(255,255,255,0.04)}
+.contrast-row.ours{border-color:rgba(255,60,0,0.25);background:rgba(255,60,0,0.06)}
+.contrast-icon{font-size:3.5vh;flex-shrink:0}
+.contrast-text-name{font-size:1.4vh;font-weight:700;color:rgba(255,255,255,0.4)}
+.contrast-text-name.ours{color:#fff}
+.contrast-text-action{font-size:1.6vh;color:rgba(255,255,255,0.35)}
+.contrast-text-action.ours{color:rgba(255,255,255,0.8)}
+.benefit{font-size:2.2vh;color:rgba(255,255,255,0.5);line-height:1.6}
+.cta{display:inline-block;background:#FF3C00;color:#fff;font-size:2.2vh;font-weight:700;padding:2vh 6vw;border-radius:1.5vw;align-self:flex-start}
+.footer{font-size:1.6vh;color:rgba(255,255,255,0.2)}
+</style>
+</head>
+<body>
+<div class="ad">
+  <div class="logo">
+    <div class="logo-icon"><img src="logo.png" style="width:100%;height:100%;object-fit:contain;border-radius:inherit"></div>
+    <div class="logo-text">Focus<em>Flow</em></div>
+  </div>
+  <div class="middle">
+    <div class="eyebrow">For ADHD brains</div>
+    <div class="headline">Willpower isn't the problem.<br>Your <em>blocker</em> is.</div>
+    <div class="contrast-block">
+      <div class="contrast-row theirs">
+        <span class="contrast-icon">🌳</span>
+        <div>
+          <div class="contrast-text-name">Forest</div>
+          <div class="contrast-text-action">Asks nicely. You close it anyway.</div>
+        </div>
+      </div>
+      <div class="contrast-row ours">
+        <span class="contrast-icon">🔒</span>
+        <div>
+          <div class="contrast-text-name ours">FocusFlow</div>
+          <div class="contrast-text-action ours">Screen dims. Phone vibrates. Hard to override.</div>
+        </div>
+      </div>
+    </div>
+    <div class="benefit">Three layers of deterrents before you can override a block. Because discipline needs engineering.</div>
+    <div class="cta">Download Free</div>
+  </div>
+  <div class="footer">focusflow.app</div>
+</div>
+</body>
+</html>

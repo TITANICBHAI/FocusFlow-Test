@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "FocusFlow"
+version = "1.0.0"
+id = "artifacts/focusflow"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/" ]
+localPort = 25040
+
+[services.development]
+run = "pnpm --filter @workspace/focusflow run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/focusflow", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/focusflow", "run", "serve" ]
+
+[services.env]
+PORT = "25040"
+BASE_PATH = "/"

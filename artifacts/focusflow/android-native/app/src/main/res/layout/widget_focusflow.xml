@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  4 × 1 home-screen widget layout.
+
+  Five render states (all share the same view IDs — visibility toggled in Kotlin):
+
+    ACTIVE TASK      header=accent "ACTIVE TASK"  | task name | "Nm left" + mini progress bar
+                     stats line shows current streak (🔥 N) when streak > 0
+    AWAITING DECISION header=accent "TIME'S UP"   | task name | "Tap to resolve →"
+    NEXT UP          header=indigo "NEXT UP"      | task name | "Starts in Nm"
+                     stats line shows "Done · N/M tasks · Km today"
+    STANDALONE BLOCK header=indigo "BLOCK ACTIVE" | "Blocking N apps · until HH:MM"
+    IDLE             header=indigo "FOCUSFLOW · 🔥 N"
+                     "Nothing scheduled" + "Done · N/M tasks · Km today" subtitle
+                     right column: "+ Add Task" pill
+
+  Outer root is a horizontal LinearLayout. The left column stacks brand label,
+  task name, and an optional stats subtitle. The right column stacks time/CTA
+  vertically. Stays within 4×1 (minWidth 250dp, minHeight 50dp).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:paddingStart="14dp"
+    android:paddingEnd="14dp"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp"
+    android:background="@drawable/widget_background"
+    android:gravity="center_vertical">
+
+    <!-- Left column: brand label + task name + optional stats subtitle -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center_vertical"
+        android:paddingEnd="8dp">
+
+        <TextView
+            android:id="@+id/widget_header_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="FOCUSFLOW"
+            android:textSize="9sp"
+            android:textColor="#6366f1"
+            android:textStyle="bold"
+            android:letterSpacing="0.10"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/widget_task_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="No active task"
+            android:textSize="13sp"
+            android:textColor="#1e1b4b"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:layout_marginTop="1dp" />
+
+        <!-- Stats subtitle — visible in IDLE / NEXT UP only. Shows today's
+             progress so an empty schedule still displays useful context. -->
+        <TextView
+            android:id="@+id/widget_stats_line"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="10sp"
+            android:textColor="#6b7280"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:layout_marginTop="1dp"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <!-- Right column: time remaining + progress bar (active) OR "+ Add Task" pill (idle) -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center_vertical|end"
+        android:minWidth="80dp">
+
+        <!-- Time remaining — shown during ACTIVE / AWAITING / NEXT UP -->
+        <TextView
+            android:id="@+id/widget_time_remaining"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="12sp"
+            android:textColor="#6366f1"
+            android:textStyle="bold"
+            android:gravity="end"
+            android:visibility="gone" />
+
+        <!-- Thin progress bar — shown only during ACTIVE TASK -->
+        <ProgressBar
+            android:id="@+id/widget_progress"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="80dp"
+            android:layout_height="3dp"
+            android:layout_marginTop="4dp"
+            android:max="100"
+            android:progress="0"
+            android:progressTint="#6366f1"
+            android:progressBackgroundTint="#e0e7ff"
+            android:visibility="gone" />
+
+        <!-- "+ Add Task" pill — shown only when IDLE (no task, no block) -->
+        <TextView
+            android:id="@+id/widget_add_task_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="+ Add Task"
+            android:textSize="11sp"
+            android:textColor="#ffffff"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:background="@drawable/widget_add_task_bg"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+</LinearLayout>

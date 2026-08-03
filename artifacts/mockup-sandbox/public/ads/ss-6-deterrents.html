@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SS6</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100vw;height:100vh;overflow:hidden;font-family:'Poppins',sans-serif}
+.wrap{width:100vw;height:100vh;background:#0A0000;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:4vh 5vw}
+.headline-area{text-align:center;padding-top:1vh}
+.badge{background:rgba(255,60,0,0.2);color:#FF3C00;font-size:1.4vh;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:0.6vh 2vw;border-radius:2vw;display:inline-block;margin-bottom:1.5vh}
+.headline{font-size:4.2vh;font-weight:900;color:#fff;line-height:1.15;text-align:center}
+.headline em{color:#FF3C00;font-style:normal}
+.phone{width:52vw;max-width:220px;background:#0D0D0D;border-radius:3.5vw;overflow:hidden;box-shadow:0 4vh 8vh rgba(255,60,0,0.2);border:0.5vw solid #2a0000}
+.phone-notch{width:30%;height:2.5vh;background:#0D0D0D;margin:0 auto;border-radius:0 0 2vw 2vw}
+.phone-screen{background:#0D0D0D;padding:2vh 3vw}
+.status-bar{display:flex;justify-content:space-between;margin-bottom:1vh;opacity:0.4}
+.status-text{font-size:1.2vh;color:#fff;font-weight:600}
+.screen-title{font-size:1.6vh;font-weight:900;color:#fff;margin-bottom:0.3vh}
+.screen-sub{font-size:0.95vh;color:rgba(255,255,255,0.3);margin-bottom:1.5vh;line-height:1.4}
+.deterrent-card{background:#1a0000;border:1px solid rgba(255,60,0,0.25);border-radius:1.5vw;padding:1.2vh 2.5vw;margin-bottom:0.8vh}
+.det-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4vh}
+.det-left{display:flex;align-items:center;gap:1.5vw}
+.det-icon{font-size:2vh}
+.det-name{font-size:1.3vh;font-weight:700;color:#fff}
+.toggle{width:6vw;height:3vh;background:#FF3C00;border-radius:3vh;position:relative}
+.toggle-dot{width:2.5vh;height:2.5vh;background:#fff;border-radius:50%;position:absolute;right:0.25vh;top:50%;transform:translateY(-50%)}
+.toggle.off{background:#2a2a2a}
+.toggle.off .toggle-dot{right:auto;left:0.25vh}
+.det-desc{font-size:1vh;color:rgba(255,255,255,0.35);line-height:1.4}
+.intensity-row{display:flex;gap:0.8vw;margin-top:0.5vh}
+.int-dot{width:2.5vw;height:1vh;border-radius:1vw}
+.int-dot.filled{background:#FF3C00}
+.int-dot.empty{background:#2a2a2a}
+.footer-label{color:rgba(255,255,255,0.5);font-size:1.5vh;text-align:center;padding-bottom:1vh}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="headline-area">
+    <div class="badge">Screenshot 6 of 8</div>
+    <div class="headline">Three layers of friction.<br>Because <em>willpower</em> isn't enough.</div>
+  </div>
+  <div class="phone">
+    <div class="phone-notch"></div>
+    <div class="phone-screen">
+      <div class="status-bar"><span class="status-text">9:41</span><span class="status-text">●●●</span></div>
+      <div class="screen-title">Aversion Deterrents</div>
+      <div class="screen-sub">Triggered every time you open a blocked app</div>
+      <div class="deterrent-card">
+        <div class="det-header">
+          <div class="det-left"><span class="det-icon">🌑</span><span class="det-name">Screen Dim</span></div>
+          <div class="toggle"><div class="toggle-dot"></div></div>
+        </div>
+        <div class="det-desc">Screen darkens to 10% brightness for 3 seconds</div>
+        <div class="intensity-row">
+          <div class="int-dot filled"></div><div class="int-dot filled"></div><div class="int-dot filled"></div><div class="int-dot empty"></div><div class="int-dot empty"></div>
+        </div>
+      </div>
+      <div class="deterrent-card">
+        <div class="det-header">
+          <div class="det-left"><span class="det-icon">📳</span><span class="det-name">Haptic Vibration</span></div>
+          <div class="toggle"><div class="toggle-dot"></div></div>
+        </div>
+        <div class="det-desc">Strong 500ms vibration burst on block</div>
+        <div class="intensity-row">
+          <div class="int-dot filled"></div><div class="int-dot filled"></div><div class="int-dot empty"></div><div class="int-dot empty"></div><div class="int-dot empty"></div>
+        </div>
+      </div>
+      <div class="deterrent-card">
+        <div class="det-header">
+          <div class="det-left"><span class="det-icon">🔔</span><span class="det-name">Deterrent Sound</span></div>
+          <div class="toggle off"><div class="toggle-dot"></div></div>
+        </div>
+        <div class="det-desc">Custom alert tone plays on block attempt</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-label">FocusFlow — No other app has this. Zero competitors.</div>
+</div>
+</body>
+</html>

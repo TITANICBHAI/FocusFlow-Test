@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SS5</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100vw;height:100vh;overflow:hidden;font-family:'Poppins',sans-serif}
+.wrap{width:100vw;height:100vh;background:#100A00;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:4vh 5vw}
+.headline-area{text-align:center;padding-top:1vh}
+.badge{background:rgba(255,60,0,0.2);color:#FF3C00;font-size:1.4vh;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:0.6vh 2vw;border-radius:2vw;display:inline-block;margin-bottom:1.5vh}
+.headline{font-size:4.2vh;font-weight:900;color:#fff;line-height:1.15;text-align:center}
+.headline em{color:#FF3C00;font-style:normal}
+.phone{width:52vw;max-width:220px;background:#0D0D0D;border-radius:3.5vw;overflow:hidden;box-shadow:0 4vh 6vh rgba(255,100,0,0.1);border:0.5vw solid #1a1a1a}
+.phone-notch{width:30%;height:2.5vh;background:#0D0D0D;margin:0 auto;border-radius:0 0 2vw 2vw}
+.phone-screen{background:#0D0D0D;padding:2vh 3vw}
+.status-bar{display:flex;justify-content:space-between;margin-bottom:1vh;opacity:0.4}
+.status-text{font-size:1.2vh;color:#fff;font-weight:600}
+.screen-title{font-size:1.6vh;font-weight:900;color:#fff;margin-bottom:0.5vh}
+.screen-sub{font-size:1vh;color:rgba(255,255,255,0.35);margin-bottom:1.5vh}
+.mode-card{border-radius:1.5vw;padding:1.2vh 2.5vw;margin-bottom:0.8vh;border:1px solid rgba(255,255,255,0.07)}
+.mode-card.active{background:#1a0800;border-color:rgba(255,60,0,0.4)}
+.mode-card.inactive{background:#141414}
+.mode-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.3vh}
+.mode-name{font-size:1.3vh;font-weight:700;color:#fff}
+.mode-badge{font-size:0.9vh;font-weight:700;padding:0.3vh 1vw;border-radius:1vw}
+.badge-active{background:rgba(255,60,0,0.2);color:#FF3C00}
+.badge-pro{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.3)}
+.mode-desc{font-size:1vh;color:rgba(255,255,255,0.4);line-height:1.4}
+.mode-eg{font-size:0.9vh;color:#FF3C00;margin-top:0.3vh}
+.progress-bar{background:#1a1a1a;border-radius:1vw;height:1vh;margin-top:0.8vh;overflow:hidden}
+.progress-fill{background:#FF3C00;height:100%;width:60%;border-radius:1vw}
+.progress-label{font-size:0.9vh;color:rgba(255,255,255,0.3);margin-top:0.3vh;display:flex;justify-content:space-between}
+.footer-label{color:rgba(255,255,255,0.5);font-size:1.5vh;text-align:center;padding-bottom:1vh}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="headline-area">
+    <div class="badge">Screenshot 5 of 8</div>
+    <div class="headline">Your rules. Count,<br><em>time, or interval</em> unlocks.</div>
+  </div>
+  <div class="phone">
+    <div class="phone-notch"></div>
+    <div class="phone-screen">
+      <div class="status-bar"><span class="status-text">9:41</span><span class="status-text">●●●</span></div>
+      <div class="screen-title">Daily Allowance — Instagram</div>
+      <div class="screen-sub">Choose how you allow yourself in</div>
+      <div class="mode-card active">
+        <div class="mode-header">
+          <span class="mode-name">Time Budget</span>
+          <span class="mode-badge badge-active">Active</span>
+        </div>
+        <div class="mode-desc">Allow 30 min/day total. FocusFlow tracks automatically.</div>
+        <div class="progress-bar"><div class="progress-fill"></div></div>
+        <div class="progress-label"><span>18 min used</span><span>12 min left</span></div>
+      </div>
+      <div class="mode-card inactive">
+        <div class="mode-header">
+          <span class="mode-name">Count Limit</span>
+          <span class="mode-badge badge-pro">Pro</span>
+        </div>
+        <div class="mode-desc">Allow 5 opens per day. After that — blocked.</div>
+        <div class="mode-eg">eg. "I can check Instagram 3 times, then I'm done."</div>
+      </div>
+      <div class="mode-card inactive">
+        <div class="mode-header">
+          <span class="mode-name">Interval Unlock</span>
+          <span class="mode-badge badge-pro">Pro</span>
+        </div>
+        <div class="mode-desc">Unlock every 2 hours for 10 minutes only.</div>
+        <div class="mode-eg">eg. Pomodoro break mode</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-label">FocusFlow — 3 Allowance Modes. No competitor has this.</div>
+</div>
+</body>
+</html>

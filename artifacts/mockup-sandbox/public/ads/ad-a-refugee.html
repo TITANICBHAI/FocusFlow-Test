@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FocusFlow Ad A</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Poppins', sans-serif;
+  }
+  .ad {
+    width: 100vw;
+    height: 100vh;
+    background: #0D0D0D;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 6vh 7vw;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 1vw;
+  }
+  .logo-icon {
+    width: 5vh;
+    height: 5vh;
+  }
+  .logo-text {
+    font-size: 2.2vh;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.02em;
+  }
+  .logo-text span {
+    color: #FF3C00;
+  }
+  .middle {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5vh;
+  }
+  .eyebrow {
+    font-size: 1.5vh;
+    font-weight: 700;
+    color: #FF3C00;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+  .headline {
+    font-family: 'Poppins', sans-serif;
+    font-size: 7.5vw;
+    font-weight: 900;
+    color: #ffffff;
+    line-height: 1.05;
+    max-width: 85%;
+  }
+  .headline em {
+    color: #FF3C00;
+    font-style: normal;
+  }
+  .benefit {
+    font-size: 2.2vh;
+    font-weight: 400;
+    color: rgba(255,255,255,0.6);
+    line-height: 1.5;
+  }
+  .cta {
+    display: inline-block;
+    background: #FF3C00;
+    color: #ffffff;
+    font-family: 'Poppins', sans-serif;
+    font-size: 2vh;
+    font-weight: 700;
+    padding: 1.6vh 4vw;
+    border-radius: 0.8vw;
+    text-decoration: none;
+    align-self: flex-start;
+    letter-spacing: 0.03em;
+  }
+  .footer {
+    font-size: 1.6vh;
+    color: rgba(255,255,255,0.25);
+    font-weight: 400;
+  }
+</style>
+</head>
+<body>
+<div class="ad">
+  <div class="logo">
+    <img src="logo.png" class="logo-icon" alt="FocusFlow" style="object-fit:contain">
+    <span class="logo-text">Focus<span>Flow</span></span>
+  </div>
+
+  <div class="middle">
+    <div class="eyebrow">For Stay Focused users</div>
+    <div class="headline">Your lifetime blocker just <em>expired.</em> Ours won't.</div>
+    <div class="benefit">Free and open source — always. The code is public, so we can't hide anything. No purchase, no fine print, no revocation.<br><span style="opacity:0.4;font-size:0.85em">github.com/TITANICBHAI/FocusFlow</span></div>
+    <a class="cta" href="#">Download Free</a>
+  </div>
+
+  <span class="footer">focusflow.app</span>
+</div>
+</body>
+</html>

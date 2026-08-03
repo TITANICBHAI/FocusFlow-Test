@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SS2</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100vw;height:100vh;overflow:hidden;font-family:'Poppins',sans-serif}
+.wrap{width:100vw;height:100vh;background:#0D0D0D;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:4vh 5vw}
+.headline-area{text-align:center;padding-top:1vh}
+.badge{background:rgba(255,60,0,0.2);color:#FF3C00;font-size:1.4vh;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:0.6vh 2vw;border-radius:2vw;display:inline-block;margin-bottom:1.5vh}
+.headline{font-size:4.5vh;font-weight:900;color:#fff;line-height:1.15;text-align:center}
+.headline em{color:#FF3C00;font-style:normal}
+.phone{width:52vw;max-width:220px;background:#0D0D0D;border-radius:3.5vw;overflow:hidden;box-shadow:0 4vh 6vh rgba(255,60,0,0.15);border:0.5vw solid #2a2a2a}
+.phone-notch{width:30%;height:2.5vh;background:#0D0D0D;margin:0 auto;border-radius:0 0 2vw 2vw;display:flex;align-items:center;justify-content:center}
+.phone-dot{width:1vw;height:1vw;background:#333;border-radius:50%}
+.phone-screen{background:#0a0000;padding:0}
+.overlay{background:rgba(10,0,0,0.97);padding:3vh 3vw;min-height:45vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border-bottom:1px solid rgba(255,60,0,0.2)}
+.block-icon{width:7vw;height:7vw;background:#FF3C00;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:3.5vw;margin:0 auto 1.5vh}
+.block-title{font-size:2.2vh;font-weight:900;color:#FF3C00;margin-bottom:0.5vh}
+.block-app{font-size:1.3vh;color:rgba(255,255,255,0.5);margin-bottom:1.5vh}
+.deterrent-row{display:flex;gap:1.5vw;margin:1vh 0}
+.deterrent{background:rgba(255,60,0,0.1);border:1px solid rgba(255,60,0,0.25);color:rgba(255,255,255,0.6);font-size:1vh;padding:0.5vh 1vw;border-radius:1vw;font-weight:600}
+.override-btn{background:transparent;border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.2);font-size:1.1vh;padding:0.7vh 2.5vw;border-radius:1vw;margin-top:1.5vh}
+.stats-row{padding:1.5vh 3vw;display:flex;justify-content:space-between}
+.stat{text-align:center}
+.stat-num{font-size:2vh;font-weight:900;color:#FF3C00}
+.stat-label{font-size:0.9vh;color:rgba(255,255,255,0.35);margin-top:0.2vh}
+.proof-tags{display:flex;gap:1vw;justify-content:center;flex-wrap:wrap;padding-bottom:1vh}
+.proof{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5);font-size:1.1vh;padding:0.4vh 1.5vw;border-radius:1vw;font-weight:600}
+.footer-label{color:rgba(255,255,255,0.5);font-size:1.5vh;text-align:center;padding-bottom:1vh}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="headline-area">
+    <div class="badge">Screenshot 2 of 8</div>
+    <div class="headline">On-device. <em>No bypass.</em><br>No internet needed.</div>
+  </div>
+  <div class="phone">
+    <div class="phone-notch"><div class="phone-dot"></div></div>
+    <div class="phone-screen">
+      <div class="overlay">
+        <div class="block-icon">🚫</div>
+        <div class="block-title">App Blocked</div>
+        <div class="block-app">Instagram · Focus session active</div>
+        <div class="deterrent-row">
+          <span class="deterrent">📵 Screen dimmed</span>
+          <span class="deterrent">📳 Vibrated</span>
+        </div>
+        <div class="deterrent-row">
+          <span class="deterrent">✈️ Works offline</span>
+          <span class="deterrent">🔄 Survives reboot</span>
+        </div>
+        <div class="override-btn">Emergency override (logged)</div>
+      </div>
+      <div class="stats-row">
+        <div class="stat"><div class="stat-num">47</div><div class="stat-label">blocked today</div></div>
+        <div class="stat"><div class="stat-num">3h 12m</div><div class="stat-label">focus time</div></div>
+        <div class="stat"><div class="stat-num">94%</div><div class="stat-label">compliance</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="proof-tags">
+    <span class="proof">Accessibility Service · not VPN</span>
+    <span class="proof">No cloud dependency</span>
+  </div>
+  <div class="footer-label">FocusFlow — Enforced On-Device</div>
+</div>
+</body>
+</html>

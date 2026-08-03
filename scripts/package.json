@@ -1,0 +1,23 @@
+{
+  "name": "@workspace/scripts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "github:push": "node ./github-push.mjs",
+    "github:push-pc": "node ./github-push-pc.mjs",
+    "github:deploy-pages": "node ./github-deploy-pages.mjs",
+    "github:deploy-feature-videos-repo": "node ./github-deploy-feature-videos-repo.mjs",
+    "github:push-screenshot-guides": "node ./github-push-screenshot-guides.mjs",
+    "hello": "tsx ./src/hello.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsx": "catalog:"
+  },
+  "dependencies": {
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.7"
+  }
+}

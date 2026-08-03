@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>How to Block TikTok on Android (Permanently, With No Bypass) | FocusFlow</title>
+  <meta name="description" content="Block TikTok on Android so it can't be reopened during focus sessions. Step-by-step guide using FocusFlow's hard-enforcement app blocker. Free, no root required." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://focusflowapp.pages.dev/blog/how-to-block-tiktok-android/" />
+  <meta name="google-site-verification" content="sou-98cZYPWFJmbwxJgJptO-ZaIPNJqz2ven_iS4NjI" />
+  <meta name="msvalidate.01" content="FC2887EF2F94BFFE090CAB25A456AE86" />
+  <meta property="og:title" content="How to Block TikTok on Android Permanently — No Bypass" />
+  <meta property="og:description" content="Hard-block TikTok on Android using Accessibility Service + VPN enforcement. Free, no root, works on Samsung, Xiaomi, OnePlus, and 30+ other OEMs." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://focusflowapp.pages.dev/blog/how-to-block-tiktok-android/" />
+  <meta property="og:site_name" content="FocusFlow by TBTechs" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:image" content="https://focusflowapp.pages.dev/og-image.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="How to Block TikTok on Android Permanently" />
+  <meta name="twitter:description" content="Hard-block TikTok using Accessibility Service + VPN. Free, no root required." />
+  <meta name="twitter:image" content="https://focusflowapp.pages.dev/og-image.jpg" />
+  <link rel="icon" href="../../logo-transparent.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'" />
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" /></noscript>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://focusflowapp.pages.dev/" },
+      { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://focusflowapp.pages.dev/blog/" },
+      { "@type": "ListItem", "position": 3, "name": "How to Block TikTok on Android", "item": "https://focusflowapp.pages.dev/blog/how-to-block-tiktok-android/" }
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": "How to Block TikTok on Android Permanently, With No Bypass",
+    "description": "A step-by-step guide to hard-blocking TikTok on Android using Accessibility Service and VPN enforcement so it cannot be reopened during focus sessions.",
+    "url": "https://focusflowapp.pages.dev/blog/how-to-block-tiktok-android/",
+    "datePublished": "2025-05-15",
+    "dateModified": "2025-05-15",
+    "author": { "@type": "Organization", "name": "TBTechs", "url": "https://focusflowapp.pages.dev/" },
+    "publisher": { "@type": "Organization", "name": "TBTechs", "url": "https://focusflowapp.pages.dev/" },
+    "inLanguage": "en-US",
+    "image": "https://focusflowapp.pages.dev/og-image.jpg",
+    "keywords": "block TikTok Android, TikTok blocker Android, how to block TikTok, stop TikTok Android"
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "How do I block TikTok on Android without deleting it?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Use FocusFlow's app blocker. It uses Android's Accessibility Service to detect when TikTok opens and immediately redirects you away — without uninstalling the app. The block can be scheduled or permanent." }
+      },
+      {
+        "@type": "Question",
+        "name": "Can TikTok be blocked on Android without rooting?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. FocusFlow blocks TikTok using Android's Accessibility Service, Usage Stats, and an on-device VPN — all standard Android permissions that require no root access." }
+      },
+      {
+        "@type": "Question",
+        "name": "What stops me from just disabling FocusFlow to get back on TikTok?",
+        "acceptedAnswer": { "@type": "Answer", "text": "FocusFlow uses three countermeasures: Device Admin mode (blocks uninstallation via Settings), System Guard (intercepts navigation to FocusFlow's settings pages during sessions), and a SHA-256 hashed session PIN stored at the native Android layer." }
+      }
+    ]
+  }
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --bg: #0D0D14; --surface: #13131F; --border: rgba(255,255,255,0.07); --accent: #6C63FF; --text: #F0F0F8; --muted: #9090B0; --green: #34D399; --red: #F87171; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; line-height: 1.75; }
+    a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+    nav { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; border-bottom: 1px solid var(--border); background: rgba(13,13,20,0.92); backdrop-filter: blur(14px); z-index: 100; }
+    .brand { display: flex; align-items: center; gap: 0.5rem; font-weight: 800; font-size: 1.05rem; color: var(--text); }
+    .brand img { width: 28px; height: 28px; border-radius: 7px; }
+    .nav-links { display: flex; gap: 1.4rem; align-items: center; }
+    .nav-links a { color: var(--muted); font-size: 0.88rem; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta { background: var(--accent); color: #fff !important; padding: 0.45rem 1rem; border-radius: 8px; font-weight: 600; font-size: 0.82rem !important; }
+    .breadcrumb { padding: 1rem 2rem; font-size: 0.8rem; color: var(--muted); }
+    .breadcrumb a { color: var(--accent); }
+    .breadcrumb span { margin: 0 0.4rem; }
+    article { max-width: 740px; margin: 0 auto; padding: 2.5rem 2rem 6rem; }
+    .post-tag { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+    h1 { font-size: clamp(1.7rem, 4vw, 2.3rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.2; margin: 0.75rem 0 1rem; }
+    .post-meta { font-size: 0.8rem; color: var(--muted); margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
+    h2 { font-size: 1.3rem; font-weight: 700; margin: 2.5rem 0 0.75rem; }
+    h3 { font-size: 1.05rem; font-weight: 600; margin: 1.75rem 0 0.5rem; color: var(--text); }
+    p { margin-bottom: 1.1rem; color: #D0D0E8; }
+    ul, ol { margin: 0.5rem 0 1.25rem 1.5rem; color: #D0D0E8; }
+    li { margin-bottom: 0.45rem; }
+    .bluf { background: linear-gradient(135deg, rgba(108,99,255,0.12), rgba(108,99,255,0.04)); border: 1px solid rgba(108,99,255,0.3); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 2rem; }
+    .bluf strong { color: var(--accent); }
+    .step-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem 1.5rem; margin: 0.75rem 0; }
+    .step-num { font-size: 0.72rem; font-weight: 700; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.3rem; }
+    .step-box h3 { margin: 0 0 0.4rem; font-size: 0.95rem; }
+    .step-box p { margin: 0; font-size: 0.88rem; }
+    .verdict { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.2); border-radius: 12px; padding: 1.25rem 1.5rem; margin: 2rem 0; }
+    .verdict strong { color: var(--green); }
+    .warn-box { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.2); border-radius: 12px; padding: 1.25rem 1.5rem; margin: 1.5rem 0; }
+    .warn-box strong { color: var(--red); }
+    .cta-box { background: linear-gradient(135deg, rgba(108,99,255,0.18), rgba(108,99,255,0.06)); border: 1px solid rgba(108,99,255,0.35); border-radius: 16px; padding: 2rem; text-align: center; margin-top: 3rem; }
+    .cta-box h2 { font-size: 1.4rem; margin: 0 0 0.5rem; }
+    .cta-box p { font-size: 0.92rem; margin-bottom: 1.25rem; }
+    .btn { display: inline-block; background: var(--accent); color: #fff; padding: 0.75rem 1.75rem; border-radius: 10px; font-weight: 700; font-size: 0.9rem; margin: 0.3rem; }
+    .btn:hover { background: #7a72ff; text-decoration: none; }
+    .internal-links { margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--border); }
+    .internal-links h2 { font-size: 1rem; margin-bottom: 0.75rem; color: var(--muted); font-weight: 600; }
+    .internal-links ul { list-style: none; margin: 0; padding: 0; }
+    .internal-links li { margin-bottom: 0.4rem; }
+    .compare-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin: 1.5rem 0; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+    .compare-table th { background: var(--accent); color: #fff; padding: 0.75rem 1rem; text-align: left; }
+    .compare-table td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); color: var(--muted); }
+    .compare-table td:first-child { color: var(--text); font-weight: 600; }
+    .compare-table tr:last-child td { border-bottom: none; }
+    .check { color: #4ade80; } .cross { color: #f87171; }
+    footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center; color: var(--muted); font-size: 0.8rem; }
+    footer a { color: var(--accent); }
+    @media (max-width: 640px) { nav { flex-wrap: wrap; gap: 0.75rem; } article { padding: 2rem 1.25rem 4rem; } }
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="brand" href="../../"><img src="../../logo-transparent.png" alt="FocusFlow" />FocusFlow</a>
+    <div class="nav-links">
+      <a href="../../features/">Features</a>
+      <a href="../../compare/">Compare</a>
+      <a href="../../blog/">Blog</a>
+      <a class="nav-cta" href="https://github.com/TITANICBHAI/FocusFlow/releases">Download APK</a>
+    </div>
+  </nav>
+
+  <div class="breadcrumb">
+    <a href="../../">Home</a><span>›</span><a href="../../blog/">Blog</a><span>›</span>How to Block TikTok on Android
+  </div>
+
+  <article>
+    <p class="post-tag">How-To Guide</p>
+    <h1>How to Block TikTok on Android (Permanently, With No Bypass)</h1>
+    <p class="post-meta">By TBTechs · May 2025 · 7 min read</p>
+
+    <div class="bluf">
+      <strong>Bottom line:</strong> FocusFlow blocks TikTok at the Accessibility Service level and cuts its network access via an on-device VPN. Once a session starts, TikTok cannot be opened — the block survives reboots, clock changes, and side-loading attempts. Free, no root, works on 30+ Android OEMs including Samsung, Xiaomi, Huawei, and OnePlus.
+    </div>
+
+    <h2>Why Soft Blockers Don't Work on TikTok</h2>
+    <p>TikTok's feed is engineered to be as frictionless as possible. Every soft-blocker solution has a weakness that the addictive feedback loop is specifically designed to exploit:</p>
+    <ul>
+      <li><strong>Digital Wellbeing timer:</strong> Shows a dialog with a one-tap "Ignore limit" button. TikTok's reward circuitry will always win that friction battle.</li>
+      <li><strong>Screen time apps with passcode:</strong> You set the passcode — you know it. Under real temptation, you enter it.</li>
+      <li><strong>Deleting the app:</strong> Re-installing takes 30 seconds. The algorithm picks up exactly where it left off.</li>
+      <li><strong>Grayscale mode:</strong> TikTok still plays. Grayscale removes color, not the content.</li>
+    </ul>
+    <p>Hard enforcement means the app genuinely cannot be opened during the blocked period — not that it shows you a warning you can dismiss.</p>
+
+    <h2>How FocusFlow Blocks TikTok (The Technical Part)</h2>
+    <p>FocusFlow uses three independent layers, each of which alone would partially work. Together they close every known bypass route:</p>
+
+    <h3>Layer 1 — Accessibility Service</h3>
+    <p>FocusFlow monitors foreground app changes. The moment TikTok's package (<code>com.zhiliaoapp.musically</code>) appears in the foreground, FocusFlow fires within 300 ms: it overlays a full-screen block screen, logs the attempt in your Temptation Log, and can trigger aversive feedback (screen dim + vibration + sound). It also re-checks every 300 ms for up to 5 cycles, so switching between activities inside TikTok doesn't create an escape window.</p>
+
+    <h3>Layer 2 — Local VPN (Network Kill)</h3>
+    <p>FocusFlow can route TikTok's traffic to an on-device null-route VPN that never forwards packets externally. This cuts TikTok's feed, notifications, and content delivery — no internet access, no infinite scroll to load. The VPN runs entirely on-device; no data leaves your phone.</p>
+
+    <h3>Layer 3 — Device Admin + Session PIN</h3>
+    <p>Device Admin mode prevents uninstalling FocusFlow via the standard Settings path. A SHA-256 hashed session PIN (stored at the native Android layer) prevents stopping the block without the correct PIN — even if you kill the JavaScript bridge. System Guard intercepts navigation to FocusFlow's own settings pages, Accessibility settings, and App Info pages during active sessions.</p>
+
+    <h2>Step-by-Step: Blocking TikTok with FocusFlow</h2>
+
+    <div class="step-box">
+      <p class="step-num">Step 1</p>
+      <h3>Download and Install FocusFlow</h3>
+      <p>Download from <a href="https://github.com/TITANICBHAI/FocusFlow/releases">GitHub Releases</a> or <a href="https://appgallery.huawei.com/app/C117698039">Huawei AppGallery</a>. If installing the APK directly, allow installation from unknown sources (Settings → Security → Install unknown apps → your file manager).</p>
+    </div>
+
+    <div class="step-box">
+      <p class="step-num">Step 2</p>
+      <h3>Grant Required Permissions</h3>
+      <p>Open FocusFlow and go through the setup screen. The two critical permissions are <strong>Accessibility Service</strong> and <strong>Usage Stats Access</strong> — both needed to detect and block TikTok. Battery Optimization exemption is strongly recommended to prevent your OEM from killing FocusFlow in the background.</p>
+    </div>
+
+    <div class="step-box">
+      <p class="step-num">Step 3</p>
+      <h3>Start a Block Session and Add TikTok</h3>
+      <p>Tap <strong>Block Controls → Standalone Block</strong>. Search for TikTok in the app picker and select it. Set a duration (or choose "Until I stop it"). Tap <strong>Start Block</strong>.</p>
+    </div>
+
+    <div class="step-box">
+      <p class="step-num">Step 4</p>
+      <h3>Enable Network Blocking (Optional but Recommended)</h3>
+      <p>Go to <strong>Block Enforcement → System Protection → Network Blocking</strong>. Grant the VPN permission when prompted. This adds Layer 2 enforcement — TikTok loses internet access in addition to being blocked at the UI level.</p>
+    </div>
+
+    <div class="step-box">
+      <p class="step-num">Step 5</p>
+      <h3>Set a Session PIN (Strongly Recommended)</h3>
+      <p>In <strong>Settings → PIN Protection</strong>, set a defense PIN. Without this, you could disable FocusFlow through its own settings. With it, stopping any block requires entering the PIN first.</p>
+    </div>
+
+    <div class="step-box">
+      <p class="step-num">Step 6</p>
+      <h3>Schedule Recurring Blocks (Optional)</h3>
+      <p>For automatic daily blocking, use <strong>Block Schedules</strong> (Greyout Windows). Set Mon–Sun during the hours you want TikTok blocked — FocusFlow will enforce the block automatically without you having to remember to start it.</p>
+    </div>
+
+    <h2>What Happens When You Try to Open TikTok</h2>
+    <p>The block screen appears within 300 ms of TikTok appearing in the foreground. If aversive feedback is enabled, the screen dims to near-zero brightness, the phone vibrates, and a sound plays. The attempt is logged in your Temptation Log with the exact timestamp. The block screen cannot be dismissed — it disappears only when you navigate away from TikTok.</p>
+
+    <h2>How to Block TikTok Only During Work Hours</h2>
+    <p>Use <strong>Scheduled Greyout Windows</strong>: create a time window (e.g., Mon–Fri 09:00–18:00) and add TikTok to the blocked app list for that window. Outside those hours, TikTok is accessible normally. The schedule runs automatically — no manual start/stop needed each day.</p>
+
+    <h2>Does This Work on My Phone?</h2>
+    <p>FocusFlow is tested on 30+ OEM brands. Samsung One UI, Xiaomi MIUI / HyperOS, Huawei EMUI / HarmonyOS, OPPO ColorOS, Realme, Vivo, OnePlus OxygenOS, Motorola, Nokia, Asus ZenUI, and stock Android all work. OEM-specific battery optimization can kill background services — FocusFlow prompts you to disable it during setup and explains the OEM-specific steps.</p>
+
+    <h2>Comparison: FocusFlow vs. Other TikTok Blockers</h2>
+    <table class="compare-table">
+      <thead><tr><th>Method</th><th>Can be bypassed?</th><th>Network blocking?</th><th>Survives reboot?</th><th>Free?</th></tr></thead>
+      <tbody>
+        <tr><td>Digital Wellbeing timer</td><td><span class="cross">✗ One tap dismiss</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td><td><span class="check">✓</span></td></tr>
+        <tr><td>Parental control (passcode)</td><td><span class="cross">✗ You know the code</span></td><td>Partial</td><td><span class="check">✓</span></td><td>Paid</td></tr>
+        <tr><td>Delete TikTok</td><td><span class="cross">✗ Re-install in 30s</span></td><td><span class="cross">✗</span></td><td>N/A</td><td><span class="check">✓</span></td></tr>
+        <tr><td>FocusFlow (Accessibility + VPN + Device Admin)</td><td><span class="check">✓ Cannot bypass</span></td><td><span class="check">✓ On-device VPN</span></td><td><span class="check">✓ BootReceiver</span></td><td><span class="check">✓ Free</span></td></tr>
+      </tbody>
+    </table>
+
+    <div class="verdict">
+      <strong>Result:</strong> TikTok blocked at UI level + network level. Every attempt logged. Survives reboots, side-load attempts, and clock changes. Takes under 5 minutes to set up.
+    </div>
+
+    <div class="cta-box">
+      <h2>Block TikTok Now — Free</h2>
+      <p>FocusFlow is free, open-source, and requires no root. Download the APK and start your first block session in under 5 minutes.</p>
+      <a class="btn" href="https://github.com/TITANICBHAI/FocusFlow/releases">⬇ Download APK →</a>
+      <a class="btn" style="background:#1a1a2e;border:1px solid rgba(108,99,255,0.4);" href="https://appgallery.huawei.com/app/C117698039">Huawei AppGallery</a>
+    </div>
+
+    <div class="internal-links">
+      <h2>Related guides</h2>
+      <ul>
+        <li><a href="../how-to-block-youtube-shorts-android/">How to Block YouTube Shorts Without Blocking YouTube</a></li>
+        <li><a href="../how-to-block-instagram-reels-android/">How to Block Instagram Reels Without Blocking Instagram</a></li>
+        <li><a href="../how-to-stop-doom-scrolling/">How to Stop Doom Scrolling on Android</a></li>
+        <li><a href="../best-free-app-blocker-android/">Best Free App Blocker for Android</a></li>
+        <li><a href="../../features/">All FocusFlow Features</a></li>
+      </ul>
+    </div>
+  </article>
+
+  <footer>
+    <p>© 2025 TBTechs · <a href="../../privacy-policy/">Privacy</a> · <a href="../../terms-of-service/">Terms</a> · <a href="https://github.com/TITANICBHAI/FocusFlow">GitHub</a></p>
+  </footer>
+</body>
+</html>

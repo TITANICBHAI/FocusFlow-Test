@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FocusFlow</string>
+
+    <!--
+        This description is shown by Android in the Accessibility settings screen
+        when the user is deciding whether to enable FocusFlow's accessibility service.
+
+        Google Play policy requires this to accurately describe what the service does
+        and — critically — what it does NOT do.
+
+        What FocusFlow's accessibility service does:
+          - Listens for TYPE_WINDOW_STATE_CHANGED events to detect which app the
+            user has opened (reads only the event's packageName field).
+          - When a blocked app is opened during a user-initiated focus session,
+            performs GLOBAL_ACTION_HOME to return the user to the launcher.
+          - Reads window node content ONLY to detect system uninstall dialogs
+            (to prevent app uninstalls during a focus session). No other content
+            is ever read, stored, or transmitted.
+
+        What this service does NOT do:
+          - Does NOT read on-screen text, passwords, messages, or any personal data.
+          - Does NOT log keystrokes or capture user input.
+          - Does NOT transmit any data off the device.
+          - Does NOT run when no focus session or block schedule is active.
+    -->
+    <string name="widget_description">Shows your active focus session and time remaining on the home screen.</string>
+
+    <string name="accessibility_service_description">
+        FocusFlow uses this service to enforce your focus sessions by detecting
+        which app you open. When you start a focus session, any app not on your
+        allowed list is immediately redirected back to the home screen.\n\n
+        This service reads only the package name of the active window — it cannot
+        read your messages, passwords, screen content, or any personal information.
+        All processing happens entirely on your device. No data is ever collected
+        or transmitted.\n\n
+        The service is only active when you have an active focus session or block
+        schedule running. You can disable it at any time from Accessibility Settings.
+    </string>
+</resources>

@@ -1,0 +1,100 @@
+FocusFlow — Changelog
+=====================
+Privacy Policy: https://titanicbhai.github.io/FocusFlow/
+
+────────────────────────────────────────────────────────────────
+v1.1.0  —  April 2026
+────────────────────────────────────────────────────────────────
+
+POWER MENU & NOTIFICATION PANEL BLOCKING
+  • Samsung One UI: power menu now caught via com.samsung.android.app.powerkey
+    (separate OEM package — was entirely missed before).
+  • isPowerMenu() detection hardened — added Android 14 GlobalActionsLayout,
+    Samsung SecGlobalActionsDialog, MIUI MiuiGlobalActionsDialog and more.
+  • Text-fallback threshold lowered from "≥ 2 keywords" to any 1 match.
+    "Emergency call" and "Safe mode" added to keyword list (many OEMs show
+    these instead of "Emergency mode" / "Restart").
+  • Three-layer dismiss chain for both power menu and notification panel:
+      1. ACTION_CLOSE_SYSTEM_DIALOGS broadcast  (instant on Android ≤ 11)
+      2. GLOBAL_ACTION_BACK  at 80 ms
+      3. GLOBAL_ACTION_HOME  at 350 ms  (guaranteed on all OEMs)
+  • Notification panel: Samsung One UI class names added to detection list
+    (CentralSurfaces, StatusBarWindowView, SamsungQSPanel, SamsungShadeViewController).
+  • Broad TYPE_WINDOW_STATE_CHANGED fallback catches unknown OEM class names.
+  • StatusBarManager reflection as primary collapse + HOME as guaranteed fallback.
+
+NEW PERMISSIONS
+  • android.permission.EXPAND_STATUS_BAR added to manifest, app.json,
+    and install.sh patch script.
+
+NLP TASK PARSER IMPROVEMENTS
+  • Natural language scheduling now understands:
+      – "tomorrow", "tonight"
+      – "morning" (09:00), "afternoon" (14:00), "evening" (18:00)
+      – "in 30 minutes" / "in 2 hours"
+      – bare times: "9am", "14:30", "3pm"
+      – "today" keyword
+
+STATS SCREEN
+  • Overdue tasks are now counted and displayed as a separate line with a
+    red alert icon — previously they were hidden inside "Remaining".
+
+SETTINGS
+  • Changelog screen added (this screen).
+
+CI / BUILD FIXES
+  • AAB job: ABI splits disabled before bundleRelease — fixes
+    "Multiple shrunk-resources files found" crash (Gradle/AGP issue #402800800).
+  • debug-tag.yml and release-tag.yml: corrected to use pnpm + Node.js 20 +
+    Expo Prebuild with the correct android/ output path.
+
+────────────────────────────────────────────────────────────────
+v1.0.0  —  Initial Release
+────────────────────────────────────────────────────────────────
+
+CORE FOCUS ENGINE
+  • Task-based focus sessions with configurable duration.
+  • Allowed-apps whitelist during focus — everything else is blocked.
+  • Standalone block mode independent of any session.
+  • Daily allowance system (count / time-budget / interval modes).
+  • Automatic expiry using native time authority.
+
+APP BLOCKING
+  • Foreground-app detection via AccessibilityService.
+  • Full-screen BlockOverlayActivity with session context.
+  • WindowManager overlay path (SYSTEM_ALERT_WINDOW) for instant blocking.
+  • Retry mechanism: up to 5 re-checks at 300 ms to catch self-relaunching apps.
+  • NEVER_BLOCK list: phone dialers and WhatsApp are always accessible.
+
+KEYWORD BLOCKING
+  • URL-bar scanning in all major browsers (Chrome, Firefox, Samsung Internet,
+    Brave, Edge, DuckDuckGo, and more).
+  • 400 ms debounce on text-changed events; 2 s throttle on content-changed.
+
+NETWORK BLOCKING
+  • VPN-based null-routing for blocked apps via NetworkBlockerVpnService.
+
+GREYOUT SCHEDULE
+  • Pre-committed time-window blocks on specific days and hours.
+
+DEEP ANDROID ENFORCEMENT
+  • Settings sub-pages blocked during sessions: accessibility settings,
+    clear-data dialog, date/time, usage access, battery optimisation,
+    device admin, developer options, reset pages, special access.
+  • BootReceiver: service restarts automatically after reboot.
+  • Device Admin: prevents uninstallation during active blocks.
+  • FocusLauncherActivity: optional launcher-mode for nuclear focus.
+
+WIDGETS & NOTIFICATIONS
+  • Home-screen widget showing active session status.
+  • Weekly "Temptation Report" notification (Sunday 08:00) summarising
+    how many times each blocked app was attempted.
+
+AVERSION DETERRENTS
+  • Screen dimmer, vibration pulse, and sound cues when accessing
+    distraction apps during a session.
+
+ONBOARDING & PERMISSIONS
+  • Step-by-step permission setup screen.
+  • Privacy Policy and Terms of Service screens.
+  • All data stored locally on device — zero server calls.

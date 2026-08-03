@@ -1,0 +1,225 @@
+<!--
+  AndroidManifest.xml — FocusFlow native additions reference
+
+  ══════════════════════════════════════════════════════════════════════════════
+  HOW TO BUILD
+  ══════════════════════════════════════════════════════════════════════════════
+
+  1. npx expo prebuild --platform android
+  2. ./android-native/install.sh          ← does everything below automatically
+  3. Manually add FocusDayPackage (see bottom — the one step the script can't do)
+  4. eas build --platform android --profile preview
+
+  ══════════════════════════════════════════════════════════════════════════════
+  WHAT install.sh COPIES AND PATCHES (reference only — do not apply manually)
+  ══════════════════════════════════════════════════════════════════════════════
+
+  Kotlin source:
+    android-native/.../modules/*.kt      → android/.../modules/
+    android-native/.../services/*.kt     → android/.../services/
+    android-native/.../widget/*.kt       → android/.../widget/
+
+  Resources:
+    res/xml/accessibility_service_config.xml
+    res/xml/device_admin.xml
+    res/xml/widget_info.xml
+    res/layout/widget_focusflow.xml
+    res/drawable/widget_background.xml
+
+  strings.xml (patched automatically):
+    accessibility_service_description
+    widget_description
+
+  AndroidManifest.xml permissions (patched automatically):
+    PACKAGE_USAGE_STATS
+    SYSTEM_ALERT_WINDOW
+    FOREGROUND_SERVICE
+    FOREGROUND_SERVICE_SPECIAL_USE
+    RECEIVE_BOOT_COMPLETED
+    REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+    BIND_ACCESSIBILITY_SERVICE
+    WAKE_LOCK
+    REQUEST_DELETE_PACKAGES
+    CHANGE_WIFI_STATE
+    ACCESS_WIFI_STATE
+    CHANGE_NETWORK_STATE
+    INTERNET                    (for VpnService tunnel interface)
+    BIND_VPN_SERVICE
+    VIBRATE                     (for vibration harassment aversion layer)
+    SCHEDULE_EXACT_ALARM        (for weekly temptation report alarm; optional, falls back to inexact)
+    KILL_BACKGROUND_PROCESSES   (terminate the blocked app process after HOME press)
+    USE_FULL_SCREEN_INTENT      (required to launch BlockOverlayActivity AND TaskAlarmActivity via full-screen notification)
+    EXPAND_STATUS_BAR           (allows collapsing the notification panel via StatusBarManager)
+    READ_EXTERNAL_STORAGE       (legacy API ≤ 32 — lets WallpaperManager.getDrawable() succeed
+                                 when reading the home-screen wallpaper for BlockOverlayActivity)
+
+  AndroidManifest.xml components (patched automatically):
+
+    <service android:name="...services.ForegroundTaskService"
+        android:foregroundServiceType="specialUse">
+        <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+            android:value="productivity" />
+    </service>
+
+    <service android:name="...services.AppBlockerAccessibilityService"
+        android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+        <intent-filter>
+            <action android:name="android.accessibilityservice.AccessibilityService" />
+        </intent-filter>
+        <meta-data android:name="android.accessibilityservice"
+            android:resource="@xml/accessibility_service_config" />
+    </service>
+
+    <receiver android:name="...services.BootReceiver">
+        <intent-filter>
+            <action android:name="android.intent.action.BOOT_COMPLETED" />
+            <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+        </intent-filter>
+    </receiver>
+
+    <!--
+      VpnWatchdogReceiver — fires every ~60 seconds via AlarmManager while a
+      blocking session with network-block enabled is active.
+
+      Purpose: detect and recover from VPN process death caused by Android
+      battery optimisers / OEM process schedulers (Samsung One UI, MIUI,
+      ColorOS). AlarmManager alarms survive process death (they live in
+      system_server), so this receiver is woken up by the OS even after the
+      app process has been fully killed, giving it a reliable window to
+      restart NetworkBlockerVpnService.
+
+      exported="false" — only our own AlarmManager alarm can trigger it.
+    -->
+    <receiver android:name="...services.VpnWatchdogReceiver"
+        android:exported="false" />
+
+    <!--
+      TemptationReportReceiver — fires every Sunday 08:00 via AlarmManager to
+      post the weekly "Temptation Report" notification summarising how many times
+      each blocked app was attempted during the past 7 days.
+      exported="false" — only our own AlarmManager alarm can trigger it.
+    -->
+    <receiver android:name="...services.TemptationReportReceiver"
+        android:exported="false" />
+
+    <receiver android:name="...widget.FocusFlowWidget" android:exported="true">
+        <intent-filter>
+            <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+        </intent-filter>
+        <meta-data android:name="android.appwidget.provider"
+            android:resource="@xml/widget_info" />
+    </receiver>
+
+    <receiver android:name="...services.FocusDayDeviceAdminReceiver"
+        android:permission="android.permission.BIND_DEVICE_ADMIN">
+        <intent-filter>
+            <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+        </intent-filter>
+        <meta-data android:name="android.app.device_admin"
+            android:resource="@xml/device_admin" />
+    </receiver>
+
+    <!--
+      BlockOverlayActivity — full-screen blocking overlay launched by
+      AppBlockerAccessibilityService when a blocked app is detected.
+
+      Key attributes:
+        excludeFromRecents    — hides from the app switcher / recent apps list
+        showWhenLocked        — renders over the lock screen (API 27+)
+        turnScreenOn          — wakes the display when launched (API 27+)
+        noHistory             — does not remain in the back stack after finish()
+        launchMode singleTask — a second launch re-uses the existing instance
+                                and calls onNewIntent() instead of creating a
+                                duplicate, preventing overlay stacking.
+    -->
+    <activity
+        android:name="...services.BlockOverlayActivity"
+        android:excludeFromRecents="true"
+        android:showWhenLocked="true"
+        android:turnScreenOn="true"
+        android:noHistory="false"
+        android:launchMode="singleTask"
+        android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+        android:exported="false" />
+
+    <!--
+      TaskAlarmActivity — full-screen alarm launched by ForegroundTaskService
+      via setFullScreenIntent the moment a task hits its end time.
+        showWhenLocked + turnScreenOn — wakes the device and shows over lockscreen
+        excludeFromRecents              — never appears in the recents list
+        noHistory                       — auto-removed once finished
+        launchMode singleInstance       — re-trigger never stacks duplicate alarms
+        Backed by the high-importance "task_alarm" notification channel created
+        in ForegroundTaskService (sound + vibration + bypass DnD).
+    -->
+    <activity
+        android:name="...services.TaskAlarmActivity"
+        android:excludeFromRecents="true"
+        android:showWhenLocked="true"
+        android:turnScreenOn="true"
+        android:noHistory="true"
+        android:launchMode="singleInstance"
+        android:taskAffinity=""
+        android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+        android:exported="false" />
+
+    <!--
+      LauncherActivity — FocusFlow's built-in home-screen replacement.
+
+      Set FocusFlow as the default home app (via Settings → Default home app) to
+      enable instant, zero-delay app interception.  When set as home:
+        • Every HOME press lands on FocusFlow's launcher
+        • Blocked apps show the block overlay before their process even starts
+        • Hidden packages are filtered from the drawer entirely
+        • No brief flash of the blocked app (unlike accessibility-only mode)
+
+      Key attributes:
+        launchMode singleTask  — re-uses existing instance on HOME press
+        excludeFromRecents     — never appears in the app switcher
+        exported true          — required for the HOME intent-filter to work
+        taskAffinity ""        — own task root so HOME doesn't re-enter app stack
+    -->
+    <activity
+        android:name="...services.LauncherActivity"
+        android:launchMode="singleTask"
+        android:excludeFromRecents="true"
+        android:exported="true"
+        android:taskAffinity="">
+        <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+            <category android:name="android.intent.category.DEFAULT" />
+        </intent-filter>
+    </activity>
+
+    <!--
+      NetworkBlockerVpnService — null-routing VPN tunnel that drops all packets
+      for blocked apps. The BIND_VPN_SERVICE permission is required for all VPN
+      services; android:permission ensures only the system can bind to it.
+      Declared in the <application> block (NOT inside <queries>).
+    -->
+    <service
+        android:name="...services.NetworkBlockerVpnService"
+        android:permission="android.permission.BIND_VPN_SERVICE"
+        android:exported="false">
+        <intent-filter>
+            <action android:name="android.net.VpnService" />
+        </intent-filter>
+    </service>
+
+  ══════════════════════════════════════════════════════════════════════════════
+  ONE MANUAL STEP (cannot be scripted safely — edit the file directly)
+  ══════════════════════════════════════════════════════════════════════════════
+
+  File: android/app/src/main/java/com/tbtechs/focusflow/MainApplication.kt
+
+  Add import:
+    import com.tbtechs.focusflow.modules.FocusDayPackage
+
+  In getPackages():
+    override fun getPackages(): List<ReactPackage> {
+        val packages = PackageList(this).packages
+        packages.add(FocusDayPackage())   // ← add this line
+        return packages
+    }
+-->

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Story B</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100vw;height:100vh;overflow:hidden;font-family:'Poppins',sans-serif}
+.ad{width:100vw;height:100vh;background:#0A1628;display:flex;flex-direction:column;justify-content:space-between;padding:6vh 8vw}
+.logo{display:flex;align-items:center;gap:2vw}
+.logo-icon{width:6vh;height:6vh;background:#FF3C00;border-radius:1.5vw;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-icon svg{width:65%;height:65%}
+.logo-text{font-size:2.5vh;font-weight:700;color:#fff}
+.logo-text em{color:#FF3C00;font-style:normal}
+.middle{flex:1;display:flex;flex-direction:column;justify-content:center;gap:3vh}
+.eyebrow{font-size:1.6vh;font-weight:700;color:#FF3C00;letter-spacing:0.15em;text-transform:uppercase}
+.headline{font-size:7.5vw;font-weight:900;color:#fff;line-height:1.08}
+.headline em{color:#FF3C00;font-style:normal}
+.demo-strip{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:2vw;padding:2.5vh 4vw}
+.demo-row{display:flex;align-items:center;justify-content:space-between;padding:0.8vh 0;border-bottom:1px solid rgba(255,255,255,0.05)}
+.demo-row:last-child{border-bottom:none}
+.demo-label{font-size:1.8vh;color:rgba(255,255,255,0.6)}
+.demo-status{font-size:1.6vh;font-weight:700}
+.status-blocked{color:#FF3C00}
+.status-on{color:rgba(255,255,255,0.3)}
+.benefit{font-size:2.2vh;color:rgba(255,255,255,0.5);line-height:1.6}
+.cta{display:inline-block;background:#FF3C00;color:#fff;font-size:2.2vh;font-weight:700;padding:2vh 6vw;border-radius:1.5vw;align-self:flex-start}
+.footer{font-size:1.6vh;color:rgba(255,255,255,0.2)}
+</style>
+</head>
+<body>
+<div class="ad">
+  <div class="logo">
+    <div class="logo-icon"><img src="logo.png" style="width:100%;height:100%;object-fit:contain;border-radius:inherit"></div>
+    <div class="logo-text">Focus<em>Flow</em></div>
+  </div>
+  <div class="middle">
+    <div class="eyebrow">Freedom alternative</div>
+    <div class="headline">Your blocker fails <em>offline.</em> Ours doesn't.</div>
+    <div class="demo-strip">
+      <div class="demo-row"><span class="demo-label">Wi-Fi on</span><span class="demo-status status-blocked">BLOCKED ✓</span></div>
+      <div class="demo-row"><span class="demo-label">✈️ Airplane mode</span><span class="demo-status status-blocked">BLOCKED ✓</span></div>
+      <div class="demo-row"><span class="demo-label">App cleared</span><span class="demo-status status-blocked">BLOCKED ✓</span></div>
+      <div class="demo-row"><span class="demo-label">After reboot</span><span class="demo-status status-blocked">BLOCKED ✓</span></div>
+    </div>
+    <div class="benefit">Accessibility Service — not a VPN. No cloud. No bypass. Works the same whether you're online or not.</div>
+    <div class="cta">Download Free</div>
+  </div>
+  <div class="footer">focusflow.app</div>
+</div>
+</body>
+</html>

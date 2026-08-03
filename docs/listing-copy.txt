@@ -1,0 +1,110 @@
+===========================================================
+  FocusFlow by TBTechs — Directory Listing Copy
+  Paste this text into AlternativeTo, SaaSHub, AppRaven,
+  Product Hunt, Slant, or any app directory site.
+===========================================================
+
+APP NAME:
+FocusFlow — Hard-Enforcement App Blocker for Android
+
+DEVELOPER / AUTHOR:
+TBTechs
+
+SHORT DESCRIPTION (≤ 150 characters):
+The hardest-to-bypass Android app blocker. Accessibility Service + VPN + Device Admin. Temptation Log. Free.
+
+LONG DESCRIPTION:
+FocusFlow is a free, open-source Android app blocker built on the premise that willpower shouldn't be required to use an app blocker. Once a focus session starts, blocked apps genuinely cannot be opened — there is no dismiss button, no "ignore limit" tap-through, and no workaround that doesn't require factory-resetting your phone.
+
+FocusFlow combines three independent enforcement layers:
+
+1. Android Accessibility Service — detects blocked apps within 300 ms and overlays a non-dismissible block screen. Re-checks every 300 ms for 5 cycles to close mid-activity escape windows.
+
+2. Local Null-Routing VPN — routes blocked apps' network traffic to an on-device tunnel that never forwards packets externally. In PER_APP mode, only blocked apps lose internet. In GLOBAL mode, all traffic is cut except emergency calls. Zero bytes leave your device.
+
+3. Device Admin + Session PIN — Device Admin prevents uninstalling FocusFlow via Settings. System Guard intercepts navigation to Accessibility Settings, Clear Data, and App Info during sessions. A SHA-256 hashed session PIN is stored at the native Android layer and cannot be bypassed even if the JavaScript bridge is disabled.
+
+UNIQUE FEATURES (not found in any other free app blocker):
+- Temptation Log: records every blocked-app attempt with app name and timestamp (up to 500 entries)
+- Weekly Temptation Report: push notification every Sunday with 7-day blocked attempt totals by app
+- Content-specific blocking: block YouTube Shorts without blocking YouTube; block Instagram Reels without blocking Instagram
+- Aversive feedback: screen dims + vibration + sound triggers the moment a blocked app opens
+- Sideload Guard: apps installed during an active session are automatically blocked
+- Clock tamper detection: validates session timestamps on startup to prevent the "change system time" bypass
+- Boot Recovery: BootReceiver restores active sessions after device reboot
+
+OTHER FEATURES:
+- Scheduled Greyout Windows (calendar-based blocking, no active session required)
+- Daily Allowance Engine (count/time budget/interval per app)
+- Launcher Replacement (minimal home screen with only allowed apps)
+- Pomodoro Mode (auto-cycling work and break sessions)
+- Keyword Blocker (blocks by on-screen text, URL, and search terms)
+- Backup & Restore (.focusflow file format)
+- 7 languages: English, Chinese (Simplified), French, German, Japanese, Korean, Spanish
+
+PLATFORM:
+Android 8.0+ (no root required)
+Tested on 30+ OEM brands: Samsung, Xiaomi, Huawei, OPPO, Realme, OnePlus, Vivo, Motorola, Nokia, Asus, Nothing, Sony, Honor, Black Shark, Lenovo, and more.
+
+PRICE:
+Free. No subscription. No in-app purchases. No premium tier.
+
+WEBSITE:
+https://focusflowapp.pages.dev/
+
+DOWNLOAD:
+- Huawei AppGallery: https://appgallery.huawei.com/app/C117698039
+- GitHub APK: https://github.com/TITANICBHAI/FocusFlow/releases
+
+GITHUB:
+https://github.com/TITANICBHAI/FocusFlow
+
+CONTACT:
+tbtechsdev@gmail.com
+
+CATEGORY TAGS:
+app blocker, screen time, focus, productivity, digital wellbeing, distraction blocker, TikTok blocker, Instagram blocker, YouTube Shorts blocker, ADHD, phone addiction, Android
+
+ALTERNATIVES TO (for comparison pages):
+- Alternative to Cold Turkey (Android equivalent)
+- Alternative to Freedom app (free alternative)
+- Alternative to Opal (Android alternative)
+- Alternative to AppBlock
+- Alternative to Digital Wellbeing
+- Alternative to StayFree
+- Alternative to ActionDash
+
+===========================================================
+  ALTERNATIVETO.NET — Specific Instructions
+===========================================================
+1. Go to https://alternativeto.net
+2. Search "FocusFlow" — if not listed, click "Add software"
+3. App name: FocusFlow
+4. URL: https://focusflowapp.pages.dev/
+5. Platform: Android
+6. Paste the SHORT DESCRIPTION above
+7. Add tags: productivity, app-blocker, screen-time, focus, android
+8. Also visit existing listings for Freedom, Opal, AppBlock, Cold Turkey
+   and click "Add alternative" → search FocusFlow
+
+===========================================================
+  SAASHUB.COM — Specific Instructions
+===========================================================
+1. Go to https://www.saashub.com
+2. Click "Submit Software"
+3. App name: FocusFlow
+4. Website: https://focusflowapp.pages.dev/
+5. Category: Productivity / Time Management
+6. Paste the LONG DESCRIPTION above
+7. Price: Free
+
+===========================================================
+  PRODUCT HUNT — Specific Instructions
+===========================================================
+If you create a Product Hunt account later:
+1. Tagline: "The Android app blocker that actually can't be bypassed"
+2. Description: Use the LONG DESCRIPTION above
+3. Topics: Android, Productivity, Focus, Health & Fitness
+4. Gallery images: screenshot of the block screen, the Temptation Log, the Weekly Report
+
+===========================================================

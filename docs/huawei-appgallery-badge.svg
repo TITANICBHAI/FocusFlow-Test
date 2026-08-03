@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 54" width="180" height="54" role="img" aria-label="Explore it on AppGallery">
+  <rect width="180" height="54" rx="9" fill="#1a1a1a"/>
+  <!-- Huawei logo mark: 8 petals -->
+  <g transform="translate(33,27)">
+    <path d="M0,0 C-2.8,-3.5 -2.5,-13 0,-16 C2.5,-13 2.8,-3.5 0,0" fill="#c10d28" opacity="0.95" transform="rotate(0)"/>
+    <path d="M0,0 C-2.8,-3.5 -2.5,-13 0,-16 C2.5,-13 2.8,-3.5 0,0" fill="#c10d28" opacity="0.80" transform="rotate(45)"/>
+    <path d="M0,0 C-2.8,-3.5 -2.5,-13 0,-16 C2.5,-13 2.8,-3.5 0,0" fill="#c10d28" opacity="0.95" transform="rotate(90)"/>
+    <path d="M0,0 C-2.8,-3.5 -2.5,-13 0,-16 C2.5,-13 2.8,-3.5 0,0" fill="#c10d28" opacity="0.80" transform="rotate(135)"/>
+    <path d="M0,0 C-2.8,-3.5 -2.5,-13 0,-16 C2.5,-13 2.8,-3.5 0,0" fill="#c10d28" opacity="0.95" transform="rotate(180)"/>
+    <path d="M0,0 C-2.8,-3.5 -2.5,-13 0,-16 C2.5,-13 2.8,-3.5 0,0" fill="#c10d28" opacity="0.80" transform="rotate(225)"/>
+    <path d="M0,0 C-2.8,-3.5 -2.5,-13 0,-16 C2.5,-13 2.8,-3.5 0,0" fill="#c10d28" opacity="0.95" transform="rotate(270)"/>
+    <path d="M0,0 C-2.8,-3.5 -2.5,-13 0,-16 C2.5,-13 2.8,-3.5 0,0" fill="#c10d28" opacity="0.80" transform="rotate(315)"/>
+  </g>
+  <!-- Text -->
+  <text x="57" y="22" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="9.5" fill="#b0b0b0" letter-spacing="0.2">Explore it on</text>
+  <text x="57" y="39" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="16.5" font-weight="700" fill="#ffffff" letter-spacing="-0.3">AppGallery</text>
+</svg>

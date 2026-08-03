@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SS3</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100vw;height:100vh;overflow:hidden;font-family:'Poppins',sans-serif}
+.wrap{width:100vw;height:100vh;background:#0A0A14;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:4vh 5vw}
+.headline-area{text-align:center;padding-top:1vh}
+.badge{background:rgba(255,60,0,0.2);color:#FF3C00;font-size:1.4vh;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:0.6vh 2vw;border-radius:2vw;display:inline-block;margin-bottom:1.5vh}
+.headline{font-size:4.2vh;font-weight:900;color:#fff;line-height:1.15;text-align:center}
+.headline em{color:#FF3C00;font-style:normal}
+.phone{width:52vw;max-width:220px;background:#0D0D0D;border-radius:3.5vw;overflow:hidden;box-shadow:0 4vh 6vh rgba(0,0,100,0.2);border:0.5vw solid #1a1a2a}
+.phone-notch{width:30%;height:2.5vh;background:#0D0D0D;margin:0 auto;border-radius:0 0 2vw 2vw;display:flex;align-items:center;justify-content:center}
+.phone-dot{width:1vw;height:1vw;background:#222;border-radius:50%}
+.phone-screen{background:#0D0D0D;padding:2vh 3vw}
+.status-bar{display:flex;justify-content:space-between;margin-bottom:1.5vh;opacity:0.4}
+.status-text{font-size:1.2vh;color:#fff;font-weight:600}
+.screen-title{font-size:1.8vh;font-weight:900;color:#fff;margin-bottom:1.5vh}
+.preset-card{background:#141428;border-radius:1.5vw;padding:1.5vh 2.5vw;margin-bottom:1vh;border:1px solid rgba(255,60,0,0.2)}
+.preset-name{font-size:1.4vh;color:#fff;font-weight:700}
+.preset-apps{font-size:1vh;color:rgba(255,255,255,0.35);margin-top:0.3vh}
+.days-row{display:flex;gap:0.8vw;margin-top:0.8vh}
+.day{width:3.5vw;height:3.5vw;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9vh;font-weight:700}
+.day.on{background:#FF3C00;color:#fff}
+.day.off{background:#1a1a1a;color:rgba(255,255,255,0.25)}
+.time-row{display:flex;justify-content:space-between;margin-top:0.8vh;align-items:center}
+.time-label{font-size:1vh;color:rgba(255,255,255,0.35)}
+.time-val{font-size:1.2vh;color:#FF3C00;font-weight:700}
+.add-btn{background:rgba(255,60,0,0.1);border:1px dashed rgba(255,60,0,0.4);border-radius:1.5vw;padding:1vh 2.5vw;text-align:center;color:#FF3C00;font-size:1.2vh;font-weight:700;margin-top:0.5vh}
+.footer-label{color:rgba(255,255,255,0.5);font-size:1.5vh;text-align:center;padding-bottom:1vh}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="headline-area">
+    <div class="badge">Screenshot 3 of 8</div>
+    <div class="headline">Set it once.<br>Block <em>every weekday,</em> forever.</div>
+  </div>
+  <div class="phone">
+    <div class="phone-notch"><div class="phone-dot"></div></div>
+    <div class="phone-screen">
+      <div class="status-bar"><span class="status-text">9:41</span><span class="status-text">●●●</span></div>
+      <div class="screen-title">Block Presets</div>
+      <div class="preset-card">
+        <div class="preset-name">Deep Work</div>
+        <div class="preset-apps">Instagram, YouTube, Reddit, TikTok, Twitter</div>
+        <div class="days-row">
+          <span class="day on">M</span><span class="day on">T</span><span class="day on">W</span><span class="day on">T</span><span class="day on">F</span><span class="day off">S</span><span class="day off">S</span>
+        </div>
+        <div class="time-row"><span class="time-label">Runs daily</span><span class="time-val">9:00 AM – 12:00 PM</span></div>
+      </div>
+      <div class="preset-card">
+        <div class="preset-name">Evening Wind-Down</div>
+        <div class="preset-apps">Games, Social, News</div>
+        <div class="days-row">
+          <span class="day on">M</span><span class="day on">T</span><span class="day on">W</span><span class="day on">T</span><span class="day on">F</span><span class="day on">S</span><span class="day on">S</span>
+        </div>
+        <div class="time-row"><span class="time-label">Runs daily</span><span class="time-val">9:00 PM – 11:00 PM</span></div>
+      </div>
+      <div class="add-btn">+ New Preset</div>
+    </div>
+  </div>
+  <div class="footer-label">FocusFlow — Recurring Block Schedules</div>
+</div>
+</body>
+</html>
