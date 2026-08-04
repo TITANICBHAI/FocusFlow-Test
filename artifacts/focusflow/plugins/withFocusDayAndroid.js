@@ -770,10 +770,12 @@ function withFocusDayBackupRules(config) {
   config = withAndroidManifest(config, (cfg) => {
     const app = cfg.modResults.manifest.application[0];
 
-    // android:allowBackup — must be true for Auto Backup to run
-    if (!app.$['android:allowBackup']) {
-      app.$['android:allowBackup'] = 'true';
-    }
+    // android:allowBackup — explicitly disabled to prevent app data (including
+    // the SQLite database and SharedPreferences) from being backed up to Google
+    // Drive or restored by an attacker via adb/cloud. The backup_rules.xml and
+    // data_extraction_rules.xml files remain in place but are not active when
+    // allowBackup=false.
+    app.$['android:allowBackup'] = 'false';
 
     // android:fullBackupContent — API < 31 backup rules
     if (!app.$['android:fullBackupContent']) {
