@@ -1,165 +1,97 @@
-# FocusFlow JVM — by TBTechs
+# Project Notes
 
-A real-enforcement productivity & focus app for Windows, built with Kotlin + Compose Multiplatform Desktop.
+## Recent Fixes (latest session)
+- **QUERY_ALL_PACKAGES + REQUEST_DELETE_PACKAGES**: Added both permissions to `install.sh`. `QUERY_ALL_PACKAGES` is required on Android 11+ for the app drawer to list all installed apps. `REQUEST_DELETE_PACKAGES` is required by `NuclearModeModule` to launch the system uninstall dialog.
+- **LauncherActivity manifest flags**: `install.sh` now adds `android:clearTaskOnLaunch="true"` and `android:stateNotNeeded="true"` to the LauncherActivity registration, preventing stale task state from persisting across HOME presses.
+- **NuclearModeModule.ts**: Created the missing JS bridge for `NuclearModeModule.kt` (`requestUninstallApp`, `requestUninstallApps`, `isAppInstalled`).
+- **BlockOverlayModule.ts**: Created the missing JS bridge for `BlockOverlayModule.kt` (`setOverlayQuote`, `setCustomQuotes`, `clearCustomQuote`, `setOverlayWallpaper`, `clearOverlayWallpaper`, `getDefaultQuotes`, `getOverlaySettings`).
+- **Analog clock (end-to-end)**: Added `setLauncherClockStyle` to `SharedPrefsModule.ts` + `SharedPrefsModule.kt`. Wired it into `AppContext._syncSystemGuard` so the pref is persisted whenever settings change. In `LauncherActivity.kt`, `updateClockText()` now reads `launcher_clock_style` each tick and either shows the digital TextView row or the new `AnalogClockView` (a Canvas-drawn clock with hour/minute/second hands, hour tick marks, and indigo accent — styled to match the dark launcher aesthetic).
+- **NetworkBlockModule wired to focus session**: `AppContext.startFocusMode` now calls `NetworkBlockModule.startNetworkBlock` (with `standaloneVpnPackages`) when `vpnBlockEnabled` is true; `stopFocusMode` calls `NetworkBlockModule.stopNetworkBlock(null)` unconditionally (best-effort).
+- **GitHub push 504/502/503 retry**: Both `scripts/github-push.mjs` and `scripts/github-push-pc.mjs` now retry on `502/503/504` server errors with a linear back-off (1–10 s per attempt), in addition to the existing `403/429` rate-limit retry.
+- **ForegroundLaunchModule.ts doc cleanup**: Removed the misleading "placeholder for future full-screen overlay" description from `showOverlay()`. The JSDoc now accurately states it calls `bringToFront` and notes that a dedicated `FocusLockActivity` is a planned future feature.
 
-## Architecture
+## Earlier Fixes
+- **Cross-OEM power menu blocking**: Extended `isSystemUiPkg` and `schedulePowerMenuRetry` in `AppBlockerAccessibilityService.kt` to cover 15+ OEM SystemUI variants (Xiaomi/MIUI, OnePlus/OxygenOS, Oppo/ColorOS, Realme, Huawei/EMUI, Vivo/Funtouch, Motorola, Asus/ZenUI, Nothing OS, Nokia/HMD, Sony Xperia). Retry now fires on `systemGuard` alone — no longer requires an active focus/standalone session.
+- **Cross-OEM uninstall blocking**: Expanded `isInstallActionContext` package list in `AppBlockerAccessibilityService.kt` to include OEM package installers (Samsung legacy, Xiaomi, Realme, Vivo, OnePlus, Motorola, Asus, Nokia) and OEM Settings apps (MIUI, ColorOS, Oppo, Realme, Huawei, Vivo, OnePlus, Motorola, Asus, Nokia) so the uninstall intercept fires on non-Samsung devices.
+- **Focus tab enforcement panel spacing**: Increased `enforcementRow` padding from `SPACING.sm+2` to `SPACING.md`, switched horizontal padding to `SPACING.lg`, added `lineHeight: 16` to description text — tiles no longer look stuffed into a small space.
+- **GitHub push workflows**: Both "Push to GitHub" and "Push FocusFlow-pc to GitHub" are standalone runnable workflows using the `GITHUB_PERSONAL_ACCESS_TOKEN` secret. Requires `GITHUB_PERSONAL_ACCESS_TOKEN` secret in Replit Secrets.
+- **Replit migration**: All pnpm packages installed, all 4 workflows configured and running, canvas populated with landing page, gallery, ad video, and 5 phone mockup screens.
 
-- **Language**: Kotlin 1.9.22
-- **UI**: Compose Multiplatform Desktop 1.6.1 (Material 3)
-- **Database**: SQLite via org.xerial:sqlite-jdbc
-- **Native Interop**: JNA 5.14 (Win32 APIs — Windows-only enforcement)
-- **Async**: kotlinx.coroutines-swing
-- **Build**: Gradle 8.14.2 (Kotlin DSL)
+## Running Workflows
+- **Start application** — Mockup sandbox on port 5000 (main webview). Routes: `/` (landing), `/gallery`, `/preview/Screenshot1Home`, `/preview/Screenshot2Focus`, `/preview/Screenshot3Blocked`, `/preview/Screenshot4Stats`, `/preview/Screenshot5Permissions`.
+- **Start FocusFlow Ad** — Ad/video animation sandbox on port 3002.
+- **Push to GitHub** — Syncs workspace to `TITANICBHAI/FocusFlow` on GitHub main branch. Requires `GITHUB_PERSONAL_ACCESS_TOKEN`.
+- **Push FocusFlow-pc to GitHub** — Syncs `FocusFlow-pc/focusflow-pc` dir to `TITANICBHAI/FocusFlow-pc`. Requires `GITHUB_PERSONAL_ACCESS_TOKEN`.
 
-## Theme Variables
+# Overview
+FocusFlow is a comprehensive productivity and focus enhancement suite designed to help users manage screen time, block distractions, and cultivate better digital habits. It includes a mobile application (FocusFlow) for Android and a desktop application (FocusFlow-pc) built with Electron.
 
-All UI colours come from `com.focusflow.ui.theme.*`:
-`Purple80`, `Purple60`, `PurpleGrey`, `Surface`, `Surface2`, `Surface3`,
-`OnSurface`, `OnSurface2`, `Success`, `Warning`, `Error`
+The core purpose of FocusFlow is to provide robust blocking mechanisms (app blocking, keyword blocking, system protection), flexible scheduling (daily allowances, focus sessions), and insightful analytics to empower users to reclaim their focus. Key capabilities include:
+- **Distraction Blocking**: Enforces app, keyword, and system-level blocks.
+- **Focus Sessions**: Pomodoro-style timers and structured focus periods.
+- **Time Management**: Daily allowances and weekly reporting for app usage.
+- **Customization**: User-defined rules, overlay appearance, and aversion deterrents.
+- **Cross-Platform Support**: Mobile (Android) and Desktop (Windows/macOS/Linux) applications.
 
-**Never use**: `Primary`, `OnSurfaceVariant` — these don't exist in our theme.
+The business vision is to be the leading solution for digital well-being, offering a powerful yet user-friendly experience that significantly reduces digital distractions across devices, thereby improving user productivity and mental well-being.
 
-## Project Structure
+# User Preferences
+I prefer iterative development with clear communication at each stage. Please ask before making major architectural changes or introducing new external dependencies. I appreciate detailed explanations for complex technical decisions.
 
-```
-src/main/kotlin/com/focusflow/
-├── Main.kt                          Entry point; wires all services + tray
-├── App.kt                           Root composable; onboarding check + nav
-├── ui/
-│   ├── theme/Theme.kt               Material 3 dark theme
-│   ├── screens/
-│   │   ├── DashboardScreen.kt
-│   │   ├── TasksScreen.kt
-│   │   ├── FocusScreen.kt
-│   │   ├── AppBlockerScreen.kt
-│   │   ├── StatsScreen.kt
-│   │   ├── SettingsScreen.kt
-│   │   ├── HabitsScreen.kt
-│   │   ├── ReportsScreen.kt
-│   │   ├── DailyNotesScreen.kt
-│   │   ├── ProfileScreen.kt
-│   │   ├── ActiveScreen.kt          Live block status dashboard
-│   │   ├── BlockDefenseScreen.kt    Enforcement layer configuration
-│   │   ├── KeywordBlockerScreen.kt  Keyword blocking management
-│   │   ├── WindowsSetupScreen.kt    Admin/permissions setup
-│   │   └── PrivacyPermissionsScreen.kt
-│   └── components/
-│       ├── SideNav.kt
-│       ├── TaskCard.kt
-│       ├── BlockOverlay.kt
-│       ├── AppLogo.kt
-│       ├── EmptyStateCard.kt
-│       ├── ScrollUtils.kt
-│       ├── OsBanner.kt
-│       └── OnboardingScreen.kt
-├── data/
-│   ├── Database.kt                  SQLite via sqlite-jdbc
-│   └── models/Models.kt             Data classes
-├── enforcement/                     Windows-only enforcement engine
-│   ├── WinApiBindings.kt            JNA Win32 bindings (getForegroundProcessName, killProcessByName)
-│   ├── ProcessMonitor.kt            Dual-mode: WinEventHook + 500ms polling; UWP host resolution
-│   ├── AppBlocker.kt                Kill + overlay bridge
-│   ├── NetworkBlocker.kt            netsh advfirewall rules
-│   ├── NuclearMode.kt               Nuclear blocking mode (escape routes: 30+ processes)
-│   ├── WinEventHook.kt              Instant foreground event detection (WINEVENT_OUTOFCONTEXT)
-│   ├── InstalledAppsScanner.kt      Curated + live running process scanner
-│   └── WindowsStartupManager.kt     HKCU Run key auto-start
-└── services/
-    ├── FocusSessionService.kt
-    ├── TemptationLogger.kt
-    ├── SessionPin.kt
-    ├── SoundAversion.kt
-    ├── SystemTrayManager.kt
-    ├── NotificationService.kt
-    ├── TaskAlarmService.kt
-    ├── RecurringTaskService.kt
-    ├── BlockScheduleService.kt
-    ├── StandaloneBlockService.kt
-    ├── DailyAllowanceTracker.kt
-    ├── WeeklyReportService.kt
-    ├── BreakEnforcer.kt
-    ├── FocusInsightsService.kt
-    ├── BackupService.kt
-    ├── AutoBackupService.kt
-    ├── HostsBlocker.kt
-    └── PrivacyPolicyService.kt
-```
+# System Architecture
 
-## Replit Environment Setup
+## Core Principles
+- **Robust Blocking Enforcement**: Utilizes Android Accessibility Services for persistent app and system-level blocking, along with network-level blocking for FocusFlow-pc.
+- **User-Centric Design**: Prioritizes clear UI/UX for managing complex blocking rules and schedules.
+- **Data-Driven Insights**: Provides analytics and reports to help users understand and improve their digital habits.
+- **Extensibility**: Designed to be extended with advanced customization and scheduling rules.
 
-### Java / Gradle
-- **Java**: GraalVM CE 19 (Java 19)
-  - Path: `/nix/store/c8hr2f0b0dm685yx1dkp6bw24bpx495n-graalvm19-ce-22.3.1`
-- **Gradle**: System Gradle 8.14.2 (installed via Nix)
+## FocusFlow (Android Mobile App)
+- **Technology Stack**: Expo (React Native) for the main application, pure Kotlin/Jetpack Compose for core Android Accessibility Services.
+- **Blocking Mechanisms**:
+    - `AppBlockerAccessibilityService.kt`: Core service for app, keyword, and system protection.
+    - `NetworkBlockModule.ts`/`.kt`: Manages network-level blocking.
+    - `PackageInstallReceiver`: Automatically blocks newly installed apps during a session.
+- **Rule Management**:
+    - **Keyword Blocker**: Blocks predefined or user-defined keywords within apps.
+    - **Daily Allowance**: Per-app time budgets with count, time, and interval modes.
+- **Security & Resilience**:
+    - `SessionPinModule`: SHA-256 PIN protection for critical actions (stopping service, network block).
+    - `FLAG_SECURE`: Prevents screenshots of sensitive screens.
+    - `TRUSTED_FOCUSFLOW_CLASSES`: Whitelist to prevent self-blocking.
+    - Clock tamper defense using `BootReceiver`.
+    - Hardened onboarding to prevent crashes from optional native module failures.
+- **User Interface**: Features a slide-in side menu for navigation, a dedicated "Active" dashboard for live session monitoring, and a "Block Enforcement" screen. Dark mode is the default.
+- **Data Persistence**: Uses `SharedPreferences` for various settings and blocking states.
+- **Backup/Restore**: Employs `ACTION_CREATE_DOCUMENT` for reliable file saving and uses a `.focusflow` extension for backups with richer metadata.
 
-### Key env vars (set in workflow command)
-```bash
-export JAVA_HOME=/nix/store/c8hr2f0b0dm685yx1dkp6bw24bpx495n-graalvm19-ce-22.3.1
-export PATH=$JAVA_HOME/bin:$PATH
-```
+## FocusFlow-pc (Electron Desktop App)
+- **Technology Stack**: Electron 29, React 18, TypeScript, Tailwind CSS, `better-sqlite3`.
+- **UI/UX**: All screens feature a two-column PC layout.
+- **Key Screens**: Today, Week, Focus (Pomodoro), Stats, Settings, Profile, Reports, Active, Notes, Onboarding, Block Defense, Keyword Blocker, Always-On, Standalone Block, Import Blocklist, Overlay Appearance, Allowed In Focus, Daily Allowance, Weekly Report.
+- **Design Elements**:
+    - **Overlay Appearance**: Customizable color themes (Obsidian, Midnight, Forest, Ocean, Dusk), custom quote editor, show-site toggle, aversion sound toggle.
+    - **Achievements**: Confetti animation for streak milestones.
+    - **Stats Screen**: Focus ring, productivity score, task breakdown, heatmap, tag chart.
+- **Navigation**: Sidebar with "More" section for sub-pages.
+- **Push to GitHub**: Automated script (`scripts/github-push-pc.mjs`) for syncing the desktop app codebase to a dedicated GitHub repository.
 
-### Workflow
-- **Name**: Start application
-- **Type**: VNC (desktop GUI app)
-- **Command**: `gradle run --no-daemon` (with JAVA_HOME set)
+## Data & Analytics
+- **Task Management**: Tracks tasks, their completion, and duration.
+- **Streaks**: Calculates daily completion streaks using `daily_completions` derived from task history.
+- **Logging**: `startupLogger.ts` provides a timestamped log queue for diagnostics, accessible via `DiagnosticsModal`.
+- **Reporting**: Weekly score rings, day-by-day charts, and week-over-week comparisons.
 
-## Platform Notes
-
-- **UI**: Cross-platform — Compose Desktop renders on Linux/Mac/Windows
-- **Enforcement**: Windows-only — JNA calls to Win32 APIs are no-ops on Linux
-- **Packaging**: Windows EXE/MSI via GitHub Actions (`windows-latest`); MSIX built manually in CI
-- **Database**: SQLite at `~/.focusflow/focusflow.db`
-
-## JVM Args (build.gradle.kts)
-
-```
--Xms64m -Xmx512m -XX:+UseG1GC -XX:MaxGCPauseMillis=50
--Dfile.encoding=UTF-8 -Djava.awt.headless=false -Dskiko.renderApi=SOFTWARE
--Djava.nio.channels.spi.SelectorProvider=sun.nio.ch.PollSelectorProvider  ← MSIX AppContainer fix
-```
-
-## MSIX / Microsoft Store Identity (Partner Center values)
-
-These values MUST match Partner Center exactly. They are hardcoded in `.github/workflows/build-windows.yml`:
-
-| Field | Value |
-|---|---|
-| `Identity/@Name` | `TBTechs.FocusFlowDeepFocusAppBlocker` |
-| `Identity/@Publisher` | `CN=E08824C8-6F22-4DC2-8025-DD8C707E2BE9` |
-| `Identity/@Version` | `1.0.6.0` (4th digit must be 0 for Store) |
-| `Properties/DisplayName` | `FocusFlow - Deep Focus App Blocker` |
-| `Properties/PublisherDisplayName` | `TBTechs` |
-
-> **Important:** If Partner Center shows a different reserved app name, update `Properties/DisplayName` in `.github/workflows/build-windows.yml` to match exactly.
-> No code-signing certificate needed for Store submission — Microsoft re-signs MSIX during ingestion.
-
-## CI/CD
-
-GitHub Actions at `.github/workflows/build-windows.yml`:
-- Runs on `windows-latest`
-- Builds EXE + MSI (Gradle `packageExe`/`packageMsi`) + MSIX (`makeappx.exe`)
-- All 3 Partner Center identity fields are verified before `makeappx` runs
-- Auto-creates a GitHub Release on every push to `main`
-- Watch CI: https://github.com/TITANICBHAI/FocusFlow-jvm/actions
-
-## Pushing to GitHub
-
-```bash
-bash push_to_github.sh
-```
-
-Requires `GITHUB_PERSONAL_ACCESS_TOKEN` Replit Secret (already set).
-
-## Recent Changes (May 2026)
-
-### MSIX / Microsoft Store fixes
-- Fixed `Identity/@Name` → `TBTechs.FocusFlowDeepFocusAppBlocker` (was `TBTechs.FocusFlow`)
-- Fixed `Identity/@Publisher` → `CN=E08824C8-6F22-4DC2-8025-DD8C707E2BE9` (was `CN=TBTechs`)
-- Fixed `Properties/DisplayName` → `FocusFlow - Deep Focus App Blocker` (was `FocusFlow`, not reserved)
-- Added triple-field manifest verification before `makeappx` runs
-
-### Code improvements
-- `build.gradle.kts`: Added `-Djava.nio.channels.spi.SelectorProvider=sun.nio.ch.PollSelectorProvider` — prevents Java NIO failures inside MSIX AppContainer
-- `ProcessMonitor.kt`: Added UWP/ApplicationFrameHost.exe resolution — when the UWP frame host is foreground, scans running processes to find the actual hosted blocked app
-- `ProcessMonitor.kt`: Added system frame process ignore list (ApplicationFrameHost, ShellExperienceHost, StartMenuExperienceHost, SearchHost)
-- `NuclearMode.kt`: Expanded escape-route list to 30+ processes (added WSL distros, WMI, script engines, package managers, perfmon, resource monitor)
+# External Dependencies
+- **Expo**: For React Native mobile app development.
+- **React Native**: Core framework for the mobile application.
+- **Kotlin/Jetpack Compose**: For native Android Accessibility Services.
+- **Electron**: For the desktop application framework.
+- **React**: For UI development in the desktop application.
+- **TypeScript**: For type-safe development across both mobile and desktop applications.
+- **Tailwind CSS**: For styling the desktop application.
+- **better-sqlite3**: For local database management in the Electron desktop application.
+- **AsyncStorage**: For persistent key-value storage in the mobile app (e.g., tip states, logs).
+- **GitHub Actions**: For CI/CD, particularly for `FocusFlow-pc` repository syncing.
+- **Android System APIs**: `AccessibilityService`, `SharedPreferences`, `ACTION_CREATE_DOCUMENT`, `PackageInstallReceiver`, `BootReceiver`.
+- **Third-Party Blocker Imports**: Supports importing blocklists from apps like AppBlock, StayFree, ActionDash, Digital Wellbeing, Lock Me Out, and Stay Focused.

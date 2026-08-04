@@ -1,39 +1,47 @@
-name: Deploy GitHub Pages
+name: Deploy Feature Videos to GitHub Pages
 
 on:
   push:
-    branches: [main]
-    paths:
-      - "docs/**"
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
+  contents: write
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload docs folder
-        uses: actions/upload-pages-artifact@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          path: docs
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: .
+
+      - name: Build feature videos
+        run: pnpm --filter @workspace/focusflow-feature-videos run build
+        env:
+          BASE_PATH: /FocusFlow/
+          NODE_ENV: production
 
       - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: artifacts/focusflow-feature-videos/dist/public
+          publish_branch: gh-pages
+          force_orphan: false
+          commit_message: "deploy: feature videos — ${{ github.sha }}"

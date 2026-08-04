@@ -8,26 +8,535 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
 
-    <meta property="og:title" content="Mockup Canvas" />
-    <meta property="og:description" content="UI prototyping sandbox with infinite canvas" />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Mockup Canvas" />
-    <meta name="twitter:description" content="UI prototyping sandbox with infinite canvas" />
+    <!-- ── Core SEO ───────────────────────────────────────────── -->
+    <title>FocusFlow — Hard-Enforcement App Blocker for Android &amp; Desktop | TBTechs</title>
+    <meta name="description" content="FocusFlow by TBTechs — the hardest-to-bypass app blocker for Android, Windows, and macOS. Accessibility Service + local VPN + Device Admin + Nuclear Mode + Weekly Temptation Report. Free." />
+    <meta name="keywords" content="FocusFlow, app blocker Android, screen time blocker, nuclear mode uninstall apps, temptation log, block YouTube Shorts, block Instagram Reels, TBTechs, hard enforcement blocker, distraction blocker, focus app, digital wellbeing alternative, Freedom app alternative, Opal app alternative, AppBlock alternative, StayFree alternative, block apps without slowing phone, Android accessibility service blocker, pomodoro timer app blocker, phone addiction app Android, ADHD focus app Android, app blocker for studying, digital detox app, app blocker no root required, import blocklist from AppBlock, switch from Freedom to FocusFlow, parental control self-control app, block social media Android, block apps on schedule, clean streak app blocker, weekly temptation report, recurring block schedule VPN, task manager with app blocking, app blocker Samsung Xiaomi OnePlus" />
+    <meta name="author" content="TBTechs" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://focusflow-tbtechs.replit.app/" />
 
-    <title>Mockup Canvas</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <!-- Non-blocking font bundle: renders with fallback fonts immediately, swaps in when loaded -->
+    <!-- ── Open Graph ─────────────────────────────────────────── -->
+    <meta property="og:title" content="FocusFlow — Hard-Enforcement App Blocker for Android &amp; Desktop | TBTechs" />
+    <meta property="og:description" content="The hardest-to-bypass screen time blocker. Accessibility Service + local null-routing VPN + Device Admin + Nuclear Mode + Weekly Temptation Report. 30+ OEM brands. Free." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://focusflow-tbtechs.replit.app/" />
+    <meta property="og:site_name" content="FocusFlow by TBTechs" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- ── Twitter Card ───────────────────────────────────────── -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="FocusFlow — Hard-Enforcement App Blocker | TBTechs" />
+    <meta name="twitter:description" content="Accessibility Service + VPN + Device Admin + Nuclear Mode + Temptation Log. Blocks YouTube Shorts, Instagram Reels. 30+ Android OEMs. Free." />
+
+    <!-- ── JSON-LD: WebSite + Organization (entity identity) ──── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://focusflow-tbtechs.replit.app/#website",
+          "url": "https://focusflow-tbtechs.replit.app/",
+          "name": "FocusFlow by TBTechs",
+          "description": "Hard-enforcement screen time and app blocking for Android, Windows, and macOS.",
+          "publisher": { "@id": "https://focusflow-tbtechs.replit.app/#organization" },
+          "inLanguage": "en-US"
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://focusflow-tbtechs.replit.app/#organization",
+          "name": "TBTechs",
+          "url": "https://focusflow-tbtechs.replit.app/",
+          "description": "Developer of FocusFlow, a hard-enforcement screen time management app for Android and desktop."
+        }
+      ]
+    }
+    </script>
+
+    <!-- ── JSON-LD: SoftwareApplication ──────────────────────── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "@id": "https://focusflow-tbtechs.replit.app/#app",
+      "name": "FocusFlow",
+      "alternateName": ["FocusFlow by TBTechs", "FocusFlow TBTechs", "FocusFlow app blocker"],
+      "description": "FocusFlow (by TBTechs) is a hard-enforcement screen time management and app blocking suite for Android, Windows, and macOS. It combines Android Accessibility Service (AppBlockerAccessibilityService.kt — 3,394 lines), a local null-routing VPN (NetworkBlockerVpnService), and Android Device Administrator mode. Unique features include Nuclear Mode (permanently uninstall addictive apps), Temptation Log with Weekly Temptation Report, Scheduled Greyout Windows, automatic blocking of newly installed apps mid-session, SHA-256 native session PIN, home-screen launcher replacement, content-specific blocking for YouTube Shorts and Instagram Reels, aversive conditioning feedback (screen dimming + vibration + sound), and a priority-based scheduling engine. Supports 30+ Android OEM brands. Free.",
+      "applicationCategory": "ProductivityApplication",
+      "applicationSubCategory": "Screen Time Management",
+      "operatingSystem": "Android 8.0+, Windows 10+, macOS 11+",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "author": { "@id": "https://focusflow-tbtechs.replit.app/#organization" },
+      "publisher": { "@id": "https://focusflow-tbtechs.replit.app/#organization" },
+      "datePublished": "2025-05-01",
+      "dateModified": "2025-05-10",
+      "url": "https://focusflow-tbtechs.replit.app/",
+      "featureList": [
+        "Hard app blocking via Android Accessibility Service (3,394-line native Kotlin service)",
+        "Local null-routing VPN for network-level blocking (no external server — entirely on-device)",
+        "Global VPN kill mode — cuts all internet except emergency calls",
+        "Per-app VPN mode — only the blocked app loses internet, all others work normally",
+        "Android Device Administrator mode — blocks uninstallation via Settings",
+        "Four independent blocking modes: Task-Based, Standalone, Always-On, Scheduled Greyout",
+        "Nuclear Mode — permanently uninstall addictive apps (Instagram, TikTok) from FocusFlow",
+        "Temptation Log — records every blocked-app attempt with timestamp, up to 500 entries",
+        "Weekly Temptation Report — Sunday 08:00 push notification with 7-day behavioral summary",
+        "Scheduled Greyout Windows — calendar-based blocking (Mon–Fri 09:00–18:00) without a session",
+        "PackageInstallReceiver — auto-blocks newly installed apps during a session, closes sideloading loophole",
+        "SHA-256 native session PIN — gates stop-session at native layer even if JS bridge is compromised",
+        "System Guard — intercepts navigation to Accessibility Settings, Clear Data, and Uninstall during sessions",
+        "Boot Recovery — auto-restarts Accessibility Service and VPN after any device reboot",
+        "Clock tamper detection via BootReceiver",
+        "Daily Allowance Engine — three sub-modes: count (opens per day), time-budget (minutes per day), interval",
+        "YouTube Shorts-specific content blocker — blocks Shorts player, leaves YouTube accessible",
+        "Instagram Reels-specific content blocker — blocks Reels feed, leaves Instagram accessible",
+        "Play Store install blocker — intercepts install/uninstall confirmations during active sessions",
+        "Browser keyword and URL blocker across Chrome, Firefox, Samsung Internet, and others",
+        "Home-screen launcher replacement (LauncherActivity) — only whitelisted apps shown",
+        "Customisable block overlay — pinned quotes, custom quote pool, wallpaper at 30% opacity",
+        "Aversive feedback: screen brightness dimmed to 2% (hardware) + 70% black overlay",
+        "Aversive feedback: vibration pulse pattern (120ms on / 220ms off loop)",
+        "Aversive feedback: system notification sound on blocked app detect",
+        "Priority-based scheduling engine with conflict resolution and overrun rebalancing",
+        "Power-menu interception for 15+ OEM SystemUI variants",
+        "30+ Android OEM brand support — Samsung, Xiaomi, Oppo, Realme, Vivo, OnePlus, Huawei, and more",
+        "Home screen Android widget",
+        "Foreground service with persistent notification",
+        "Cross-platform: Android + Windows + macOS"
+      ],
+      "softwareVersion": "1.0"
+    }
+    </script>
+
+    <!-- ── JSON-LD: FAQPage ───────────────────────────────────── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is FocusFlow?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "FocusFlow (by TBTechs) is a hard-enforcement screen time management and app blocking suite for Android, Windows, and macOS. It blocks distracting apps and websites using Android Accessibility Service, a local null-routing VPN, and Android Device Administrator mode. Unlike soft-timer apps like Google Digital Wellbeing, FocusFlow cannot be bypassed with a single tap. It is free and unrelated to other apps sharing the FocusFlow name."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is Nuclear Mode in FocusFlow?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Nuclear Mode is a unique FocusFlow feature that lets you permanently uninstall your most addictive apps — Instagram, TikTok, Twitter, YouTube — directly from inside FocusFlow. Each uninstall triggers the standard Android system confirmation dialog. You can batch-uninstall multiple apps at once. No other screen time app — Freedom, Opal, AppBlock, Digital Wellbeing, Cold Turkey — provides this feature. Nuclear Mode is designed for users who have decided that blocking alone is insufficient and want a permanent commitment device."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the Temptation Log in FocusFlow?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The Temptation Log is a native record (stored via TemptationLogManager in SharedPreferences) of every blocked-app attempt — the app name, package name, and timestamp — capped at 500 entries. Every Sunday at 08:00, FocusFlow delivers a Weekly Temptation Report push notification showing your 7-day blocked-attempt totals by app (e.g. 'Instagram: 18 times, TikTok: 14 times this week'). No other screen time app offers a temptation log or weekly behavioral report."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How does FocusFlow prevent you from uninstalling it?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "FocusFlow uses three layers of tamper prevention: (1) Android Device Administrator mode (FocusDayDeviceAdminReceiver) blocks the normal Settings uninstall path; (2) System Guard intercepts navigation to Accessibility Settings, Clear Data, and Uninstall screens during active sessions; (3) A SHA-256 hashed session PIN stored natively in SharedPreferences gates all stop-session operations — even a compromised JavaScript bridge cannot end a session without the correct PIN."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can FocusFlow block apps on a schedule without starting a session?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. FocusFlow's Scheduled Greyout Windows feature lets you define calendar-based blocking schedules per app — for example, block Instagram Monday through Friday 09:00 to 18:00 — that enforce independently of any focus session. This is separate from the three timed blocking modes and uses a native JSON schedule read directly by the Accessibility Service."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What happens if I install a new app while FocusFlow is blocking?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "FocusFlow's PackageInstallReceiver monitors for ACTION_PACKAGE_ADDED broadcasts. When a new app is installed during an active blocking session, FocusFlow automatically adds it to the block list and triggers aversive vibration feedback. This closes the common loophole of installing a competing app to bypass the blocker mid-session."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can FocusFlow block YouTube Shorts without blocking all of YouTube?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. FocusFlow supports content-level blocking within a single app. The YouTube Shorts Blocker (PREF_BLOCK_YT_SHORTS) closes the Shorts player within YouTube while leaving the main feed, search, subscriptions, and video playback accessible. Instagram Reels blocking (PREF_BLOCK_IG_REELS) works the same way."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is FocusFlow's Global VPN mode?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "FocusFlow's NetworkBlockerVpnService operates in two modes. PER_APP routes only the blocked app's traffic through a local null-routing VPN — other apps keep full internet. GLOBAL routes all device traffic through the VPN, cutting both WiFi and mobile data for every app except phone and emergency calls. No traffic ever leaves the device to any external server — the VPN is entirely local."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does FocusFlow work after a phone reboot?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. FocusFlow's BootReceiver automatically restarts the Accessibility Service and VPN tunnel after any device reboot during an active session. Clock tamper detection is also active at boot — sessions use native epoch timestamps validated by the Accessibility Service, making the 'change the system clock to expire the timer' bypass ineffective."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is FocusFlow's home screen launcher?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "FocusFlow includes a full Android home-screen launcher (LauncherActivity) that replaces your default launcher. When set as the home app, pressing HOME shows FocusFlow's minimal launcher — a 4-column icon grid of only whitelisted apps, a clock, and a 5-slot dock. The app drawer (swipe up) also only shows allowed apps. Long-press uninstall from the home screen can be locked. This turns your home screen into the blocklist enforcer."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is FocusFlow's aversive feedback?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "When a blocked app is detected, FocusFlow's AversiveActionsManager fires three simultaneous deterrents: (1) Screen Dimmer — sets hardware brightness to 0.02f (2%) via WindowManager.LayoutParams.screenBrightness AND adds a 70% black overlay; (2) Vibration — pulses the motor in a 120ms-on / 220ms-off repeating loop; (3) Sound Alert — plays the system notification tone once. Each layer is independently configurable. No other mainstream screen time app implements aversive conditioning."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is FocusFlow free?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "FocusFlow is completely free. It requires no subscription or in-app purchase to use any feature — including Accessibility Service enforcement, VPN blocking, Device Administrator mode, Nuclear Mode, Temptation Log, Weekly Report, Scheduled Greyout Windows, or the scheduling engine."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How is FocusFlow different from Freedom app?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Both Freedom and FocusFlow use Accessibility Service and VPN-based blocking on Android. FocusFlow also provides: Device Admin mode (uninstallation prevention), System Guard (settings bypass prevention), Boot Recovery, SHA-256 native session PIN, Nuclear Mode (permanent app uninstall), Temptation Log with Weekly Report, PackageInstallReceiver (auto-blocking newly installed apps), Scheduled Greyout Windows, aversive feedback (screen dimming + vibration), content-specific blocking (YouTube Shorts, Instagram Reels), and a home screen launcher replacement. Freedom costs $39.99/year; FocusFlow is free."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How is FocusFlow different from Google Digital Wellbeing?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Google Digital Wellbeing uses soft timers dismissable with a single tap, has no VPN enforcement, no Device Admin mode, no session PIN, no Temptation Log, and cannot prevent its own uninstallation. FocusFlow uses hard enforcement — Accessibility Service + VPN + Device Admin — with SHA-256 PIN, Nuclear Mode, Weekly Temptation Report, Scheduled Greyout Windows, aversive conditioning, and a home screen launcher. Digital Wellbeing is a nudge tool; FocusFlow is a commitment enforcement tool."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What Android OEM devices does FocusFlow support?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "FocusFlow supports 30+ Android OEM brands. Its AppBlockerAccessibilityService explicitly handles SystemUI package names for Samsung (OneUI), Xiaomi (MIUI/HyperOS), Oppo (ColorOS), Realme, Vivo (Funtouch/OriginOS), OnePlus (OxygenOS), Huawei (EMUI/HarmonyOS), Honor, Motorola, Asus (ZenUI/ROG), Nothing OS, Nokia/HMD, Sony Xperia, Meizu (Flyme), LG, Lenovo (ZUI), HTC (Sense), TCL/Alcatel, ZTE (MiFavor), Wiko, Black Shark, and Transsion brands (Infinix, Tecno, itel)."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does FocusFlow have a Pomodoro timer?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. FocusFlow includes a built-in Pomodoro timer (usePomodoro.ts) fully integrated with app blocking. Work duration and break duration are configurable. The timer fires push notifications and vibration at each phase transition. App blocking remains active during both work and break phases — breaks do not unlock blocked apps. The chronotype-aware user profile influences when tasks are scheduled."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I import my block list from AppBlock, StayFree, or Digital Wellbeing?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. FocusFlow's import feature auto-detects TXT (one package name per line), CSV, and JSON block list exports from AppBlock, StayFree, ActionDash, and Digital Wellbeing Takeout. For apps without export (Stay Focused, Lock Me Out free tier), the name-based import lets you type app display names and fuzzy-matches them against installed apps. Switching from any other screen time app is a one-step process."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does FocusFlow require root?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. FocusFlow works entirely within the standard Android permission system — Accessibility Service, VPN, and Device Administrator. No rooting or system modification is required. It runs on stock Android 8.0+ on 30+ OEM brands without root access."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is FocusFlow good for phone addiction?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. The Temptation Log records every blocked-app attempt so you can see weekly attempt data. Nuclear Mode lets you permanently remove the most addictive apps. Aversive feedback (screen dimming to 2% + vibration) creates a negative stimulus the brain associates with the 'caught reaching for the phone' moment. The Weekly Temptation Report surfaces behavioral patterns over time."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can FocusFlow be used as a parental control?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "FocusFlow is primarily a self-control tool — it is designed to be set up by the device owner on their own phone. Parents can use Device Admin + SHA-256 PIN to make a block effectively irreversible during a session. However, FocusFlow lacks a remote admin console and is not designed for remotely managing a child's separate device."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can FocusFlow help with ADHD?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "FocusFlow is not a medical tool. However, several features support ADHD self-management: per-task allowed app lists restrict available apps to only what is needed; aversive feedback provides an external interrupt that reinforces the decision to stay on task; the Pomodoro timer structures work into manageable blocks with automatic break notifications; and the chronotype-aware scheduler accounts for peak attention windows."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does FocusFlow collect data or send data to servers?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. FocusFlow's local null-routing VPN never forwards packets to any external server. The Temptation Log, task data, and all blocking state are stored on-device in Android SharedPreferences and SQLite. FocusFlow does not transmit usage analytics, telemetry, or personal data. Sensitive screens set FLAG_SECURE to prevent screenshots."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I switch from Freedom, AppBlock, or StayFree to FocusFlow?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "FocusFlow's import feature handles this in one step. For AppBlock, StayFree, and Digital Wellbeing: export your block list as TXT, CSV, or JSON, then use FocusFlow's file import. For apps without export (Stay Focused, Lock Me Out): use name-based import — paste app names like 'Instagram', 'TikTok' and FocusFlow fuzzy-matches them. After import, review the matched apps and tap 'Add to Block List'."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is FocusFlow the same as other apps called FocusFlow?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Multiple unrelated apps share the FocusFlow name. TBTechs' FocusFlow is a hard-enforcement screen time and app blocking suite for Android and desktop. It is unrelated to other products using the FocusFlow name, which are typically simple Pomodoro timers or browser-based focus tools without any native Android enforcement."
+          }
+        }
+      ]
+    }
+    </script>
+
+    <!-- ── JSON-LD: WebPage ───────────────────────────────────── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "@id": "https://focusflow-tbtechs.replit.app/#webpage",
+      "url": "https://focusflow-tbtechs.replit.app/",
+      "name": "FocusFlow App Blocker for Android and Desktop | TBTechs",
+      "description": "Comprehensive reference for FocusFlow — a hard-enforcement screen time and app blocker for Android, Windows, and macOS by TBTechs.",
+      "isPartOf": { "@id": "https://focusflow-tbtechs.replit.app/#website" },
+      "about": { "@id": "https://focusflow-tbtechs.replit.app/#app" },
+      "publisher": { "@id": "https://focusflow-tbtechs.replit.app/#organization" },
+      "datePublished": "2025-05-01",
+      "dateModified": "2025-05-10",
+      "inLanguage": "en-US"
+    }
+    </script>
+
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡</text></svg>">
+
+    <meta name="theme-color" content="#0f172a" />
+
+    <!-- ── Non-blocking fonts ─────────────────────────────────── -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,600;0,14..32,700;1,14..32,400&display=swap">
     <link rel="stylesheet" media="print" onload="this.media='all'"
-          href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Fira+Code:wght@300..700&family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400..700;1,400..700&family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Outfit:wght@100..900&family=Oxanium:wght@200..800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Roboto+Mono:ital,wght@0,100..700;1,100..700&family=Roboto:ital,wght@0,100..900;1,100..900&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&family=Space+Grotesk:wght@300..700&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap">
-    <link rel="stylesheet" media="print" onload="this.media='all'"
-          href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Fira+Code:wght@300..700&family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400..700;1,400..700&family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Outfit:wght@100..900&family=Oxanium:wght@200..800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Roboto+Mono:ital,wght@0,100..700;1,100..700&family=Roboto:ital,wght@0,100..900;1,100..900&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&family=Space+Grotesk:wght@300..700&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap"></noscript>
+          href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,600;0,14..32,700;1,14..32,400&display=swap">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,600;0,14..32,700;1,14..32,400&display=swap"></noscript>
   </head>
-  <body style="height: 100%; margin: 0">
-    <div id="root" style="height: 100%"></div>
+  <body style="margin: 0; font-family: Inter, system-ui, sans-serif;">
+
+    <!--
+      ═══════════════════════════════════════════════════════════
+      STATIC PRE-RENDERED CONTENT
+      Visible to search engine crawlers and AI engines in their
+      first-pass (no-JS) crawl. React mounts into #root and
+      renders identical content; this div is then hidden by JS
+      so users never see duplicate content.
+      ═══════════════════════════════════════════════════════════
+    -->
+    <div id="seo-static" style="max-width:900px;margin:0 auto;padding:40px 24px;line-height:1.6;color:#111;">
+
+      <h1 style="font-size:32px;font-weight:700;color:#0f172a;margin-bottom:8px;">
+        FocusFlow — Hard-Enforcement App Blocker for Android &amp; Desktop | TBTechs (2025)
+      </h1>
+      <p style="font-size:13px;color:#64748b;margin-bottom:24px;">By TBTechs &middot; Updated May 2025 &middot; Android 8.0+, Windows 10+, macOS 11+</p>
+
+      <p style="font-size:17px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:20px 24px;margin-bottom:32px;">
+        <strong>FocusFlow</strong> (by TBTechs) is a hard-enforcement screen time management and app blocking suite for Android, Windows, and macOS. It combines three stacked enforcement layers — Android Accessibility Service, a local null-routing VPN, and Android Device Administrator — with behavioral deterrents, a scheduling engine, and commitment tools like Nuclear Mode that no other productivity app provides. It is free.
+      </p>
+
+      <h2 style="font-size:22px;font-weight:700;border-bottom:2px solid #e2e8f0;padding-bottom:8px;margin-top:40px;">Why Soft Blocking Fails</h2>
+      <ul style="padding-left:20px;line-height:2;">
+        <li>Americans spend an average of <strong>4 hours 37 minutes per day</strong> on their smartphones (Statista Mobile Usage Report, 2024).</li>
+        <li>Knowledge workers lose approximately <strong>2 hours of productive work per day</strong> to smartphone distractions (RescueTime Annual Productivity Report).</li>
+        <li>A 2021 study in the <em>Journal of Experimental Psychology</em> found <strong>85% of smartphone users</strong> return to the same distracting app within minutes of closing it.</li>
+        <li>University of California, Irvine research found it takes an average of <strong>23 minutes to regain full focus</strong> after a smartphone interruption.</li>
+        <li>Google Digital Wellbeing's soft timers can be dismissed with <strong>a single tap</strong> — making them ineffective for compulsive use patterns. FocusFlow cannot be bypassed this way.</li>
+      </ul>
+
+      <h2 style="font-size:22px;font-weight:700;border-bottom:2px solid #e2e8f0;padding-bottom:8px;margin-top:40px;">Three Enforcement Layers</h2>
+      <ol style="padding-left:20px;line-height:2.1;">
+        <li><strong>Accessibility Service</strong> (AppBlockerAccessibilityService.kt — 3,394 lines) — monitors every app window, fires within milliseconds of detection, performs up to 5 rapid re-checks at 300ms intervals. Intercepts the Play Store install flow, uninstall dialogs, and Accessibility Settings navigation during active sessions.</li>
+        <li><strong>Local Null-Routing VPN</strong> (NetworkBlockerVpnService) — routes selected app traffic into a VPN that never forwards packets. PER_APP mode: only the blocked app loses internet. GLOBAL mode: all internet cut except emergency calls. No traffic leaves the device.</li>
+        <li><strong>Device Administrator</strong> (FocusDayDeviceAdminReceiver) — blocks uninstallation via Settings. System Guard intercepts Clear Data, Accessibility Settings, and Uninstall screens. SHA-256 native PIN gates all stop-session operations at the native layer.</li>
+      </ol>
+
+      <h2 style="font-size:22px;font-weight:700;border-bottom:2px solid #e2e8f0;padding-bottom:8px;margin-top:40px;">FocusFlow Unique Features</h2>
+      <ul style="padding-left:20px;line-height:2.1;">
+        <li><strong>Nuclear Mode</strong> — permanently uninstall addictive apps (Instagram, TikTok, Twitter) directly from FocusFlow. Unique to FocusFlow; no other screen time app has this.</li>
+        <li><strong>Temptation Log</strong> — records every blocked-app attempt natively. Up to 500 entries with timestamp, package name, and app name.</li>
+        <li><strong>Weekly Temptation Report</strong> — push notification every Sunday at 08:00 showing your 7-day blocked-app attempt totals by app. Behavioral analytics, not just timers.</li>
+        <li><strong>Four blocking modes:</strong> Task-Based (whitelist during sessions), Standalone (timed blacklist), Always-On (permanent blacklist), Scheduled Greyout (calendar-based, no session needed)</li>
+        <li><strong>Scheduled Greyout Windows</strong> — block Instagram Mon–Fri 09:00–18:00 without any active session. Per-app, day-of-week granularity.</li>
+        <li><strong>PackageInstallReceiver</strong> — when a new app is installed during a session, FocusFlow auto-blocks it and triggers aversive feedback. Sideloading loophole closed.</li>
+        <li><strong>SHA-256 Native Session PIN</strong> — stop-session requires PIN even if JS bridge is compromised. Raw PIN is never stored.</li>
+        <li><strong>Home Screen Launcher Replacement</strong> (LauncherActivity) — FocusFlow replaces your home screen. HOME button shows only whitelisted apps. Long-press uninstall lockable.</li>
+        <li><strong>Daily Allowance Engine</strong> — three sub-modes: count (opens per day), time-budget (minutes per day), interval (cooldown between uses)</li>
+        <li><strong>YouTube Shorts Blocker</strong> — closes Shorts player, leaves YouTube accessible</li>
+        <li><strong>Instagram Reels Blocker</strong> — blocks Reels feed, leaves Instagram accessible</li>
+        <li><strong>Play Store Install Blocker</strong> — intercepts install/uninstall confirmation screens mid-session</li>
+        <li><strong>Browser keyword/URL blocker</strong> — Chrome, Firefox, Samsung Internet, and others</li>
+        <li><strong>Aversive Feedback</strong> — screen brightness to 2% (hardware dimming via WindowManager) + 70% black overlay + vibration pulse loop + notification sound</li>
+        <li><strong>Custom Block Overlay</strong> — pinned quotes, custom quote pool, personal wallpaper at 30% opacity</li>
+        <li><strong>Boot Recovery</strong> — BootReceiver auto-restarts service and VPN after device reboot. Clock tamper detection.</li>
+        <li><strong>30+ Android OEM brands</strong> — Samsung, Xiaomi, Oppo, Realme, Vivo, OnePlus, Huawei, Nothing OS, Motorola, Asus, Sony, Nokia, and more</li>
+        <li><strong>Priority-based scheduling engine</strong> with conflict resolution, gap compression, and overrun rebalancing</li>
+        <li><strong>Cross-platform:</strong> Android (8.0+) + Windows (10+) + macOS (11+). Free.</li>
+      </ul>
+
+      <h2 style="font-size:22px;font-weight:700;border-bottom:2px solid #e2e8f0;padding-bottom:8px;margin-top:40px;">FocusFlow vs Competitors (2025)</h2>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #e2e8f0;">
+        <thead>
+          <tr style="background:#0f172a;color:#fff;">
+            <th style="padding:10px 12px;text-align:left;">Feature</th>
+            <th style="padding:10px 12px;color:#22d3ee;">FocusFlow</th>
+            <th style="padding:10px 12px;">Freedom</th>
+            <th style="padding:10px 12px;">Opal</th>
+            <th style="padding:10px 12px;">AppBlock</th>
+            <th style="padding:10px 12px;">Cold Turkey</th>
+            <th style="padding:10px 12px;">Digital Wellbeing</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;">Hard app blocking (Android)</td><td style="padding:8px 12px;text-align:center;color:#16a34a;font-weight:700;">Yes</td><td style="padding:8px 12px;text-align:center;color:#16a34a;">Yes</td><td style="padding:8px 12px;text-align:center;color:#16a34a;">Yes</td><td style="padding:8px 12px;text-align:center;color:#16a34a;">Yes</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#16a34a;">Yes</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;">Network VPN blocking</td><td style="padding:8px 12px;text-align:center;color:#16a34a;font-weight:700;">Yes</td><td style="padding:8px 12px;text-align:center;color:#16a34a;">Yes</td><td style="padding:8px 12px;text-align:center;color:#16a34a;">Yes</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td></tr>
+          <tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;">Global VPN kill mode (all internet)</td><td style="padding:8px 12px;text-align:center;color:#16a34a;font-weight:700;">Yes</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;">Desktop app (Windows/macOS)</td><td style="padding:8px 12px;text-align:center;color:#16a34a;font-weight:700;">Yes</td><td style="padding:8px 12px;text-align:center;color:#16a34a;">Yes</td><td style="padding:8px 12px;text-align:center;color:#16a34a;">Yes</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#16a34a;">Yes</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td></tr>
+          <tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;">Device Admin (can't uninstall)</td><td style="padding:8px 12px;text-align:center;color:#16a34a;font-weight:700;">Yes</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;">Nuclear Mode (permanent uninstall)</td><td style="padding:8px 12px;text-align:center;color:#16a34a;font-weight:700;">Yes</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td></tr>
+          <tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;">Temptation Log + Weekly Report</td><td style="padding:8px 12px;text-align:center;color:#16a34a;font-weight:700;">Yes</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;">Auto-block newly installed apps mid-session</td><td style="padding:8px 12px;text-align:center;color:#16a34a;font-weight:700;">Yes</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td></tr>
+          <tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;">SHA-256 native session PIN</td><td style="padding:8px 12px;text-align:center;color:#16a34a;font-weight:700;">Yes</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;">Boot recovery (survives reboot)</td><td style="padding:8px 12px;text-align:center;color:#16a34a;font-weight:700;">Yes</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#d97706;">N/A</td><td style="padding:8px 12px;text-align:center;color:#d97706;">N/A</td></tr>
+          <tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;">Home screen launcher replacement</td><td style="padding:8px 12px;text-align:center;color:#16a34a;font-weight:700;">Yes</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;">YouTube Shorts block</td><td style="padding:8px 12px;text-align:center;color:#16a34a;font-weight:700;">Yes</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td></tr>
+          <tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;">Instagram Reels block</td><td style="padding:8px 12px;text-align:center;color:#16a34a;font-weight:700;">Yes</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td></tr>
+          <tr style="background:#f8fafc;"><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;">Aversive feedback (dim + vibrate + sound)</td><td style="padding:8px 12px;text-align:center;color:#16a34a;font-weight:700;">Yes</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td><td style="padding:8px 12px;text-align:center;color:#dc2626;">No</td></tr>
+          <tr><td style="padding:8px 12px;">Free to use</td><td style="padding:8px 12px;text-align:center;color:#16a34a;font-weight:700;">Yes</td><td style="padding:8px 12px;text-align:center;color:#d97706;">Partial</td><td style="padding:8px 12px;text-align:center;color:#d97706;">Partial</td><td style="padding:8px 12px;text-align:center;color:#d97706;">Partial</td><td style="padding:8px 12px;text-align:center;color:#d97706;">Partial</td><td style="padding:8px 12px;text-align:center;color:#16a34a;">Yes</td></tr>
+        </tbody>
+      </table>
+
+      <h2 style="font-size:22px;font-weight:700;border-bottom:2px solid #e2e8f0;padding-bottom:8px;margin-top:40px;">Who Uses FocusFlow</h2>
+      <p style="margin-bottom:16px;">FocusFlow serves users who have already tried soft-timer apps and found them insufficient. Common use cases:</p>
+      <ul style="padding-left:20px;line-height:2.1;">
+        <li><strong>Phone addiction recovery</strong> — Nuclear Mode permanently removes addictive apps; Temptation Log shows weekly blocked-attempt data</li>
+        <li><strong>Students (deep study blocks)</strong> — Task-based focus whitelists only study tools; Pomodoro timer signals work/break phases automatically</li>
+        <li><strong>Professionals (work-hours blocking)</strong> — Recurring Block Schedules block social media Mon–Fri 09:00–18:00 without any active session; VPN blocking can be added per-schedule</li>
+        <li><strong>Digital minimalists</strong> — Always-On mode enforces a permanent blocklist; home screen launcher shows only whitelisted apps</li>
+        <li><strong>ADHD self-management</strong> — Per-task allowed app lists, aversive feedback as external interrupt, Pomodoro work/break cycles, chronotype-aware scheduling</li>
+        <li><strong>Self-control (parental-style)</strong> — Device Admin + SHA-256 PIN makes the block effectively irreversible during a session, even for the person who set it up</li>
+      </ul>
+
+      <h2 style="font-size:22px;font-weight:700;border-bottom:2px solid #e2e8f0;padding-bottom:8px;margin-top:40px;">Pomodoro Timer and Task Manager</h2>
+      <ul style="padding-left:20px;line-height:2.1;">
+        <li><strong>Integrated Pomodoro timer</strong> (usePomodoro.ts) — configurable work and break durations; fires vibration + push notification at each phase transition ("Break Time" / "Back to Work")</li>
+        <li><strong>App blocking active throughout</strong> — blocked apps remain blocked during breaks; Pomodoro does not unlock the block list</li>
+        <li><strong>Per-task allowed app list</strong> — each task in the built-in task manager defines its own whitelist (focusAllowedPackages): a study task allows only a dictionary; a work task allows a messaging app</li>
+        <li><strong>Task priorities</strong> — low, medium, high, critical. Three reminder types: pre-start, at-start, post-start</li>
+        <li><strong>Chronotype-aware scheduling</strong> — user profile records peak focus time (morning/afternoon/evening/night) and break style preference (short frequent / balanced / long infrequent / no-break)</li>
+      </ul>
+
+      <h2 style="font-size:22px;font-weight:700;border-bottom:2px solid #e2e8f0;padding-bottom:8px;margin-top:40px;">Import Block List from Other Apps</h2>
+      <p style="margin-bottom:12px;">Switching to FocusFlow from AppBlock, StayFree, Digital Wellbeing, Stay Focused, or Lock Me Out? FocusFlow's import feature (871-line ImportFromOtherAppModal) handles it in one step:</p>
+      <ul style="padding-left:20px;line-height:2.1;">
+        <li><strong>File import</strong> — auto-detects TXT (one package name per line), CSV (any column with valid package names), and JSON (arrays or objects with packageName/package/appId keys)</li>
+        <li><strong>Name-based import</strong> — type or paste app display names ("Instagram", "TikTok"); FocusFlow fuzzy-matches against installed apps and shows a preview before adding to the block list</li>
+        <li>Works with exports from: AppBlock, StayFree, ActionDash, Digital Wellbeing Takeout. Works without export for: Stay Focused, Lock Me Out (free tier)</li>
+      </ul>
+
+      <h2 style="font-size:22px;font-weight:700;border-bottom:2px solid #e2e8f0;padding-bottom:8px;margin-top:40px;">Weekly Analytics and Clean Streak</h2>
+      <ul style="padding-left:20px;line-height:2.1;">
+        <li><strong>Day-by-day blocked attempt chart</strong> — bar chart of blocked-app attempts for each of the last 7 days</li>
+        <li><strong>Top tempted apps</strong> — apps sorted by blocked-attempt count for the current week</li>
+        <li><strong>Clean Streak</strong> — consecutive days with zero blocked-app attempts. A clean day means you never once opened a blocked app, even instinctively</li>
+        <li><strong>All-time total</strong> — lifetime blocked-attempt count vs. this week's total</li>
+      </ul>
+
+      <h2 style="font-size:22px;font-weight:700;border-bottom:2px solid #e2e8f0;padding-bottom:8px;margin-top:40px;">Privacy and Technical Notes</h2>
+      <ul style="padding-left:20px;line-height:2.1;">
+        <li><strong>No root required</strong> — works entirely within standard Android permissions (Accessibility Service, VPN, Device Admin)</li>
+        <li><strong>No data leaves the device</strong> — local null-routing VPN never forwards packets; all data stored on-device in SharedPreferences and SQLite</li>
+        <li><strong>Dark mode</strong> — defaults to dark; user can toggle independently of system setting</li>
+        <li><strong>Backup and restore</strong> — exports a .focusflow file using ACTION_CREATE_DOCUMENT; restores all tasks, settings, block lists, and schedules</li>
+        <li><strong>FLAG_SECURE</strong> — sensitive screens (PIN entry, session controls) prevent screenshots and screen recordings</li>
+      </ul>
+
+      <h2 style="font-size:22px;font-weight:700;border-bottom:2px solid #e2e8f0;padding-bottom:8px;margin-top:40px;">Frequently Asked Questions</h2>
+
+      <h3 style="font-size:16px;font-weight:600;color:#1e3a5f;margin-bottom:6px;">What is FocusFlow app?</h3>
+      <p style="margin-bottom:20px;">FocusFlow (by TBTechs) is a hard-enforcement screen time management app for Android, Windows, and macOS. It blocks distracting apps and websites using Android Accessibility Services, a local VPN, and Device Administrator mode. It is unrelated to other apps sharing the FocusFlow name — TBTechs' version is a hard-enforcement blocking suite, not a simple Pomodoro timer.</p>
+
+      <h3 style="font-size:16px;font-weight:600;color:#1e3a5f;margin-bottom:6px;">Does FocusFlow require root?</h3>
+      <p style="margin-bottom:20px;">No. FocusFlow works entirely within standard Android permissions — Accessibility Service, VPN, and Device Administrator. No rooting or system modification is required on any device.</p>
+
+      <h3 style="font-size:16px;font-weight:600;color:#1e3a5f;margin-bottom:6px;">Does FocusFlow have a Pomodoro timer?</h3>
+      <p style="margin-bottom:20px;">Yes. FocusFlow includes a built-in Pomodoro timer integrated with app blocking. Work and break durations are configurable. The timer fires push notifications and vibration at each phase transition. App blocking remains active during breaks — breaks do not unlock blocked apps.</p>
+
+      <h3 style="font-size:16px;font-weight:600;color:#1e3a5f;margin-bottom:6px;">Can I import my block list from AppBlock, StayFree, or Digital Wellbeing?</h3>
+      <p style="margin-bottom:20px;">Yes. FocusFlow auto-detects TXT, CSV, and JSON exports from AppBlock, StayFree, ActionDash, and Digital Wellbeing. For apps without export (Stay Focused, Lock Me Out), paste app names and FocusFlow fuzzy-matches them against installed apps.</p>
+
+      <h3 style="font-size:16px;font-weight:600;color:#1e3a5f;margin-bottom:6px;">Is FocusFlow good for phone addiction?</h3>
+      <p style="margin-bottom:20px;">The Temptation Log records every blocked-app attempt and shows weekly data. Nuclear Mode permanently removes addictive apps. Aversive feedback (screen dim to 2% + vibration) creates a negative stimulus associated with reaching for a blocked app. The Weekly Report surfaces behavioral patterns over time.</p>
+
+      <h3 style="font-size:16px;font-weight:600;color:#1e3a5f;margin-bottom:6px;">How does FocusFlow prevent you from uninstalling it?</h3>
+      <p style="margin-bottom:20px;">FocusFlow requests Android Device Administrator privileges via FocusDayDeviceAdminReceiver. Once granted, Android blocks the standard uninstall path. The System Guard feature also intercepts navigation to the Uninstall, Clear Data, and Accessibility Settings screens during active sessions. A SHA-256 native PIN gates all stop-session operations.</p>
+
+      <h3 style="font-size:16px;font-weight:600;color:#1e3a5f;margin-bottom:6px;">Can FocusFlow block YouTube Shorts without blocking all of YouTube?</h3>
+      <p style="margin-bottom:20px;">Yes. FocusFlow's YouTube Shorts Blocker closes the Shorts player while leaving the main YouTube feed, search, subscriptions, and video playback accessible. Instagram Reels blocking works the same way.</p>
+
+      <h3 style="font-size:16px;font-weight:600;color:#1e3a5f;margin-bottom:6px;">Does FocusFlow work after a phone reboot?</h3>
+      <p style="margin-bottom:20px;">Yes. FocusFlow includes a BootReceiver that automatically restarts the blocking service and VPN tunnel if the device reboots during an active session, closing the most common bypass method.</p>
+
+      <h3 style="font-size:16px;font-weight:600;color:#1e3a5f;margin-bottom:6px;">How is FocusFlow different from Freedom and Digital Wellbeing?</h3>
+      <p style="margin-bottom:20px;">Freedom uses Accessibility Service and VPN but lacks Device Admin, boot recovery, and aversive feedback. It costs $39.99/year. Digital Wellbeing uses soft timers dismissable with one tap, has no VPN enforcement, and cannot prevent its own uninstallation. FocusFlow combines all three enforcement layers and is free.</p>
+
+      <h3 style="font-size:16px;font-weight:600;color:#1e3a5f;margin-bottom:6px;">What Android OEM devices does FocusFlow support?</h3>
+      <p style="margin-bottom:20px;">FocusFlow explicitly supports 30+ OEM brands: Samsung (OneUI), Xiaomi (MIUI/HyperOS), Oppo (ColorOS), Realme, Vivo (Funtouch/OriginOS), OnePlus (OxygenOS), Huawei (EMUI/HarmonyOS), Honor, Motorola, Asus (ZenUI/ROG), Nothing OS, Nokia/HMD, Sony Xperia, Meizu (Flyme), LG, Lenovo (ZUI), HTC (Sense), TCL/Alcatel, ZTE (MiFavor), Wiko, Black Shark, Infinix, Tecno, and itel.</p>
+
+      <div style="margin-top:48px;padding-top:24px;border-top:1px solid #e2e8f0;font-size:13px;color:#94a3b8;text-align:center;">
+        <div style="margin-bottom:10px;">
+          <a href="/privacy" style="color:#64748b;text-decoration:none;margin:0 12px;">Privacy Policy</a>
+          <span style="color:#cbd5e1;">|</span>
+          <a href="/terms" style="color:#64748b;text-decoration:none;margin:0 12px;">Terms of Service</a>
+        </div>
+        FocusFlow by TBTechs &middot; Android + Windows + macOS &middot; Last updated May 2025
+      </div>
+    </div>
+
+    <!-- React mounts here. JS immediately hides #seo-static to avoid duplicate display. -->
+    <div id="root" style="min-height:100vh;"></div>
+
+    <script>
+      // Hide static content the instant JS runs — before React even loads.
+      // Crawlers that don't execute JS continue to see #seo-static.
+      (function() {
+        var el = document.getElementById('seo-static');
+        if (el) el.style.display = 'none';
+      })();
+    </script>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -2,222 +2,179 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
 
+  <!-- ── English (default) ── -->
   <url>
-    <loc>https://focusflowpc.pages.dev/</loc>
-    <lastmod>2026-05-01</lastmod>
-    <changefreq>monthly</changefreq>
+    <loc>https://focusflowapp.pages.dev/</loc>
+    <lastmod>2026-05-18</lastmod>
+    <changefreq>weekly</changefreq>
     <priority>1.0</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://focusflowpc.pages.dev/"/>
-    <xhtml:link rel="alternate" hreflang="es" href="https://focusflowpc.pages.dev/es/"/>
-    <xhtml:link rel="alternate" hreflang="fr" href="https://focusflowpc.pages.dev/fr/"/>
-    <xhtml:link rel="alternate" hreflang="de" href="https://focusflowpc.pages.dev/de/"/>
-    <xhtml:link rel="alternate" hreflang="ja" href="https://focusflowpc.pages.dev/ja/"/>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://focusflowpc.pages.dev/zh/"/>
-    <xhtml:link rel="alternate" hreflang="ko" href="https://focusflowpc.pages.dev/ko/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://focusflowpc.pages.dev/"/>
+    <xhtml:link rel="alternate" hreflang="en"      href="https://focusflowapp.pages.dev/" />
+    <xhtml:link rel="alternate" hreflang="zh"      href="https://focusflowapp.pages.dev/zh/" />
+    <xhtml:link rel="alternate" hreflang="de"      href="https://focusflowapp.pages.dev/de/" />
+    <xhtml:link rel="alternate" hreflang="fr"      href="https://focusflowapp.pages.dev/fr/" />
+    <xhtml:link rel="alternate" hreflang="ja"      href="https://focusflowapp.pages.dev/ja/" />
+    <xhtml:link rel="alternate" hreflang="ko"      href="https://focusflowapp.pages.dev/ko/" />
+    <xhtml:link rel="alternate" hreflang="es"      href="https://focusflowapp.pages.dev/es/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://focusflowapp.pages.dev/" />
   </url>
 
+  <!-- ── Translated homepages ── -->
   <url>
-    <loc>https://focusflowpc.pages.dev/es/</loc>
-    <lastmod>2026-05-01</lastmod>
+    <loc>https://focusflowapp.pages.dev/zh/</loc>
+    <lastmod>2026-05-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+  <url>
+    <loc>https://focusflowapp.pages.dev/de/</loc>
+    <lastmod>2026-05-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+  <url>
+    <loc>https://focusflowapp.pages.dev/fr/</loc>
+    <lastmod>2026-05-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+  <url>
+    <loc>https://focusflowapp.pages.dev/ja/</loc>
+    <lastmod>2026-05-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+  <url>
+    <loc>https://focusflowapp.pages.dev/ko/</loc>
+    <lastmod>2026-05-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+  <url>
+    <loc>https://focusflowapp.pages.dev/es/</loc>
+    <lastmod>2026-05-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+
+  <!-- ── English sub-pages ── -->
+  <url>
+    <loc>https://focusflowapp.pages.dev/features/</loc>
+    <lastmod>2026-05-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://focusflowapp.pages.dev/compare/</loc>
+    <lastmod>2026-05-18</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://focusflowpc.pages.dev/"/>
-    <xhtml:link rel="alternate" hreflang="es" href="https://focusflowpc.pages.dev/es/"/>
-    <xhtml:link rel="alternate" hreflang="fr" href="https://focusflowpc.pages.dev/fr/"/>
-    <xhtml:link rel="alternate" hreflang="de" href="https://focusflowpc.pages.dev/de/"/>
-    <xhtml:link rel="alternate" hreflang="ja" href="https://focusflowpc.pages.dev/ja/"/>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://focusflowpc.pages.dev/zh/"/>
-    <xhtml:link rel="alternate" hreflang="ko" href="https://focusflowpc.pages.dev/ko/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://focusflowpc.pages.dev/"/>
   </url>
-
   <url>
-    <loc>https://focusflowpc.pages.dev/fr/</loc>
-    <lastmod>2026-05-01</lastmod>
+    <loc>https://focusflowapp.pages.dev/how-it-works/</loc>
+    <lastmod>2026-05-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://focusflowapp.pages.dev/faq/</loc>
+    <lastmod>2026-05-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://focusflowapp.pages.dev/blog/</loc>
+    <lastmod>2026-05-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://focusflowapp.pages.dev/alternatives/</loc>
+    <lastmod>2026-05-18</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://focusflowpc.pages.dev/"/>
-    <xhtml:link rel="alternate" hreflang="es" href="https://focusflowpc.pages.dev/es/"/>
-    <xhtml:link rel="alternate" hreflang="fr" href="https://focusflowpc.pages.dev/fr/"/>
-    <xhtml:link rel="alternate" hreflang="de" href="https://focusflowpc.pages.dev/de/"/>
-    <xhtml:link rel="alternate" hreflang="ja" href="https://focusflowpc.pages.dev/ja/"/>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://focusflowpc.pages.dev/zh/"/>
-    <xhtml:link rel="alternate" hreflang="ko" href="https://focusflowpc.pages.dev/ko/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://focusflowpc.pages.dev/"/>
   </url>
 
+  <!-- ── Blog posts ── -->
   <url>
-    <loc>https://focusflowpc.pages.dev/de/</loc>
-    <lastmod>2026-05-01</lastmod>
+    <loc>https://focusflowapp.pages.dev/blog/how-to-block-youtube-shorts-android/</loc>
+    <lastmod>2026-05-18</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://focusflowpc.pages.dev/"/>
-    <xhtml:link rel="alternate" hreflang="es" href="https://focusflowpc.pages.dev/es/"/>
-    <xhtml:link rel="alternate" hreflang="fr" href="https://focusflowpc.pages.dev/fr/"/>
-    <xhtml:link rel="alternate" hreflang="de" href="https://focusflowpc.pages.dev/de/"/>
-    <xhtml:link rel="alternate" hreflang="ja" href="https://focusflowpc.pages.dev/ja/"/>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://focusflowpc.pages.dev/zh/"/>
-    <xhtml:link rel="alternate" hreflang="ko" href="https://focusflowpc.pages.dev/ko/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://focusflowpc.pages.dev/"/>
+    <priority>0.8</priority>
   </url>
-
   <url>
-    <loc>https://focusflowpc.pages.dev/ja/</loc>
-    <lastmod>2026-05-01</lastmod>
+    <loc>https://focusflowapp.pages.dev/blog/how-to-block-instagram-reels-android/</loc>
+    <lastmod>2026-05-18</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://focusflowpc.pages.dev/"/>
-    <xhtml:link rel="alternate" hreflang="es" href="https://focusflowpc.pages.dev/es/"/>
-    <xhtml:link rel="alternate" hreflang="fr" href="https://focusflowpc.pages.dev/fr/"/>
-    <xhtml:link rel="alternate" hreflang="de" href="https://focusflowpc.pages.dev/de/"/>
-    <xhtml:link rel="alternate" hreflang="ja" href="https://focusflowpc.pages.dev/ja/"/>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://focusflowpc.pages.dev/zh/"/>
-    <xhtml:link rel="alternate" hreflang="ko" href="https://focusflowpc.pages.dev/ko/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://focusflowpc.pages.dev/"/>
+    <priority>0.8</priority>
   </url>
-
   <url>
-    <loc>https://focusflowpc.pages.dev/zh/</loc>
-    <lastmod>2026-05-01</lastmod>
+    <loc>https://focusflowapp.pages.dev/blog/best-free-app-blocker-android/</loc>
+    <lastmod>2026-05-18</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://focusflowpc.pages.dev/"/>
-    <xhtml:link rel="alternate" hreflang="es" href="https://focusflowpc.pages.dev/es/"/>
-    <xhtml:link rel="alternate" hreflang="fr" href="https://focusflowpc.pages.dev/fr/"/>
-    <xhtml:link rel="alternate" hreflang="de" href="https://focusflowpc.pages.dev/de/"/>
-    <xhtml:link rel="alternate" hreflang="ja" href="https://focusflowpc.pages.dev/ja/"/>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://focusflowpc.pages.dev/zh/"/>
-    <xhtml:link rel="alternate" hreflang="ko" href="https://focusflowpc.pages.dev/ko/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://focusflowpc.pages.dev/"/>
+    <priority>0.8</priority>
   </url>
-
   <url>
-    <loc>https://focusflowpc.pages.dev/ko/</loc>
-    <lastmod>2026-05-01</lastmod>
+    <loc>https://focusflowapp.pages.dev/blog/freedom-app-alternative/</loc>
+    <lastmod>2026-05-18</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://focusflowpc.pages.dev/"/>
-    <xhtml:link rel="alternate" hreflang="es" href="https://focusflowpc.pages.dev/es/"/>
-    <xhtml:link rel="alternate" hreflang="fr" href="https://focusflowpc.pages.dev/fr/"/>
-    <xhtml:link rel="alternate" hreflang="de" href="https://focusflowpc.pages.dev/de/"/>
-    <xhtml:link rel="alternate" hreflang="ja" href="https://focusflowpc.pages.dev/ja/"/>
-    <xhtml:link rel="alternate" hreflang="zh" href="https://focusflowpc.pages.dev/zh/"/>
-    <xhtml:link rel="alternate" hreflang="ko" href="https://focusflowpc.pages.dev/ko/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://focusflowpc.pages.dev/"/>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://focusflowapp.pages.dev/blog/how-to-stop-doom-scrolling/</loc>
+    <lastmod>2026-05-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://focusflowapp.pages.dev/blog/app-blocker-adhd-android/</loc>
+    <lastmod>2026-05-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
   </url>
 
   <url>
-    <loc>https://focusflowpc.pages.dev/privacy-policy/</loc>
-    <lastmod>2026-05-01</lastmod>
+    <loc>https://focusflowapp.pages.dev/blog/how-to-block-tiktok-android/</loc>
+    <lastmod>2025-05-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://focusflowapp.pages.dev/blog/best-app-blocker-android-2025/</loc>
+    <lastmod>2025-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.82</priority>
+  </url>
+  <url>
+    <loc>https://focusflowapp.pages.dev/blog/cold-turkey-alternative-android/</loc>
+    <lastmod>2025-05-22</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://focusflowapp.pages.dev/blog/how-to-stop-phone-addiction-android/</loc>
+    <lastmod>2025-05-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- ── Legal ── -->
+  <url>
+    <loc>https://focusflowapp.pages.dev/privacy-policy/</loc>
+    <lastmod>2026-05-18</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.4</priority>
   </url>
-
   <url>
-    <loc>https://focusflowpc.pages.dev/terms-of-service/</loc>
-    <lastmod>2026-05-01</lastmod>
+    <loc>https://focusflowapp.pages.dev/terms-of-service/</loc>
+    <lastmod>2026-05-18</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.4</priority>
   </url>
-
-
   <url>
-    <loc>https://focusflowpc.pages.dev/features/</loc>
-    <lastmod>2026-05-16</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://focusflowpc.pages.dev/blog/</loc>
-    <lastmod>2026-05-16</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://focusflowpc.pages.dev/de/features/</loc>
-    <lastmod>2026-05-16</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://focusflowpc.pages.dev/de/blog/</loc>
-    <lastmod>2026-05-16</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://focusflowpc.pages.dev/es/features/</loc>
-    <lastmod>2026-05-16</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://focusflowpc.pages.dev/es/blog/</loc>
-    <lastmod>2026-05-16</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://focusflowpc.pages.dev/fr/features/</loc>
-    <lastmod>2026-05-16</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://focusflowpc.pages.dev/fr/blog/</loc>
-    <lastmod>2026-05-16</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://focusflowpc.pages.dev/ja/features/</loc>
-    <lastmod>2026-05-16</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://focusflowpc.pages.dev/ja/blog/</loc>
-    <lastmod>2026-05-16</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://focusflowpc.pages.dev/zh/features/</loc>
-    <lastmod>2026-05-16</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://focusflowpc.pages.dev/zh/blog/</loc>
-    <lastmod>2026-05-16</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://focusflowpc.pages.dev/ko/features/</loc>
-    <lastmod>2026-05-16</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://focusflowpc.pages.dev/ko/blog/</loc>
-    <lastmod>2026-05-16</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <loc>https://focusflowapp.pages.dev/data-subject-rights/</loc>
+    <lastmod>2026-05-18</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
   </url>
 
 </urlset>

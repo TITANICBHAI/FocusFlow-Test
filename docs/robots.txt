@@ -1,8 +1,51 @@
+# FocusFlow by TBTechs — robots.txt
+# Allow all search engines and beneficial AI retrieval bots.
+# Disallow only known training scrapers that do not contribute to visibility.
+
 User-agent: *
 Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+Disallow: /404
 
-# IndexNow Key Location
-IndexNow: https://focusflowpc.pages.dev/fe8d4717df104e1a82981264bd51ee49.txt
+# Explicitly allow legal/rights pages
+Allow: /privacy-policy/
+Allow: /terms-of-service/
+Allow: /data-subject-rights/
 
-# Sitemap Location
-Sitemap: https://focusflowpc.pages.dev/sitemap.xml
+# Sitemaps and AI-specific documentation
+Sitemap: https://focusflowapp.pages.dev/sitemap.xml
+
+# Beneficial AI retrieval / search bots — explicitly allowed
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: Slurp
+Allow: /

@@ -1,10 +1,14 @@
 modules = ["nodejs-20", "web", "bash"]
-[agent]
-expertMode = true
-stack = "BEST_EFFORT_FALLBACK"
 
-[nix]
-channel = "stable-25_05"
+[deployment]
+router = "application"
+deploymentTarget = "static"
+build = ["pnpm", "--filter", "@workspace/mockup-sandbox", "run", "build"]
+publicDir = "artifacts/mockup-sandbox/dist"
+
+[deployment.postBuild]
+args = ["pnpm", "store", "prune"]
+env = { "CI" = "true" }
 
 [workflows]
 runButton = "Project"
@@ -16,26 +20,39 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Start application"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
 args = "Push to GitHub"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Serve Website"
-
-[[workflows.workflow]]
-name = "Start application"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "vnc"
+args = "Start application"
 
 [[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "export JAVA_HOME=/nix/store/c8hr2f0b0dm685yx1dkp6bw24bpx495n-graalvm19-ce-22.3.1 && export PATH=$JAVA_HOME/bin:$PATH && gradle :run --no-daemon"
+task = "workflow.run"
+args = "Push FocusFlow-pc to GitHub"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start FocusFlow Ad"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Serve Docs Website"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start FocusFlow Accessibility Demo"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start FocusFlow Feature Videos"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Deploy Feature Videos to GitHub Pages"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Deploy Feature Videos to New Repo"
 
 [[workflows.workflow]]
 name = "Push to GitHub"
@@ -43,31 +60,147 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "bash push_to_github.sh"
+args = "pnpm --filter @workspace/scripts run github:push"
 
 [workflows.workflow.metadata]
 outputType = "console"
 
 [[workflows.workflow]]
-name = "Serve Website"
+name = "Start application"
 author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=5000 BASE_PATH=/ pnpm --filter @workspace/mockup-sandbox run dev"
+waitForPort = 5000
 
 [workflows.workflow.metadata]
 outputType = "webview"
 
+[[workflows.workflow]]
+name = "Push FocusFlow-pc to GitHub"
+author = "agent"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npx --yes serve docs -l 5000"
-waitForPort = 5000
+args = "pnpm --filter @workspace/scripts run github:push-pc"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "Start FocusFlow Ad"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=3002 BASE_PATH=/ pnpm --filter @workspace/focusflow-ad run dev"
+waitForPort = 3002
+
+[[workflows.workflow]]
+name = "Serve Docs Website"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx -y serve docs --listen 3000 --no-clipboard"
+waitForPort = 3000
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "Start FocusFlow Accessibility Demo"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=3003 BASE_PATH=/ pnpm --filter @workspace/focusflow-accessibility-demo run dev"
+waitForPort = 3003
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "Start FocusFlow Feature Videos"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=6000 BASE_PATH=/ pnpm --filter @workspace/focusflow-feature-videos run dev"
+waitForPort = 6000
+
+[[workflows.workflow]]
+name = "Deploy Feature Videos to GitHub Pages"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/scripts run github:deploy-pages"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "Deploy Feature Videos to New Repo"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/scripts run github:deploy-feature-videos-repo"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[agent]
+stack = "BEST_EFFORT_FALLBACK"
+expertMode = true
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000
+
+[[ports]]
+localPort = 3000
+externalPort = 3000
+
+[[ports]]
+localPort = 3002
+externalPort = 3002
+
+[[ports]]
+localPort = 3003
+externalPort = 3003
 
 [[ports]]
 localPort = 5000
 externalPort = 80
 
-[deployment]
-deploymentTarget = "static"
-publicDir = "docs"
+[[ports]]
+localPort = 5001
+externalPort = 3002
 
-[postMerge]
-path = "scripts/post-merge.sh"
-timeoutMs = 30000
+[[ports]]
+localPort = 6000
+externalPort = 5173
+
+[[ports]]
+localPort = 8081
+externalPort = 80
+
+[[ports]]
+localPort = 25040
+externalPort = 3001
+
+[[ports]]
+localPort = 25669
+externalPort = 3000
+
+[nix]
+channel = "stable-25_05"

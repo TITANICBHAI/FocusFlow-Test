@@ -1,34 +1,44 @@
 {
   "name": "workspace",
-  "version": "1.0.0",
-  "description": "> **Real enforcement. No soft timers. No workarounds.**",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
+  "version": "0.0.0",
+  "license": "MIT",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
+    "build": "pnpm run typecheck && pnpm -r --if-present run build",
+    "typecheck:libs": "tsc --build",
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "clsx": "^2.1.1",
-    "framer-motion": "^12.40.0",
-    "jspdf": "^4.2.1",
-    "lucide-react": "^1.17.0",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "tailwind-merge": "^3.6.0"
+  "private": true,
+  "pnpm": {
+    "overrides": {
+      "esbuild>@esbuild/darwin-arm64": "-",
+      "esbuild>@esbuild/darwin-x64": "-",
+      "esbuild>@esbuild/freebsd-arm64": "-",
+      "esbuild>@esbuild/freebsd-x64": "-",
+      "esbuild>@esbuild/linux-arm": "-",
+      "esbuild>@esbuild/linux-arm64": "-",
+      "esbuild>@esbuild/linux-ia32": "-",
+      "esbuild>@esbuild/linux-loong64": "-",
+      "esbuild>@esbuild/linux-mips64el": "-",
+      "esbuild>@esbuild/linux-ppc64": "-",
+      "esbuild>@esbuild/linux-riscv64": "-",
+      "esbuild>@esbuild/linux-s390x": "-",
+      "esbuild>@esbuild/netbsd-arm64": "-",
+      "esbuild>@esbuild/netbsd-x64": "-",
+      "esbuild>@esbuild/openbsd-arm64": "-",
+      "esbuild>@esbuild/openbsd-x64": "-",
+      "esbuild>@esbuild/sunos-x64": "-",
+      "esbuild>@esbuild/win32-arm64": "-",
+      "esbuild>@esbuild/win32-ia32": "-",
+      "esbuild>@esbuild/win32-x64": "-"
+    }
   },
   "devDependencies": {
-    "@types/react": "^19.2.15",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.2",
-    "autoprefixer": "^10.5.0",
-    "postcss": "^8.5.15",
-    "tailwindcss": "^4.3.0",
-    "typescript": "^6.0.3",
-    "vite": "^8.0.16"
+    "eas-cli": "^18.4.0",
+    "prettier": "^3.8.1",
+    "typescript": "~5.9.2"
+  },
+  "dependencies": {
+    "jimp": "^1.6.1"
   }
 }

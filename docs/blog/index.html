@@ -1,141 +1,289 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="google-site-verification" content="sou-98cZYPWFJmbwxJgJptO-ZaIPNJqz2ven_iS4NjI" />
-  <meta name="msvalidate.01" content="FC2887EF2F94BFFE090CAB25A456AE86" />
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FocusFlow Blog</title>
-  <meta name="description" content="Articles about focus, productivity, and building better work habits on Windows." />
-  <link rel="canonical" href="https://focusflowpc.pages.dev/blog/" />
-  <link rel="icon" href="https://focusflowpc.pages.dev/assets/focusflow-icon.png" type="image/png" />
-  <meta property="og:title" content="FocusFlow Blog" />
-  <meta property="og:description" content="Articles about focus, productivity, and building better work habits on Windows." />
-  <meta property="og:image" content="https://focusflowpc.pages.dev/assets/focusflow-app-icon.jpeg" />
-  <meta property="og:url" content="https://focusflowpc.pages.dev/blog/" />
+  <title>FocusFlow Blog — Android Focus & App Blocking Guides | TBTechs</title>
+  <meta name="description" content="Practical guides on blocking distracting apps, stopping doom scrolling, comparing app blockers, and taking control of your Android screen time. By TBTechs." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://focusflowapp.pages.dev/blog/" />
+  <meta name="google-site-verification" content="sou-98cZYPWFJmbwxJgJptO-ZaIPNJqz2ven_iS4NjI" />
+  <meta name="msvalidate.01" content="FC2887EF2F94BFFE090CAB25A456AE86" />
+  <meta property="og:title" content="FocusFlow Blog — Android Focus & App Blocking Guides" />
+  <meta property="og:description" content="Practical guides on blocking distracting apps, stopping doom scrolling, and taking back your Android screen time. Free app blocker by TBTechs." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://focusflowapp.pages.dev/blog/" />
+  <meta property="og:site_name" content="FocusFlow by TBTechs" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:image" content="https://focusflowapp.pages.dev/og-image.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="FocusFlow Blog — Android Focus & App Blocking Guides" />
+  <meta name="twitter:description" content="Practical guides on blocking distracting apps and stopping doom scrolling on Android." />
+  <meta name="twitter:image" content="https://focusflowapp.pages.dev/og-image.jpg" />
+  <link rel="icon" href="../logo-transparent.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'" />
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" /></noscript>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://focusflowapp.pages.dev/" },
+      { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://focusflowapp.pages.dev/blog/" }
+    ]
+  }
+  </script>
   <style>
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    :root{--bg:#0a0b0f;--surface:#111318;--surface2:#181b22;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--purple:#7c4dff;--purple-light:#a78bfa;--purple-glow:rgba(124,77,255,0.25);--cyan:#4fc3f7;--text:#f1f5f9;--muted:#94a3b8;--muted2:#64748b;--radius:14px}
-    html{scroll-behavior:smooth}
-    body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh}
-    nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:1rem 2rem;background:rgba(10,11,15,0.9);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
-    .nav-brand{display:flex;align-items:center;gap:0.75rem;font-weight:700;font-size:1.05rem;color:var(--text);text-decoration:none}
-    .nav-logo{width:28px;height:28px;border-radius:6px;object-fit:cover}
-    .nav-links{display:flex;align-items:center;gap:1.75rem}
-    .nav-links a{color:var(--muted);text-decoration:none;font-size:0.875rem;font-weight:500;transition:color .2s}
-    .nav-links a:hover,.nav-links a.active{color:var(--text)}
-    .btn{display:inline-flex;align-items:center;gap:0.5rem;padding:0.6rem 1.25rem;border-radius:8px;font-size:0.875rem;font-weight:600;text-decoration:none;border:none;transition:all .2s;white-space:nowrap}
-    .btn-primary{background:var(--purple);color:#fff;box-shadow:0 0 24px var(--purple-glow)}
-    .btn-primary:hover{background:#6c3fff;transform:translateY(-1px)}
-    .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
-    .btn-ghost:hover{color:var(--text);border-color:var(--border2)}
-    .page-hero{padding:9rem 2rem 4rem;text-align:center;border-bottom:1px solid var(--border)}
-    .page-hero h1{font-size:clamp(2rem,5vw,3rem);font-weight:800;margin-bottom:1rem;line-height:1.15}
-    .page-hero p{color:var(--muted);max-width:560px;margin:0 auto 2rem;font-size:1.05rem}
-    .section{padding:5rem 2rem;max-width:1100px;margin:0 auto}
-    .section-label{font-size:0.75rem;font-weight:700;letter-spacing:0.12em;color:var(--purple-light);text-transform:uppercase;margin-bottom:0.75rem}
-    .section-title{font-size:clamp(1.6rem,4vw,2.25rem);font-weight:800;margin-bottom:1rem;line-height:1.2}
-    .section-desc{color:var(--muted);max-width:640px;margin-bottom:2.5rem;font-size:0.975rem}
-    .grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.25rem}
-    .grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:1.5rem}
-    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.75rem}
-    .card h3{font-size:1.1rem;font-weight:700;margin-bottom:0.6rem;color:var(--text)}
-    .card p{color:var(--muted);font-size:0.875rem;line-height:1.7}
-    .card-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:1.1rem}
-    .icon-purple{background:rgba(124,77,255,.12);border:1px solid rgba(124,77,255,.25);color:var(--purple-light)}
-    .icon-cyan{background:rgba(79,195,247,.1);border:1px solid rgba(79,195,247,.25);color:var(--cyan)}
-    .icon-red{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);color:#f87171}
-    .icon-green{background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);color:#34d399}
-    .icon-yellow{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.25);color:#fbbf24}
-    .card-tag{font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--purple-light);margin-bottom:0.75rem}
-    .blog-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.5rem}
-    .blog-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.75rem;display:flex;flex-direction:column;gap:0.75rem}
-    .blog-meta{display:flex;align-items:center;gap:0.75rem;font-size:0.78rem;color:var(--muted2)}
-    .blog-tag{background:rgba(124,77,255,.12);color:var(--purple-light);padding:0.2rem 0.6rem;border-radius:999px;font-size:0.72rem;font-weight:600}
-    .blog-card h3{font-size:1.1rem;font-weight:700;color:var(--text);line-height:1.3}
-    .blog-card p{color:var(--muted);font-size:0.875rem;line-height:1.7;flex:1}
-    .blog-card a.read-more{color:var(--purple-light);font-size:0.85rem;font-weight:600;text-decoration:none;margin-top:auto}
-    .blog-card a.read-more:hover{color:var(--text)}
-    .cta-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:3rem 2rem;text-align:center;max-width:600px;margin:0 auto}
-    .cta-box h2{font-size:1.75rem;font-weight:800;margin-bottom:0.75rem}
-    .cta-box p{color:var(--muted);margin-bottom:1.75rem;font-size:0.95rem}
-    .cta-buttons{display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;align-items:center}
-    footer{border-top:1px solid var(--border);padding:2.25rem 2rem;text-align:center;color:var(--muted2);font-size:0.83rem}
-    .footer-links{display:flex;justify-content:center;gap:1.5rem;flex-wrap:wrap;margin-bottom:1rem}
-    footer a{color:var(--muted);text-decoration:none}
-    footer a:hover{color:var(--text)}
-    .divider{height:1px;background:var(--border);max-width:1100px;margin:0 auto}
-    @media(max-width:640px){nav{padding:.9rem 1.25rem}.nav-links{display:none}.page-hero{padding:7rem 1.25rem 3rem}.section{padding:3rem 1.25rem}}
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0D0D14; --surface: #13131F; --border: rgba(255,255,255,0.07);
+      --accent: #6C63FF; --text: #F0F0F8; --muted: #9090B0;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; line-height: 1.7; }
+    a { color: inherit; text-decoration: none; }
+    nav {
+      position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 2rem; border-bottom: 1px solid var(--border);
+      background: rgba(13,13,20,0.92); backdrop-filter: blur(14px); z-index: 100;
+    }
+    .brand { display: flex; align-items: center; gap: 0.5rem; font-weight: 800; font-size: 1.05rem; }
+    .brand img { width: 28px; height: 28px; border-radius: 7px; }
+    .nav-links { display: flex; gap: 1.4rem; align-items: center; }
+    .nav-links a { color: var(--muted); font-size: 0.88rem; transition: color 0.2s; }
+    .nav-links a:hover, .nav-links a.active { color: var(--text); }
+    .nav-cta { background: var(--accent); color: #fff !important; padding: 0.45rem 1rem; border-radius: 8px; font-weight: 600; font-size: 0.82rem !important; }
+    .nav-cta:hover { background: #7a72ff !important; }
+    #lang-toggle {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      padding: 0.28rem 0.7rem; border-radius: 6px; cursor: pointer;
+      font-size: 0.82rem; font-family: inherit; transition: border-color 0.2s, color 0.2s;
+    }
+    #lang-toggle:hover { border-color: var(--accent); color: var(--text); }
+    .zh { display: none; }
+    [data-lang="zh"] .zh { display: block; }
+    [data-lang="zh"] .en { display: none; }
+    [data-lang="zh"] span.zh { display: inline; }
+    [data-lang="zh"] span.en { display: none; }
+    .breadcrumb { padding: 1rem 2rem; font-size: 0.8rem; color: var(--muted); }
+    .breadcrumb a { color: var(--accent); }
+    .breadcrumb span { margin: 0 0.4rem; }
+    main { max-width: 1100px; margin: 0 auto; padding: 3rem 2rem 6rem; }
+    .page-header { text-align: center; margin-bottom: 3.5rem; }
+    .eyebrow { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.75rem; }
+    h1 { font-size: clamp(2rem, 5vw, 2.8rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 1rem; }
+    .lead { color: var(--muted); font-size: 1.05rem; max-width: 560px; margin: 0 auto; }
+    .blog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 1.75rem; display: flex; flex-direction: column; gap: 0.75rem;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .card-tag { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+    .card h2 { font-size: 1.1rem; font-weight: 700; line-height: 1.35; }
+    .card p { font-size: 0.88rem; color: var(--muted); flex: 1; }
+    .card-meta { font-size: 0.75rem; color: var(--muted); }
+    .read-more { margin-top: 0.5rem; font-size: 0.85rem; font-weight: 600; color: var(--accent); display: inline-flex; align-items: center; gap: 0.3rem; }
+    footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center; color: var(--muted); font-size: 0.8rem; }
+    footer a { color: var(--accent); }
   </style>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "FocusFlow", "item": "https://focusflowpc.pages.dev/"}, {"@type": "ListItem", "position": 2, "name": "Blog", "item": "https://focusflowpc.pages.dev/blog/"}]}</script>
 </head>
 <body>
   <nav>
-    <a href="/" class="nav-brand">
-      <img src="https://focusflowpc.pages.dev/assets/focusflow-icon.png" alt="FocusFlow" class="nav-logo" />
+    <a class="brand" href="../">
+      <img src="../logo-transparent.png" alt="FocusFlow" />
       FocusFlow
     </a>
     <div class="nav-links">
-      <a href="/">Home</a>
-      <a href="/features/" >Features</a>
-      <a href="/blog/" class='active'>Blog</a>
-      <a href="https://github.com/TITANICBHAI/FocusFlow-jvm" target="_blank" rel="noopener">GitHub</a>
+      <a href="../features/">Features</a>
+      <a href="../compare/">Compare</a>
+      <a href="../how-it-works/">How it works</a>
+      <a href="../faq/">FAQ</a>
+      <a href="../blog/" class="active">Blog</a>
+      <a class="nav-cta" href="https://github.com/TITANICBHAI/FocusFlow/releases">Download APK</a>
+      <button id="lang-toggle">中文</button>
     </div>
-    <a href="https://apps.microsoft.com/detail/9NJN9FPRQ7T1" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;line-height:0;">
-      <img src="https://get.microsoft.com/images/en-US%20dark.svg" alt="Get it from Microsoft" style="height:38px;" />
-    </a>
   </nav>
 
-  <div class="page-hero">
-    <div class="section-label">Blog</div>
-    <h1>Deep Work Insights</h1>
-    <p>Articles about focus, productivity, and building better work habits on Windows.</p>
+  <div class="breadcrumb">
+    <a href="../">Home</a><span>›</span>
+    <span class="en">Blog</span>
+    <span class="zh">博客</span>
   </div>
 
-  <div style="max-width:1100px;margin:0 auto;padding:4rem 2rem;">
+  <main>
+    <header class="page-header">
+      <p class="eyebrow en">FocusFlow Blog</p>
+      <p class="eyebrow zh">FocusFlow 博客</p>
+      <h1 class="en">Guides to Reclaiming Your Focus on Android</h1>
+      <h1 class="zh">重获 Android 专注力的实用指南</h1>
+      <p class="lead en">Practical, no-fluff guides on blocking distractions, stopping doom scrolling, and understanding your options.</p>
+      <p class="lead zh">关于屏蔽干扰、停止末日滚动并了解您选择的实用、无废话指南。</p>
+    </header>
+
     <div class="blog-grid">
-        <div class="blog-card">
-          <div class="blog-meta">
-            <span class="blog-tag">Deep Work</span>
-            <span>May 2026</span>
-          </div>
-          <h3>Why Soft Timers Always Fail</h3>
-          <p>Every app that relies on a "gentle reminder" or a popup you can dismiss is working against you. Real focus enforcement means the computer changes, not just a notification. Here's why the Win32 approach is the only approach that works.</p>
-          <a class="read-more" href="#soft-timers">Read more →</a>
-        </div>
-        <div class="blog-card">
-          <div class="blog-meta">
-            <span class="blog-tag">Focus Launcher</span>
-            <span>April 2026</span>
-          </div>
-          <h3>Lock Your Desktop, Change Your Mind</h3>
-          <p>Focus Launcher doesn't just block apps — it transforms your desktop into a single-purpose workspace. We explain the CBT-inspired design behind it and why environmental design beats willpower every time.</p>
-          <a class="read-more" href="#focus-launcher-design">Read more →</a>
-        </div>
-        <div class="blog-card">
-          <div class="blog-meta">
-            <span class="blog-tag">Technical</span>
-            <span>March 2026</span>
-          </div>
-          <h3>How FocusFlow Actually Kills Processes</h3>
-          <p>A plain-English look at how FocusFlow uses Win32 OpenProcess, TerminateProcess, and a 500ms poll loop to ensure no blocked app can stay running — and what the safe process whitelist looks like.</p>
-          <a class="read-more" href="#win32-process-killing">Read more →</a>
-        </div>
-    </div>
-  </div>
 
-    <footer>
-    <div class="footer-links">
-      <a href="/">Home</a>
-      <a href="/features/">Features</a>
-      <a href="/blog/">Blog</a>
-      <a href="/privacy-policy/">Privacy</a>
-      <a href="/terms-of-service/">Terms</a>
-      <a href="https://github.com/TITANICBHAI/FocusFlow-jvm" target="_blank">GitHub</a>
+      <a class="card" href="how-to-block-youtube-shorts-android/">
+        <span class="card-tag en">How-To</span>
+        <span class="card-tag zh">操作指南</span>
+        <h2 class="en">How to Block YouTube Shorts on Android Without Blocking YouTube</h2>
+        <h2 class="zh">如何在 Android 上屏蔽 YouTube Shorts 而不屏蔽 YouTube</h2>
+        <p class="en">A step-by-step guide to blocking the Shorts feed while keeping full access to YouTube videos, channels, and playlists.</p>
+        <p class="zh">逐步指南：屏蔽 Shorts 信息流，同时保留对 YouTube 视频、频道和播放列表的完整访问权限。</p>
+        <span class="card-meta en">May 2025 · 6 min read</span>
+        <span class="card-meta zh">2025年5月 · 6分钟阅读</span>
+        <span class="read-more en">Read guide →</span>
+        <span class="read-more zh">阅读指南 →</span>
+      </a>
+
+      <a class="card" href="how-to-block-instagram-reels-android/">
+        <span class="card-tag en">How-To</span>
+        <span class="card-tag zh">操作指南</span>
+        <h2 class="en">How to Block Instagram Reels on Android Without Blocking Instagram</h2>
+        <h2 class="zh">如何在 Android 上屏蔽 Instagram Reels 而不屏蔽 Instagram</h2>
+        <p class="en">Block the Reels tab and auto-play videos without losing access to DMs, Stories, or your feed. Here's exactly how.</p>
+        <p class="zh">屏蔽 Reels 标签和自动播放视频，同时不影响私信、故事或信息流的访问。具体方法如下。</p>
+        <span class="card-meta en">May 2025 · 6 min read</span>
+        <span class="card-meta zh">2025年5月 · 6分钟阅读</span>
+        <span class="read-more en">Read guide →</span>
+        <span class="read-more zh">阅读指南 →</span>
+      </a>
+
+      <a class="card" href="best-free-app-blocker-android/">
+        <span class="card-tag en">Review</span>
+        <span class="card-tag zh">评测</span>
+        <h2 class="en">Best Free App Blocker for Android in 2025</h2>
+        <h2 class="zh">2025年 Android 最佳免费应用屏蔽器</h2>
+        <p class="en">We tested Digital Wellbeing, AppBlock, Freedom, and FocusFlow. Here's which one actually stops you from getting back in.</p>
+        <p class="zh">我们测试了数字健康、AppBlock、Freedom 和 FocusFlow。以下是哪款真正能阻止您重新进入的结论。</p>
+        <span class="card-meta en">May 2025 · 8 min read</span>
+        <span class="card-meta zh">2025年5月 · 8分钟阅读</span>
+        <span class="read-more en">Read guide →</span>
+        <span class="read-more zh">阅读指南 →</span>
+      </a>
+
+      <a class="card" href="freedom-app-alternative/">
+        <span class="card-tag en">Comparison</span>
+        <span class="card-tag zh">对比</span>
+        <h2 class="en">Best Free Freedom App Alternative for Android</h2>
+        <h2 class="zh">Android 最佳免费 Freedom 应用替代品</h2>
+        <p class="en">Freedom costs $6.99/month. These free Android alternatives block just as hard — one of them does it harder.</p>
+        <p class="zh">Freedom 每月需花费 $6.99。这些免费 Android 替代品屏蔽效果同样强硬——其中一款甚至更强。</p>
+        <span class="card-meta en">May 2025 · 7 min read</span>
+        <span class="card-meta zh">2025年5月 · 7分钟阅读</span>
+        <span class="read-more en">Read guide →</span>
+        <span class="read-more zh">阅读指南 →</span>
+      </a>
+
+      <a class="card" href="how-to-stop-doom-scrolling/">
+        <span class="card-tag en">Deep Dive</span>
+        <span class="card-tag zh">深度分析</span>
+        <h2 class="en">How to Stop Doom Scrolling on Android (That Actually Works)</h2>
+        <h2 class="zh">如何在 Android 上停止末日滚动（真正有效的方法）</h2>
+        <p class="en">Willpower alone won't stop it. Here's what the research says, and what app-level enforcement can actually do about it.</p>
+        <p class="zh">单靠意志力无法阻止它。以下是研究的发现，以及应用层面的执行实际上能做什么。</p>
+        <span class="card-meta en">May 2025 · 9 min read</span>
+        <span class="card-meta zh">2025年5月 · 9分钟阅读</span>
+        <span class="read-more en">Read guide →</span>
+        <span class="read-more zh">阅读指南 →</span>
+      </a>
+
+      <a class="card" href="app-blocker-adhd-android/">
+        <span class="card-tag en">Guide</span>
+        <span class="card-tag zh">指南</span>
+        <h2 class="en">Best App Blocker for ADHD on Android — Hard Enforcement Explained</h2>
+        <h2 class="zh">Android ADHD 最佳应用屏蔽器——强制执行详解</h2>
+        <p class="en">Soft timers don't work for ADHD. Here's why enforcement-level blocking is different, and which app delivers it on Android.</p>
+        <p class="zh">软定时器对 ADHD 无效。以下是执行级屏蔽为何不同，以及哪款 Android 应用能实现它。</p>
+        <span class="card-meta en">May 2025 · 7 min read</span>
+        <span class="card-meta zh">2025年5月 · 7分钟阅读</span>
+        <span class="read-more en">Read guide →</span>
+        <span class="read-more zh">阅读指南 →</span>
+      </a>
+
+      <a class="card" href="how-to-block-tiktok-android/">
+        <span class="card-tag en">How-To</span>
+        <span class="card-tag zh">操作指南</span>
+        <h2 class="en">How to Block TikTok on Android Permanently, With No Bypass</h2>
+        <h2 class="zh">如何在 Android 上永久屏蔽 TikTok，且无法绕过</h2>
+        <p class="en">Hard-block TikTok using Accessibility Service + VPN + Device Admin. Every bypass route covered. Free, no root.</p>
+        <p class="zh">使用无障碍服务 + VPN + 设备管理员硬屏蔽 TikTok。所有绕过路径均已覆盖。免费，无需 root。</p>
+        <span class="card-meta en">May 2025 · 7 min read</span>
+        <span class="card-meta zh">2025年5月 · 7分钟阅读</span>
+        <span class="read-more en">Read guide →</span>
+        <span class="read-more zh">阅读指南 →</span>
+      </a>
+
+      <a class="card" href="best-app-blocker-android-2025/">
+        <span class="card-tag en">Comparison</span>
+        <span class="card-tag zh">对比</span>
+        <h2 class="en">Best Free App Blocker for Android in 2025 — Honest Comparison</h2>
+        <h2 class="zh">2025年 Android 最佳免费应用屏蔽器——真实对比</h2>
+        <p class="en">FocusFlow vs Freedom vs Opal vs Digital Wellbeing vs AppBlock. Tested on real devices. Ranked by enforcement strength.</p>
+        <p class="zh">FocusFlow vs Freedom vs Opal vs 数字健康 vs AppBlock。在真实设备上测试。按执行强度排名。</p>
+        <span class="card-meta en">May 2025 · 10 min read</span>
+        <span class="card-meta zh">2025年5月 · 10分钟阅读</span>
+        <span class="read-more en">Read comparison →</span>
+        <span class="read-more zh">阅读对比 →</span>
+      </a>
+
+      <a class="card" href="cold-turkey-alternative-android/">
+        <span class="card-tag en">Alternatives</span>
+        <span class="card-tag zh">替代方案</span>
+        <h2 class="en">Cold Turkey Alternative for Android — Hard Blocking Without a PC</h2>
+        <h2 class="zh">Cold Turkey 的 Android 替代品——无需 PC 的硬屏蔽</h2>
+        <p class="en">Cold Turkey is Windows/Mac only. Here's the closest Android equivalent — same no-bypass philosophy, free, 30+ OEMs.</p>
+        <p class="zh">Cold Turkey 仅限 Windows/Mac。这是最接近的 Android 等价品——相同的无绕过理念，免费，30+ OEM 品牌。</p>
+        <span class="card-meta en">May 2025 · 8 min read</span>
+        <span class="card-meta zh">2025年5月 · 8分钟阅读</span>
+        <span class="read-more en">Read guide →</span>
+        <span class="read-more zh">阅读指南 →</span>
+      </a>
+
+      <a class="card" href="how-to-stop-phone-addiction-android/">
+        <span class="card-tag en">Deep Dive</span>
+        <span class="card-tag zh">深度分析</span>
+        <h2 class="en">How to Stop Phone Addiction on Android — What Actually Works</h2>
+        <h2 class="zh">如何在 Android 上戒除手机成瘾——真正有效的方法</h2>
+        <p class="en">Phone addiction is a dopamine loop, not a willpower problem. Here's the science — and what system-level blocking actually changes.</p>
+        <p class="zh">手机成瘾是多巴胺循环，而非意志力问题。以下是科学依据——以及系统级屏蔽实际改变了什么。</p>
+        <span class="card-meta en">May 2025 · 9 min read</span>
+        <span class="card-meta zh">2025年5月 · 9分钟阅读</span>
+        <span class="read-more en">Read guide →</span>
+        <span class="read-more zh">阅读指南 →</span>
+      </a>
+
     </div>
-    <p>FocusFlow — Deep Focus App Blocker for Windows — <a href="https://apps.microsoft.com/detail/9NJN9FPRQ7T1" target="_blank">Free on Microsoft Store</a></p>
+  </main>
+
+  <footer>
+    <p>© 2025 TBTechs · <a href="../privacy-policy/">Privacy</a> · <a href="../terms-of-service/">Terms</a> · <a href="https://github.com/TITANICBHAI/FocusFlow">GitHub</a></p>
   </footer>
+
+  <script>
+  (function(){
+    var stored = localStorage.getItem('ff-lang');
+    var auto = (navigator.language || navigator.userLanguage || '').startsWith('zh');
+    var isZh = stored ? stored === 'zh' : auto;
+    function apply(zh){
+      document.documentElement.setAttribute('data-lang', zh ? 'zh' : 'en');
+      localStorage.setItem('ff-lang', zh ? 'zh' : 'en');
+      var btn = document.getElementById('lang-toggle');
+      if(btn) btn.textContent = zh ? 'EN' : '中文';
+    }
+    apply(isZh);
+    document.addEventListener('DOMContentLoaded', function(){
+      apply(isZh);
+      var btn = document.getElementById('lang-toggle');
+      if(btn) btn.addEventListener('click', function(){
+        var cur = document.documentElement.getAttribute('data-lang');
+        apply(cur !== 'zh');
+      });
+    });
+  })();
+  </script>
 </body>
 </html>

@@ -1,158 +1,263 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="google-site-verification" content="sou-98cZYPWFJmbwxJgJptO-ZaIPNJqz2ven_iS4NjI" />
-  <meta name="msvalidate.01" content="FC2887EF2F94BFFE090CAB25A456AE86" />
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Terms of Service — FocusFlow Deep Focus App Blocker for Windows</title>
-  <meta name="description" content="Terms of Service for FocusFlow — Deep Focus App Blocker for Windows. Explains acceptable use, limitations, and liability for this Windows productivity app." />
-  <link rel="canonical" href="https://focusflowpc.pages.dev/terms-of-service/" />
-
-  <link rel="alternate" hreflang="en" href="https://focusflowpc.pages.dev/terms-of-service/" />
-  <link rel="alternate" hreflang="x-default" href="https://focusflowpc.pages.dev/terms-of-service/" />
-
+  <title>Terms of Service — FocusFlow</title>
+  <meta name="description" content="Terms of Service for FocusFlow, an Android focus and app blocking app." />
+  <meta name="google-site-verification" content="sou-98cZYPWFJmbwxJgJptO-ZaIPNJqz2ven_iS4NjI" />
+  <meta name="msvalidate.01" content="FC2887EF2F94BFFE090CAB25A456AE86" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --accent: #6C63FF;
+      --accent-dark: #4B44CC;
+      --bg: #0D0D14;
+      --surface: #16161F;
+      --surface2: #1E1E2E;
+      --text: #F0F0FF;
+      --muted: #B0B0C8;
+      --border: rgba(108, 99, 255, 0.22);
+    }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #09090F;
-      color: #E8E6F0;
-      line-height: 1.75;
-      padding: 48px 24px 80px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: radial-gradient(circle at top, rgba(108,99,255,0.15), transparent 34rem), var(--bg);
+      color: var(--text);
+      line-height: 1.7;
     }
-    .wrap { max-width: 760px; margin: 0 auto; }
-    .logo-row { display: flex; align-items: center; gap: 12px; margin-bottom: 48px; }
-    .logo-text { font-size: 22px; font-weight: 700; color: #E8E6F0; }
-    .logo-sub  { font-size: 13px; color: #9D97FF; }
-    h1 { font-size: 32px; font-weight: 700; color: #E8E6F0; margin-bottom: 8px; }
-    .lead { font-size: 16px; color: #9D97FF; margin-bottom: 8px; }
-    .updated { font-size: 13px; color: #6C6880; margin-bottom: 40px; }
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(13, 13, 20, 0.88);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .brand {
+      color: var(--text);
+      font-weight: 800;
+      text-decoration: none;
+      letter-spacing: -0.02em;
+    }
+    .nav-links {
+      display: flex;
+      gap: 1.2rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--text); }
+    .nav-links a { color: var(--muted); font-size: 0.95rem; }
+    #lang-toggle {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 0.28rem 0.7rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-family: inherit;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    #lang-toggle:hover { border-color: var(--accent); color: var(--text); }
+    .zh { display: none; }
+    [data-lang="zh"] .zh { display: block; }
+    [data-lang="zh"] .en { display: none; }
+    main {
+      width: min(920px, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: 4.5rem 0;
+    }
+    .eyebrow {
+      color: var(--accent);
+      font-weight: 800;
+      font-size: 0.82rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 0.7rem;
+    }
+    h1 {
+      font-size: clamp(2.3rem, 6vw, 4rem);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+      margin-bottom: 1rem;
+    }
+    .intro {
+      max-width: 720px;
+      color: var(--muted);
+      font-size: 1.08rem;
+      margin-bottom: 2rem;
+    }
+    .updated {
+      display: inline-block;
+      color: var(--muted);
+      background: rgba(108, 99, 255, 0.12);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.35rem 0.8rem;
+      font-size: 0.86rem;
+      margin-bottom: 2.5rem;
+    }
+    section {
+      background: rgba(22, 22, 31, 0.78);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
     h2 {
-      font-size: 18px; font-weight: 600; color: #9D97FF;
-      margin: 36px 0 10px;
-      border-left: 3px solid #7C4DFF;
-      padding-left: 12px;
+      font-size: 1.25rem;
+      margin-bottom: 0.65rem;
+      letter-spacing: -0.01em;
     }
-    p { margin-bottom: 14px; color: #C8C6D8; }
-    ul { margin: 0 0 14px 20px; color: #C8C6D8; }
-    ul li { margin-bottom: 6px; }
-    a { color: #9D97FF; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    code { font-family: monospace; font-size: 0.875em; background: rgba(124,77,255,0.12); padding: 0.1em 0.4em; border-radius: 4px; color: #a78bfa; }
-    .notice {
-      background: #1C1B26; border: 1px solid #252436;
-      border-radius: 10px; padding: 16px 20px;
-      margin-bottom: 14px; font-size: 14px; color: #B0AEC8;
-    }
-    .warn {
-      background: #1C1410; border: 1px solid #3D2A10;
-      border-radius: 10px; padding: 16px 20px;
-      margin-bottom: 14px; font-size: 14px; color: #FFA726;
-      font-weight: 500;
-    }
+    p, li { color: var(--muted); }
+    ul { padding-left: 1.25rem; display: grid; gap: 0.35rem; }
+    strong { color: var(--text); }
     footer {
-      margin-top: 64px; font-size: 13px;
-      color: #49475E; border-top: 1px solid #1C1B26;
-      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      text-align: center;
+      padding: 2rem;
+      font-size: 0.9rem;
+    }
+    @media (max-width: 720px) {
+      nav { flex-direction: column; gap: 1rem; }
+      .nav-links { justify-content: center; }
+      main { padding-top: 3rem; }
     }
   </style>
 </head>
 <body>
-<div class="wrap">
-
-  <div class="logo-row">
-    <div>
-      <div class="logo-text">FocusFlow</div>
-      <div class="logo-sub">Deep Focus App Blocker &nbsp;·&nbsp; by TBTechs</div>
+  <nav>
+    <a class="brand" href="../" style="display:flex;align-items:center;gap:0.5rem;">
+      <img src="../logo-transparent.png" alt="FocusFlow" width="28" height="28" style="border-radius:7px;" />
+      FocusFlow
+    </a>
+    <div class="nav-links">
+      <a href="../">Home</a>
+      <a href="../features/">Features</a>
+      <a href="../privacy-policy/">Privacy</a>
+      <a href="https://github.com/TITANICBHAI/focusflow-android">GitHub</a>
+      <button id="lang-toggle">中文</button>
     </div>
-  </div>
+  </nav>
 
-  <h1>Use FocusFlow as a focus tool, not a safety-critical system.</h1>
-  <p class="lead">These Terms of Service explain the rules and limitations for using FocusFlow — Deep Focus App Blocker for Windows, a desktop application that helps you block distracting applications, lock your desktop with Focus Launcher, and manage focus sessions on Windows 10 and Windows 11.</p>
-  <p class="updated">Last updated: June 2026 &nbsp;·&nbsp; Applies to: FocusFlow — Deep Focus App Blocker for Windows (Desktop) v1.0.9+</p>
+  <main>
+    <p class="eyebrow en">Terms of Service</p>
+    <p class="eyebrow zh">服务条款</p>
 
-  <div class="notice">
-    These Terms may be changed, amended, or replaced at any time without prior notice. Continued use after any change constitutes your immediate acceptance of the updated Terms. You are solely responsible for reviewing these Terms periodically. The latest version is always available at this URL.
-  </div>
+    <h1 class="en">Use FocusFlow as a focus tool, not a safety-critical system.</h1>
+    <h1 class="zh">将 FocusFlow 作为专注工具使用，而非安全关键系统。</h1>
 
-  <h2>1. Acceptance</h2>
-  <p>By installing, downloading, running, or using FocusFlow for Windows, you unconditionally agree to these Terms. If you do not agree to any part of these Terms, uninstall the application immediately.</p>
+    <p class="intro en">These terms explain the rules and limitations for using FocusFlow, an Android app that helps you block distracting apps and manage focus sessions.</p>
+    <p class="intro zh">这些条款说明使用 FocusFlow（一款帮助您屏蔽干扰性应用并管理专注会话的 Android 应用）的规则和限制。</p>
 
-  <h2>2. What FocusFlow Does</h2>
-  <p>FocusFlow for Windows provides:</p>
-  <ul>
-    <li><strong>Focus Launcher</strong> — a CBT-style kiosk mode that hides the Windows taskbar, activates Nuclear Mode, and enforces PIN-gated breaks or hard-lock sessions for deep work</li>
-    <li><strong>App blocking</strong> — real-time termination of user-selected Windows processes via Win32 APIs during focus sessions or always-on enforcement</li>
-    <li><strong>Website blocking</strong> — hosts-file domain blocking affecting all browsers</li>
-    <li><strong>Network blocking</strong> — Windows Firewall outbound rules via <code>netsh advfirewall</code> (requires administrator privileges)</li>
-    <li><strong>Nuclear Mode</strong> — maximum enforcement mode that blocks over 30 system utility escape routes</li>
-    <li><strong>Block Defense, Block Schedules, Daily Allowances, Keyword Blocker, Standalone Blocks</strong></li>
-    <li><strong>Focus session timers</strong> (Pomodoro and custom), session PIN gate, break enforcer, sound aversion</li>
-    <li><strong>Task management</strong> with recurring tasks and alarm notifications</li>
-    <li><strong>Habit tracker, daily notes, stats, reports, and focus insights</strong></li>
-    <li><strong>System tray</strong> integration and optional Windows startup via registry</li>
-  </ul>
-  <p>All enforcement is performed locally on your Windows device and is subject to OS, hardware, software, and privilege-level limitations beyond FocusFlow's control.</p>
+    <p class="updated en">Last updated: April 2026</p>
+    <p class="updated zh">最后更新：2026年4月</p>
 
-  <h2>3. Your Sole Responsibility</h2>
-  <p>You are solely and exclusively responsible for all consequences of configuring, enabling, disabling, or using any feature of FocusFlow — including the Focus Launcher, app blocking, network blocking, Nuclear Mode, session PIN, and all related enforcement features. FocusFlow and TBTechs bear absolutely no responsibility for missed communications, missed alarms, missed appointments, financial losses, loss of productivity, data loss, or any other outcome arising from the use or failure of any FocusFlow feature. Use of FocusFlow is entirely at your own risk.</p>
-  <p>In particular: the Focus Launcher hides your Windows taskbar and activates blocking enforcement. You are responsible for ensuring that all essential work is complete, all important communications are handled, and all necessary applications are accessible before starting a Focus Launcher session.</p>
+    <section>
+      <h2 class="en">1. Acceptance</h2>
+      <h2 class="zh">1. 接受条款</h2>
+      <p class="en">By installing, building, or using FocusFlow, you unconditionally agree to these Terms. If you do not agree, uninstall the app immediately. <strong>These Terms may be changed, amended, or replaced at any time without prior notice.</strong> Continued use after any change constitutes your immediate, irrevocable acceptance of the updated Terms. You are solely responsible for reviewing these Terms periodically.</p>
+      <p class="zh">通过安装、构建或使用 FocusFlow，您无条件同意这些条款。如果您不同意，请立即卸载该应用。<strong>这些条款可能随时更改、修正或替换，恕不另行通知。</strong>在任何变更后继续使用即表示您立即、不可撤销地接受更新后的条款。您有责任定期查看这些条款。</p>
+    </section>
 
-  <h2>4. Emergency Access Disclaimer</h2>
-  <div class="warn">
-    FocusFlow makes NO guarantee that emergency services (911, 112, 999, or any equivalent), emergency communications, or safety-critical applications will be reachable or unaffected during any active Focus Launcher session, blocking session, Nuclear Mode session, or any other FocusFlow enforcement state. Windows OS behaviour, OEM hardware configurations, system state, or software interactions may affect application availability in ways that cannot be predicted or controlled. TBTechs is not liable under any legal theory for any failure to access emergency services or safety-critical systems while FocusFlow is installed or active. DO NOT use FocusFlow in any safety-critical, medical, or emergency context.
-  </div>
+    <section>
+      <h2 class="en">2. What FocusFlow Does</h2>
+      <h2 class="zh">2. FocusFlow 的功能</h2>
+      <p class="en">FocusFlow provides scheduling, reminders, focus sessions, standalone app blocking, daily allowances, blocked-word enforcement, overlays, notifications, and optional aversion deterrents to help reduce distractions on Android devices. All enforcement is performed locally on your device by the Android OS and is subject to hardware, software, and OS limitations beyond FocusFlow's control.</p>
+      <p class="zh">FocusFlow 提供日程安排、提醒、专注会话、独立应用屏蔽、每日配额、屏蔽词执行、覆盖层、通知及可选的厌恶震慑功能，以帮助减少 Android 设备上的干扰。所有执行均由 Android 操作系统在您的设备本地进行，并受到 FocusFlow 无法控制的硬件、软件和操作系统限制。</p>
+    </section>
 
-  <h2>5. Focus Launcher — Taskbar and Desktop Control</h2>
-  <p>The Focus Launcher feature hides the Windows taskbar during kiosk sessions using the Win32 <code>ShowWindow</code> API on the Shell_TrayWnd handle. While multiple safety mechanisms restore the taskbar on session end, normal app exit, JVM shutdown, and crash recovery, no software guarantee is absolute. By using the Focus Launcher, you acknowledge that:</p>
-  <ul>
-    <li>The taskbar will be hidden for the duration of your session</li>
-    <li>Break access requires your session PIN during PIN-gated sessions</li>
-    <li>Hard Lock sessions have no breaks — the desktop will remain in kiosk mode until the session timer ends or an emergency kill switch is used</li>
-    <li>You are responsible for not using this feature on shared or publicly accessible devices without appropriate consent from other users</li>
-  </ul>
+    <section>
+      <h2 class="en">3. Your Sole Responsibility</h2>
+      <h2 class="zh">3. 您的独自责任</h2>
+      <p class="en">You are solely and exclusively responsible for all consequences of configuring, enabling, or disabling any blocking session. FocusFlow and TBTechs bear absolutely no responsibility for missed communications, missed alarms, missed appointments, accidents, injuries, financial losses, or any other outcome — foreseeable or unforeseeable — arising while any blocking feature is active or inactive. Use of FocusFlow is entirely at your own risk.</p>
+      <p class="zh">您对配置、启用或禁用任何屏蔽会话的所有后果负完全和唯一责任。FocusFlow 和 TBTechs 对任何屏蔽功能在活跃或非活跃状态下产生的错过通讯、错过闹钟、错过约会、事故、伤害、财务损失或任何其他后果——无论可预见或不可预见——不承担任何责任。使用 FocusFlow 完全由您自行承担风险。</p>
+    </section>
 
-  <h2>6. runFullTrust Capability</h2>
-  <p>The Microsoft Store version of FocusFlow is packaged as an MSIX application declaring the <code>runFullTrust</code> restricted capability. This is required to enumerate running Windows processes, terminate blocked application windows, manage Windows Firewall rules, and control the Windows taskbar during Focus Launcher sessions. By using the app, you acknowledge and accept that FocusFlow operates with this elevated Windows trust level for the sole purpose of focus enforcement as described in these Terms and in the Privacy Policy.</p>
+    <section>
+      <h2 class="en">4. Emergency Access Disclaimer</h2>
+      <h2 class="zh">4. 紧急访问免责声明</h2>
+      <p class="en"><strong>FocusFlow makes NO guarantee whatsoever that emergency services (112, 911, 999, or any equivalent) will be reachable during an active session.</strong> Android OS, OEM firmware (One UI, MIUI, ColorOS, etc.), carrier restrictions, or device state may prevent or delay emergency access in ways FocusFlow cannot detect or control. TBTechs is not liable — under any legal theory, in any jurisdiction — for any failure, delay, or inability to access emergency services while FocusFlow is installed, running, or active. <strong>DO NOT rely on FocusFlow in any safety-critical or emergency situation.</strong></p>
+      <p class="zh"><strong>FocusFlow 不以任何方式保证在活跃会话期间可以联系到紧急服务（112、110、119 或任何等效号码）。</strong> Android 操作系统、OEM 固件（One UI、MIUI、ColorOS 等）、运营商限制或设备状态可能以 FocusFlow 无法检测或控制的方式阻止或延迟紧急访问。TBTechs 在任何法律理论下、任何司法管辖区内，对在 FocusFlow 安装、运行或活跃时无法、延迟或不能访问紧急服务不承担任何责任。<strong>请勿在任何安全关键或紧急情况下依赖 FocusFlow。</strong></p>
+    </section>
 
-  <h2>7. No Warranty</h2>
-  <p>TO THE FULLEST EXTENT PERMITTED BY LAW: FocusFlow is provided "AS IS" and "AS AVAILABLE" without any warranty of any kind, whether express, implied, or statutory. TBTechs explicitly disclaims any warranty that the app will function correctly on your device, Windows version, hardware configuration, or in the presence of third-party software. Blocking may fail at any time for any reason, including Windows updates, permission changes, antivirus interference, system resource constraints, or other software conflicts. The Focus Launcher's taskbar restoration safety mechanisms may fail in extreme crash scenarios.</p>
+    <section>
+      <h2 class="en">5. No Warranty</h2>
+      <h2 class="zh">5. 无保证</h2>
+      <p class="en">TO THE FULLEST EXTENT PERMITTED BY LAW: FocusFlow is provided "AS IS" and "AS AVAILABLE" without any warranty of any kind, whether express, implied, or statutory. TBTechs explicitly disclaims any warranty that the app will function correctly on your device, Android version, or OEM configuration. Blocking may fail at any time for any reason, including OS updates, permission revocation, battery optimization, Doze mode, or OEM-specific process killing.</p>
+      <p class="zh">在法律允许的最大范围内：FocusFlow 按"现状"和"可用状态"提供，不附带任何形式的明示、暗示或法定保证。TBTechs 明确否认对应用能在您的设备、Android 版本或 OEM 配置上正确运行的任何保证。屏蔽功能可能随时因任何原因失败，包括操作系统更新、权限撤销、电池优化、Doze 模式或 OEM 特定进程终止。</p>
+    </section>
 
-  <h2>8. Limitation of Liability</h2>
-  <p>TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW: TBTechs, its affiliates, officers, developers, and contributors shall not be liable for any damages of any kind — including direct, indirect, incidental, special, punitive, or consequential damages — arising out of or related to your use of or inability to use FocusFlow, regardless of the legal theory, even if advised of the possibility of such damages. The aggregate total liability of TBTechs for any and all claims shall not exceed zero (USD $0).</p>
+    <section>
+      <h2 class="en">6. Limitation of Liability</h2>
+      <h2 class="zh">6. 责任限制</h2>
+      <p class="en">TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW: TBTechs, its affiliates, officers, developers, and contributors shall not be liable for any damages of any kind — including direct, indirect, incidental, special, punitive, or consequential damages, personal injury, death, property damage, financial loss, or harm resulting from failure to access emergency services — arising out of or related to your use of or inability to use FocusFlow, regardless of the legal theory (contract, tort, strict liability, or otherwise), even if advised of the possibility of such damages. <strong>The aggregate total liability of TBTechs for any and all claims shall not exceed zero (USD $0).</strong> No legal action, arbitration, or proceeding against TBTechs may exceed this cap under any circumstances or jurisdiction.</p>
+      <p class="zh">在适用法律允许的最大范围内：TBTechs、其附属公司、高管、开发者和贡献者对任何类型的损害——包括直接、间接、附带、特殊、惩罚性或后果性损害，人身伤害、死亡、财产损失、财务损失，或因无法访问紧急服务导致的伤害——概不负责，无论是否基于合同、侵权、严格责任或其他法律理论，即使已被告知此类损害的可能性。<strong>TBTechs 对任何及所有索赔的总责任不超过零（0美元）。</strong>在任何情况或司法管辖区内，针对 TBTechs 的任何法律行动、仲裁或程序均不得超过此上限。</p>
+    </section>
 
-  <h2>9. Acceptable Use</h2>
-  <ul>
-    <li>Use FocusFlow only on Windows devices you own or are legally authorized to manage.</li>
-    <li>Do not use FocusFlow to monitor, restrict, or control another person's device or access without their explicit informed consent.</li>
-    <li>Do not use the Focus Launcher or any enforcement feature on shared, publicly accessible, or critical-infrastructure devices without appropriate authorization and safeguards in place.</li>
-    <li>Do not modify or redistribute the app in a way that misrepresents its privacy behaviour, system access, or enforcement capabilities.</li>
-    <li>Do not use FocusFlow for unlawful, harmful, abusive, or discriminatory purposes.</li>
-    <li>Do not attempt to circumvent the enforcement features in ways that could damage Windows system files or create unstable system states.</li>
-  </ul>
+    <section>
+      <h2 class="en">7. Acceptable Use</h2>
+      <h2 class="zh">7. 可接受使用</h2>
+      <ul class="en">
+        <li>Use FocusFlow only on devices you own or are authorized to manage.</li>
+        <li>Do not use FocusFlow to monitor, restrict, or control another person without proper permission.</li>
+        <li>Do not modify or distribute the app in a way that misrepresents its privacy behavior or permissions.</li>
+        <li>Do not use the app for unlawful, harmful, or abusive purposes.</li>
+      </ul>
+      <ul class="zh">
+        <li>仅在您拥有或被授权管理的设备上使用 FocusFlow。</li>
+        <li>未经适当许可，请勿使用 FocusFlow 监控、限制或控制他人。</li>
+        <li>请勿以错误描述其隐私行为或权限的方式修改或分发该应用。</li>
+        <li>请勿将该应用用于非法、有害或滥用目的。</li>
+      </ul>
+    </section>
 
-  <h2>10. Anonymous Diagnostics and Telemetry</h2>
-  <p>FocusFlow may send anonymous diagnostic data (crash reports, resource health snapshots, and feature usage events) to the developer via a private Discord webhook when the "Send anonymous diagnostics" option is enabled in Settings → Privacy. This toggle is on by default and can be turned off at any time. No personal data, task content, file paths, usernames, or device identifiers are ever included in any diagnostic payload. By using FocusFlow with this toggle enabled, you consent to the collection of anonymous diagnostic data as described in the <a href="../privacy-policy/">Privacy Policy</a>.</p>
+    <section>
+      <h2 class="en">8. Changes to These Terms</h2>
+      <h2 class="zh">8. 条款变更</h2>
+      <p class="en">These Terms may be updated, replaced, or removed at any time without prior notice. The updated Terms are effective immediately upon publication. Your continued use of FocusFlow after any change — regardless of whether you have read the updated Terms — constitutes your unconditional acceptance.</p>
+      <p class="zh">这些条款可能随时更新、替换或删除，恕不另行通知。更新后的条款在发布后立即生效。在任何变更后继续使用 FocusFlow——无论您是否已阅读更新后的条款——均构成您的无条件接受。</p>
+    </section>
 
-  <h2>11. Termination</h2>
-  <p>You may stop using FocusFlow at any time by uninstalling it through Windows Settings → Apps. TBTechs reserves the right to update, modify, or discontinue the application at any time without notice. These Terms survive termination with respect to all provisions that by their nature should survive.</p>
-
-  <h2>12. Governing Law</h2>
-  <p>These Terms are governed by applicable law. Any disputes arising from these Terms or your use of FocusFlow shall be resolved in accordance with applicable local law. You agree that TBTechs shall not be subject to class action proceedings.</p>
-
-  <h2>13. Changes to These Terms</h2>
-  <p>These Terms may be updated, replaced, or removed at any time without prior notice. Updated Terms are effective immediately upon posting at this URL. Continued use of FocusFlow constitutes your acceptance of the current Terms.</p>
-
-  <h2>14. Contact</h2>
-  <p>For questions about these Terms, open an issue on the <a href="https://github.com/TITANICBHAI/FocusFlow-jvm/issues">FocusFlow GitHub repository</a>.</p>
+    <section>
+      <h2 class="en">9. Contact</h2>
+      <h2 class="zh">9. 联系方式</h2>
+      <p class="en">For questions or issues, email us at <a href="mailto:tbtechsdev@gmail.com">tbtechsdev@gmail.com</a>. Questions do not alter or waive any provision of these Terms.</p>
+      <p class="zh">如有疑问或问题，请发送电子邮件至 <a href="mailto:tbtechsdev@gmail.com">tbtechsdev@gmail.com</a>。提问不会更改或放弃这些条款的任何条款。</p>
+    </section>
+  </main>
 
   <footer>
-    &copy; 2026 TBTechs &nbsp;&middot;&nbsp;
-    <a href="../">FocusFlow</a> &nbsp;&middot;&nbsp;
-    <a href="../privacy-policy/">Privacy Policy</a> &nbsp;&middot;&nbsp;
-    <a href="https://github.com/TITANICBHAI/FocusFlow-jvm">GitHub</a>
+    <p><a href="../">Home</a> · <a href="../privacy-policy/">Privacy Policy</a> · <a href="../data-subject-rights/">Data Rights</a> · <a href="https://github.com/TITANICBHAI/focusflow-android">GitHub</a></p>
   </footer>
-</div>
+
+  <script>
+  (function(){
+    var stored = localStorage.getItem('ff-lang');
+    var auto = (navigator.language || navigator.userLanguage || '').startsWith('zh');
+    var isZh = stored ? stored === 'zh' : auto;
+    function apply(zh){
+      document.documentElement.setAttribute('data-lang', zh ? 'zh' : 'en');
+      localStorage.setItem('ff-lang', zh ? 'zh' : 'en');
+      var btn = document.getElementById('lang-toggle');
+      if(btn) btn.textContent = zh ? 'EN' : '中文';
+    }
+    apply(isZh);
+    document.addEventListener('DOMContentLoaded', function(){
+      apply(isZh);
+      var btn = document.getElementById('lang-toggle');
+      if(btn) btn.addEventListener('click', function(){
+        var cur = document.documentElement.getAttribute('data-lang');
+        apply(cur !== 'zh');
+      });
+    });
+  })();
+  </script>
 </body>
 </html>
