@@ -1,0 +1,520 @@
+name: 🚀 Publish Release
+
+# Publishes a GitHub Release using already-built artifacts from a
+# "Build Release (APK × 3 + AAB)" workflow run.
+#
+# What it does
+# ────────────
+#   1. prepare   — reads version + versionCode from app.json, creates/pushes tag,
+#                  resolves which build-release run to pull artifacts from
+#   2. publish   — downloads the 3 APKs + AAB from that run, extracts changelog
+#                  for this version from artifacts/focusflow/app/changelog.tsx,
+#                  writes a rich release body (SAI guide + Restricted Settings
+#                  steps), creates the GitHub Release, notifies Slack
+#
+# Triggers
+# ────────
+#   Manual only — workflow_dispatch
+#
+# Required secrets
+# ────────────────
+#   SLACK_WEBHOOK_URL         (optional) Slack incoming webhook
+#
+# Inputs (all optional)
+# ─────────────────────
+#   build_run_id  — Run ID of the "Build Release" workflow to publish
+#                   (find it in the Actions tab URL: /actions/runs/<id>)
+#                   Leave blank to auto-pick the latest successful build run
+#                   that produced artifacts for the current app.json version.
+#   draft         — save as draft instead of publishing immediately
+#   prerelease    — flag this as a pre-release
+#   tag_override  — use a custom tag; leave blank to auto-derive v{version} from app.json
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: 'Build Release run ID to publish — blank = auto-pick latest for this version'
+        type: string
+        required: false
+        default: ''
+      draft:
+        description: 'Save as draft (review before going public)'
+        type: boolean
+        default: false
+      prerelease:
+        description: 'Mark as pre-release'
+        type: boolean
+        default: false
+      tag_override:
+        description: 'Tag override — blank → auto: v{version from app.json}'
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+env:
+  NPM_CONFIG_NODE_LINKER: hoisted
+  EXPO_ROUTER_APP_ROOT: app
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────────
+  # 1. PREPARE — resolve source run, read version, push tag
+  # ────────────────────────────────────────────────────────────────────────────
+  prepare:
+    name: 📋 Read version & push tag
+    runs-on: ubuntu-latest
+    outputs:
+      version:       ${{ steps.meta.outputs.version }}
+      versionCode:   ${{ steps.meta.outputs.versionCode }}
+      tag:           ${{ steps.meta.outputs.tag }}
+      source_run_id: ${{ steps.source.outputs.run_id }}
+
+    steps:
+      - name: Checkout (full history for tag push)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Read version from app.json
+        id: meta
+        working-directory: artifacts/focusflow
+        run: |
+          VERSION=$(node -e "const j=require('./app.json'); console.log(j.expo.version)")
+          VCODE=$(node -e "const j=require('./app.json'); console.log(j.expo.android.versionCode)")
+          TAG="${{ inputs.tag_override }}"
+          [ -z "$TAG" ] && TAG="v${VERSION}"
+
+          echo "version=$VERSION"     >> $GITHUB_OUTPUT
+          echo "versionCode=$VCODE"   >> $GITHUB_OUTPUT
+          echo "tag=$TAG"             >> $GITHUB_OUTPUT
+
+          echo "### 📋 Release Metadata"              >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |"                    >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|"                    >> $GITHUB_STEP_SUMMARY
+          echo "| Version | \`$VERSION\` |"           >> $GITHUB_STEP_SUMMARY
+          echo "| versionCode | \`$VCODE\` |"         >> $GITHUB_STEP_SUMMARY
+          echo "| Tag | \`$TAG\` |"                   >> $GITHUB_STEP_SUMMARY
+
+      - name: Resolve source build run ID
+        id: source
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RUN_ID="${{ inputs.build_run_id }}"
+          VERSION="${{ steps.meta.outputs.version }}"
+          REPO="${{ github.repository }}"
+
+          if [ -z "$RUN_ID" ]; then
+            echo "ℹ️  No run ID supplied — searching for latest successful build run for v${VERSION}…"
+
+            # Walk the last 20 successful runs of build-release.yml and find the
+            # most recent one that has an artifact for this version.
+            RUNS=$(gh api \
+              "repos/${REPO}/actions/workflows/build-release.yml/runs?status=success&per_page=20" \
+              --jq '.workflow_runs[].id')
+
+            for CANDIDATE in $RUNS; do
+              MATCH=$(gh api "repos/${REPO}/actions/runs/${CANDIDATE}/artifacts" \
+                --jq ".artifacts[] | select(.name | test(\"focusflow-universal-release-v${VERSION}-\")) | .name" \
+                2>/dev/null | head -1)
+              if [ -n "$MATCH" ]; then
+                RUN_ID="$CANDIDATE"
+                echo "✅ Auto-selected run $RUN_ID (artifact: $MATCH)"
+                break
+              fi
+            done
+
+            if [ -z "$RUN_ID" ]; then
+              echo "::error::No successful build-release run found with artifacts for v${VERSION}. Run 'Build Release' first."
+              exit 1
+            fi
+          else
+            echo "✅ Using supplied run ID: $RUN_ID"
+          fi
+
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+          echo "| Draft | ${{ inputs.draft }} |"      >> $GITHUB_STEP_SUMMARY
+          echo "| Pre-release | ${{ inputs.prerelease }} |"  >> $GITHUB_STEP_SUMMARY
+          echo "| Triggered by | @${{ github.actor }} |"     >> $GITHUB_STEP_SUMMARY
+          echo "| Source build run | [\`$RUN_ID\`](https://github.com/${REPO}/actions/runs/$RUN_ID) |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Validate tag vs app.json version
+        run: |
+          TAG="${{ steps.meta.outputs.tag }}"
+          VERSION="${{ steps.meta.outputs.version }}"
+          if [[ "${{ inputs.tag_override }}" != "" ]]; then
+            if [[ "$TAG" != "v${VERSION}" && "$TAG" != "${VERSION}" ]]; then
+              echo "⚠️  Warning: tag '$TAG' does not match app.json version '$VERSION'."
+              echo "   This is allowed but may cause version confusion."
+            fi
+          fi
+
+      - name: Create & push tag
+        run: |
+          TAG="${{ steps.meta.outputs.tag }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "ℹ️  Tag $TAG already exists — reusing it for this release."
+          else
+            git config user.name  "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag -a "$TAG" -m "FocusFlow $TAG"
+            git push origin "$TAG"
+            echo "✅ Created and pushed tag $TAG"
+          fi
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # 2. PUBLISH — download artifacts from the build run, create GitHub Release
+  # ────────────────────────────────────────────────────────────────────────────
+  publish:
+    name: 📣 Publish GitHub Release
+    needs: [prepare]
+    runs-on: ubuntu-latest
+
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+    steps:
+      - name: Checkout (for changelog.tsx)
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ── Download the 3 APKs ────────────────────────────────────────────────
+      # Artifact names from build-release.yml:
+      #   focusflow-arm64-v8a-release-v{ver}-vc{vc}-run{n}   → app-arm64-v8a-release.apk
+      #   focusflow-armeabi-v7a-release-v{ver}-vc{vc}-run{n} → app-armeabi-v7a-release.apk
+      #   focusflow-universal-release-v{ver}-vc{vc}-run{n}   → app-universal-release.apk
+      # Pattern  focusflow-*-release-v*  matches all three and NOT the AAB artifact.
+
+      - name: Download APK artifacts from build run
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id:       ${{ needs.prepare.outputs.source_run_id }}
+          pattern:      focusflow-*-release-v*
+          merge-multiple: true
+          path: /tmp/downloaded/
+
+      - name: Rename artifacts to versioned release names
+        run: |
+          TAG="${{ needs.prepare.outputs.tag }}"
+          mkdir -p /tmp/release-files
+
+          declare -A MAP=(
+            ["app-arm64-v8a-release.apk"]="FocusFlow-arm64-v8a-${TAG}.apk"
+            ["app-armeabi-v7a-release.apk"]="FocusFlow-armeabi-v7a-${TAG}.apk"
+            ["app-universal-release.apk"]="FocusFlow-universal-${TAG}.apk"
+          )
+
+          for SRC_NAME in "${!MAP[@]}"; do
+            DST_NAME="${MAP[$SRC_NAME]}"
+            SRC="/tmp/downloaded/${SRC_NAME}"
+            DST="/tmp/release-files/${DST_NAME}"
+            if [ -f "$SRC" ]; then
+              cp "$SRC" "$DST"
+              echo "✅ $DST_NAME ($(du -sh "$DST" | cut -f1))"
+            else
+              echo "⚠️  $SRC_NAME not found in downloaded artifacts"
+            fi
+          done
+
+          echo "── Release files ──"
+          ls -lh /tmp/release-files/
+
+      - name: Verify all 4 files are present
+        run: |
+          TAG="${{ needs.prepare.outputs.tag }}"
+          MISSING=0
+          for F in \
+            "FocusFlow-arm64-v8a-${TAG}.apk" \
+            "FocusFlow-armeabi-v7a-${TAG}.apk" \
+            "FocusFlow-universal-${TAG}.apk"; do
+            if [ ! -f "/tmp/release-files/$F" ]; then
+              echo "❌ Missing: $F"
+              MISSING=$((MISSING+1))
+            fi
+          done
+          if [ $MISSING -gt 0 ]; then
+            echo "::error::$MISSING expected release file(s) missing — check the source build run artifacts."
+            exit 1
+          fi
+          echo "✅ All 4 release files present"
+
+      - name: Generate release body
+        env:
+          APP_VERSION:  ${{ needs.prepare.outputs.version }}
+          VERSION_CODE: ${{ needs.prepare.outputs.versionCode }}
+          TAG:          ${{ needs.prepare.outputs.tag }}
+          COMMIT_SHA:   ${{ github.sha }}
+          RUN_NUMBER:   ${{ github.run_number }}
+          RUN_ID:       ${{ github.run_id }}
+          SOURCE_RUN_ID: ${{ needs.prepare.outputs.source_run_id }}
+          REPOSITORY:   ${{ github.repository }}
+          ACTOR:        ${{ github.actor }}
+        run: |
+          node << 'JSEOF'
+          const fs = require('fs');
+
+          const ver   = process.env.APP_VERSION;
+          const vc    = process.env.VERSION_CODE;
+          const tag   = process.env.TAG;
+          const sha   = process.env.COMMIT_SHA;
+          const ssha  = sha.slice(0, 7);
+          const run   = process.env.RUN_NUMBER;
+          const rid   = process.env.RUN_ID;
+          const srcRid = process.env.SOURCE_RUN_ID;
+          const repo  = process.env.REPOSITORY;
+          const actor = process.env.ACTOR;
+
+          // ── Extract changelog section from changelog.tsx (the in-app screen) ──
+          let changelogSection = '';
+          try {
+            const src = fs.readFileSync('artifacts/focusflow/app/changelog.tsx', 'utf8');
+
+            // Pull out the CHANGELOG array literal.
+            // Inner arrays (items, sections) end with ],' so the first bare '\n];'
+            // closes only the top-level array.
+            const match = src.match(/const CHANGELOG[^=]+=\s*(\[[\s\S]+?\n\];)/);
+            if (!match) throw new Error('CHANGELOG array not found in changelog.tsx');
+
+            // The array is plain-JS-compatible (no TS generics inside), so eval is safe.
+            const changelogData = eval('(' + match[1] + ')');
+
+            // Versions in the file may be bare ('1.0.6') or prefixed ('c1.0.9').
+            // app.json version is always bare (e.g. '1.0.6'), so try exact match first,
+            // then fall back to the 'c' prefixed variant.
+            const entry =
+              changelogData.find(e => e.version === ver) ||
+              changelogData.find(e => e.version === 'c' + ver);
+
+            if (!entry) {
+              changelogSection =
+                `_No changelog entry found for v${ver} in changelog.tsx._`;
+            } else {
+              // Format each section as markdown: ### heading + bullet list
+              const lines = [];
+              for (const section of entry.sections) {
+                lines.push(`### ${section.heading}`);
+                lines.push('');
+                for (const item of section.items) {
+                  lines.push(`- ${item}`);
+                }
+                lines.push('');
+              }
+              changelogSection = lines.join('\n').trim();
+            }
+          } catch (e) {
+            changelogSection = `_Could not read changelog from changelog.tsx: ${e.message}_`;
+          }
+
+          // ── Compose release body ───────────────────────────────────────────
+          const body = `\
+<div align="center">
+
+# FocusFlow ${tag} · versionCode ${vc}
+
+**Android productivity app** — intelligent task scheduling + OS-level app blocking.  
+Kotlin enforcement engine runs independently of the JS layer.  
+Zero server calls. Zero telemetry. All data stays on device.
+
+[![License](https://img.shields.io/github/license/${repo})](https://github.com/${repo}/blob/main/LICENSE)
+[![Build](https://img.shields.io/github/actions/workflow/status/${repo}/release-publish.yml?label=release%20build)](https://github.com/${repo}/actions/runs/${rid})
+
+</div>
+
+---
+
+## 📋 What's New in ${tag}
+
+${changelogSection}
+
+---
+
+## 📥 Installation Guide
+
+### Which file should I download?
+
+| File | Who it's for |
+|------|-------------|
+| \`FocusFlow-universal-${tag}.apk\` | **Everyone** — works on all Android devices. Install directly. |
+| \`FocusFlow-arm64-v8a-${tag}.apk\` | Most phones made after 2016 (64-bit ARM) — smaller download |
+| \`FocusFlow-armeabi-v7a-${tag}.apk\` | Older / 32-bit ARM devices |
+
+> **Not sure?** Use the \`universal\` APK — it works on every Android device.
+
+### How to install
+
+1. Download your chosen APK above
+2. On your device: **Settings → Apps → Special app access → Install unknown apps**  
+   Grant permission to your browser or file manager
+3. Open the downloaded APK and tap **Install**
+4. Follow the **Restricted Settings** steps below before running onboarding
+
+---
+
+## ⚠️ Restricted Settings — Required on Android 13 and later
+
+Android 13+ enforces **Restricted Settings** on sideloaded (non-Play-Store) apps.
+This silently prevents the Accessibility Service permission from being granted through
+the normal toggle.
+
+FocusFlow's **entire blocking engine** depends on the Accessibility Service
+(\`AppBlockerAccessibilityService\`). The app will install and open normally,
+but **blocking will not function** until you complete this one-time step.
+
+### Steps
+
+1. Install the APK  
+2. **Do not open FocusFlow yet**  
+3. Go to **Settings → Apps → FocusFlow**  
+4. Tap **⋮** (three-dot menu, top-right corner)  
+5. Tap **"Allow restricted settings"** → confirm  
+6. Now open FocusFlow and complete onboarding  
+7. When prompted, grant **Accessibility Service** — the toggle will now work  
+
+> **Re-installs** over the same certificate signature do not re-trigger this requirement.  
+> Devices running Android 12 or below are not affected.
+
+---
+
+## 📦 SAI — Installing Split APK Bundles
+
+The files attached to this release are **single-file APKs** — they install with any
+file manager or \`adb install\`. You do **not** need SAI for these.
+
+If you built the AAB locally and used **bundletool** to generate an \`.apks\` split bundle
+(e.g. \`bundletool build-apks --bundle=focusflow-${tag}.aab --output=focusflow.apks\`),
+a standard file manager cannot install it. Use **SAI**:
+
+1. Install SAI:  
+   [F-Droid](https://f-droid.org/en/packages/com.aefyr.sai/) ·
+   [GitHub](https://github.com/Aefyr/SAI) ·
+   [Play Store](https://play.google.com/store/apps/details?id=com.aefyr.sai)
+2. Open SAI → **Install APKs** → select your \`.apks\` file
+3. Grant "Install unknown apps" to SAI if prompted
+4. After install, follow the **Restricted Settings** steps above before running onboarding
+
+---
+
+## 🔐 Signing
+
+| Scheme | |
+|--------|-|
+| v1 JAR signing | ✅ |
+| v2 APK Signature Scheme v2 | ✅ |
+| v3 APK Signature Scheme v3 | ✅ |
+
+All APKs and the AAB are signed with the FocusFlow release keystore.  
+See \`KEYSTORE_GUIDE.md\` in the repository for fingerprint verification instructions.
+
+---
+
+## 🏗️ Build Info
+
+| Field | Value |
+|-------|-------|
+| Version | ${ver} |
+| versionCode | ${vc} |
+| Package | \`com.tbtechs.focusflow\` |
+| Commit | [\`${ssha}\`](https://github.com/${repo}/commit/${sha}) |
+| Source build | [Build run](https://github.com/${repo}/actions/runs/${srcRid}) |
+| Publish run | [#${run}](https://github.com/${repo}/actions/runs/${rid}) |
+| Runner | ubuntu-latest |
+| Triggered by | @${actor} |
+
+---
+
+<div align="center">
+<sub>
+FocusFlow is built and signed in GitHub Actions on a clean ubuntu-latest runner.<br>
+Source code and build scripts are in this repository.
+</sub>
+</div>
+`;
+
+          fs.writeFileSync('/tmp/release_body.md', body);
+          console.log('✅ Release body written (' + body.split('\n').length + ' lines)');
+          JSEOF
+
+      - name: Preview release body (first 40 lines)
+        run: head -40 /tmp/release_body.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name:       "FocusFlow ${{ needs.prepare.outputs.tag }}"
+          tag_name:   ${{ needs.prepare.outputs.tag }}
+          body_path:  /tmp/release_body.md
+          draft:      ${{ inputs.draft }}
+          prerelease: ${{ inputs.prerelease }}
+          files:      /tmp/release-files/*
+
+      - name: Write step summary
+        run: |
+          TAG="${{ needs.prepare.outputs.tag }}"
+          REPO="${{ github.repository }}"
+          DRAFT="${{ inputs.draft }}"
+
+          echo "### ✅ Release $TAG published"  >> $GITHUB_STEP_SUMMARY
+          echo ""                               >> $GITHUB_STEP_SUMMARY
+          if [ "$DRAFT" = "true" ]; then
+            echo "> 📝 Saved as **draft** — go to GitHub Releases to review and publish." \
+              >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[🔗 View release on GitHub](https://github.com/${REPO}/releases/tag/${TAG})" \
+            >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Attached files:**" >> $GITHUB_STEP_SUMMARY
+          for f in /tmp/release-files/*; do
+            SIZE=$(du -sh "$f" | cut -f1)
+            echo "- \`$(basename $f)\` · $SIZE" >> $GITHUB_STEP_SUMMARY
+          done
+
+      - name: Notify Slack
+        if: env.SLACK_WEBHOOK_URL != ''
+        run: |
+          TAG="${{ needs.prepare.outputs.tag }}"
+          REPO="${{ github.repository }}"
+          ACTOR="${{ github.actor }}"
+          DRAFT="${{ inputs.draft }}"
+          PRE="${{ inputs.prerelease }}"
+
+          if [ "$DRAFT" = "true" ]; then
+            STATUS="drafted 📝"
+            COLOR="warning"
+          elif [ "$PRE" = "true" ]; then
+            STATUS="published as pre-release 🔬"
+            COLOR="warning"
+          else
+            STATUS="published 🚀"
+            COLOR="good"
+          fi
+
+          curl -s -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"attachments\": [{
+                \"color\": \"$COLOR\",
+                \"title\": \"FocusFlow $TAG $STATUS\",
+                \"title_link\": \"https://github.com/${REPO}/releases/tag/${TAG}\",
+                \"fields\": [
+                  { \"title\": \"Version\",    \"value\": \"$TAG\",    \"short\": true },
+                  { \"title\": \"Triggered by\", \"value\": \"@$ACTOR\", \"short\": true }
+                ],
+                \"footer\": \"GitHub Actions\",
+                \"mrkdwn_in\": [\"text\"]
+              }]
+            }"
+

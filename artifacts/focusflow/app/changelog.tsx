@@ -14,54 +14,6 @@ type Entry = {
 
 const CHANGELOG: Entry[] = [
   {
-    version: '1.0.2',
-    date: 'May 2026',
-    sections: [
-      {
-        heading: 'Analog Clock Launcher',
-        icon: 'time-outline',
-        items: [
-          'New analog clock option for the launcher home screen — canvas-drawn hour, minute, and second hands with hour tick marks and indigo accent matching the dark launcher aesthetic',
-          'Clock style preference persisted via SharedPrefs and synced on every settings change — switching between digital and analog survives reboots and session restarts',
-        ],
-      },
-      {
-        heading: 'Nuclear Mode & Block Overlay Bridges',
-        icon: 'nuclear-outline',
-        items: [
-          'NuclearModeModule JS bridge: requestUninstallApp, requestUninstallApps, isAppInstalled — connects the React Native control plane to the Kotlin uninstall dialog launcher',
-          'BlockOverlayModule JS bridge: setOverlayQuote, setCustomQuotes, clearCustomQuote, setOverlayWallpaper, clearOverlayWallpaper, getDefaultQuotes, getOverlaySettings — full overlay customisation now accessible from JS',
-        ],
-      },
-      {
-        heading: 'Cross-OEM Power Menu & Uninstall Blocking',
-        icon: 'shield-checkmark-outline',
-        items: [
-          'Power menu intercept now covers 15+ OEM SystemUI variants: Xiaomi/MIUI, OnePlus/OxygenOS, Oppo/ColorOS, Realme, Huawei/EMUI, Vivo/Funtouch, Motorola, Asus/ZenUI, Nothing OS, Nokia/HMD, Sony Xperia',
-          'Retry now fires on systemGuard alone — no longer requires an active focus or standalone session to keep the power menu protected',
-          'Uninstall blocking expanded to include OEM package installers and OEM Settings apps across Samsung legacy, Xiaomi, Realme, Vivo, OnePlus, Motorola, Asus, and Nokia devices',
-        ],
-      },
-      {
-        heading: 'VPN Integration in Focus Sessions',
-        icon: 'wifi-outline',
-        items: [
-          'NetworkBlockModule is now wired directly into startFocusMode — when VPN blocking is enabled, the network block starts automatically at session start without any extra tap',
-          'stopFocusMode calls stopNetworkBlock unconditionally on session end, ensuring the VPN tunnel is always released cleanly',
-        ],
-      },
-      {
-        heading: 'Privacy & Legal',
-        icon: 'document-text-outline',
-        items: [
-          'Privacy Policy and Terms of Service links updated throughout the app to point to focusflowapp.pages.dev',
-          'Terms of Service screen now includes a "Read full Terms online" button matching the privacy screen',
-          'GitHub reference removed from Terms contact section — replaced with website URL',
-        ],
-      },
-    ],
-  },
-  {
     version: '1.0.6',
     date: 'June 2026',
     sections: [
@@ -167,6 +119,48 @@ const CHANGELOG: Entry[] = [
           'Auto-generate path shows a non-copyable monospace password with a refresh button, a "write it down" warning, and an acknowledgement checkbox before saving',
           'Turning off individual sub-systems (YouTube Shorts block, Instagram Reels block, System Guard) does NOT trigger the rotation — only the Always-On master toggle does',
           'Raw passwords are never stored anywhere on the device — only SHA-256 hashes are persisted in SharedPreferences',
+        ],
+      },
+      {
+        heading: 'Analog Clock Launcher',
+        icon: 'time-outline',
+        items: [
+          'New analog clock option for the launcher home screen — canvas-drawn hour, minute, and second hands with hour tick marks and indigo accent matching the dark launcher aesthetic',
+          'Clock style preference persisted via SharedPrefs and synced on every settings change — switching between digital and analog survives reboots and session restarts',
+        ],
+      },
+      {
+        heading: 'Nuclear Mode & Block Overlay Bridges',
+        icon: 'nuclear-outline',
+        items: [
+          'NuclearModeModule JS bridge: requestUninstallApp, requestUninstallApps, isAppInstalled — connects the React Native control plane to the Kotlin uninstall dialog launcher',
+          'BlockOverlayModule JS bridge: setOverlayQuote, setCustomQuotes, clearCustomQuote, setOverlayWallpaper, clearOverlayWallpaper, getDefaultQuotes, getOverlaySettings — full overlay customisation now accessible from JS',
+        ],
+      },
+      {
+        heading: 'Cross-OEM Power Menu & Uninstall Blocking',
+        icon: 'shield-checkmark-outline',
+        items: [
+          'Power menu intercept now covers 15+ OEM SystemUI variants: Xiaomi/MIUI, OnePlus/OxygenOS, Oppo/ColorOS, Realme, Huawei/EMUI, Vivo/Funtouch, Motorola, Asus/ZenUI, Nothing OS, Nokia/HMD, Sony Xperia',
+          'Retry now fires on systemGuard alone — no longer requires an active focus or standalone session to keep the power menu protected',
+          'Uninstall blocking expanded to include OEM package installers and OEM Settings apps across Samsung legacy, Xiaomi, Realme, Vivo, OnePlus, Motorola, Asus, and Nokia devices',
+        ],
+      },
+      {
+        heading: 'VPN Integration in Focus Sessions',
+        icon: 'wifi-outline',
+        items: [
+          'NetworkBlockModule is now wired directly into startFocusMode — when VPN blocking is enabled, the network block starts automatically at session start without any extra tap',
+          'stopFocusMode calls stopNetworkBlock unconditionally on session end, ensuring the VPN tunnel is always released cleanly',
+        ],
+      },
+      {
+        heading: 'Privacy & Legal',
+        icon: 'document-text-outline',
+        items: [
+          'Privacy Policy and Terms of Service links updated throughout the app to point to focusflowapp.pages.dev',
+          'Terms of Service screen now includes a "Read full Terms online" button matching the privacy screen',
+          'GitHub reference removed from Terms contact section — replaced with website URL',
         ],
       },
     ],

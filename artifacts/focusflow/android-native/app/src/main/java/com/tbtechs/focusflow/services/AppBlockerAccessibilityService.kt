@@ -364,11 +364,6 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         /** Interval between retry checks in milliseconds. */
         private const val RETRY_INTERVAL_MS = 150L
 
-        // Interval at which the proactive usage accumulator flushes in-flight
-        // timed-allowance usage to SharedPrefs while a timed app is in the
-        // foreground. Keeps the budget durable across AccessibilityService kills.
-        private const val USAGE_ACCUMULATOR_INTERVAL_MS = 15_000L
-
         // ── Keyword blocker: URL / search field detection ─────────────────────
 
         /** Debounce for TYPE_VIEW_TEXT_CHANGED — avoids firing on every keystroke. */
@@ -475,41 +470,6 @@ class AppBlockerAccessibilityService : AccessibilityService() {
     private var currentTimedSessionEndMs: Long = 0L
     private var timedExpireRunnable: Runnable? = null
 
-    // ── Proactive usage accumulator (durability fix for "doesn't measure") ────
-    // The original code only persisted `usedMs` to SharedPrefs when the user LEFT a
-    // timed app (on foreground switch) or when the scheduled expiry Handler fired.
-    // If the AccessibilityService process was killed in the meantime (Doze, OEM
-    // battery managers, low-memory), neither path ran and `usedMs` was never
-    // incremented — so `isAllowanceAvailable` returned `true` again and the app
-    // kept measuring "available" budget. This runnable charges the in-flight
-    // elapsed time to SharedPrefs every 15 s while a timed app is in the foreground,
-    // so a crash at any point only loses at most ~15 s of usage instead of the
-    // whole session.
-    private val usageAccumulatorHandler = Handler(Looper.getMainLooper())
-    private val usageAccumulatorRunnable: Runnable = object : Runnable {
-        override fun run() {
-            val pkg = currentTimedPkg
-            val openedAt = currentTimedOpenAtMs
-            if (pkg != null && openedAt > 0L) {
-                val entry = findAllowanceEntry(pkg)
-                if (entry != null && (entry.mode == "time_budget" || entry.mode == "interval")) {
-                    // Charge elapsed since openAt, then advance openAt baseline so we
-                    // don't double-charge the same span on the next tick.
-                    accumulateTimedUsage(pkg, entry, openedAt)
-                    currentTimedOpenAtMs = System.currentTimeMillis()
-                }
-            }
-            usageAccumulatorHandler.postDelayed(this, USAGE_ACCUMULATOR_INTERVAL_MS)
-        }
-    }
-    private fun startUsageAccumulator() {
-        usageAccumulatorHandler.removeCallbacks(usageAccumulatorRunnable)
-        usageAccumulatorHandler.postDelayed(usageAccumulatorRunnable, USAGE_ACCUMULATOR_INTERVAL_MS)
-    }
-    private fun stopUsageAccumulator() {
-        usageAccumulatorHandler.removeCallbacks(usageAccumulatorRunnable)
-    }
-
     override fun onServiceConnected() {
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
 
@@ -519,57 +479,16 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         // by force-stopping or toggling the accessibility service.
         val savedPkg    = prefs.getString("timed_session_pkg", null)
         val savedOpenAt = prefs.getLong("timed_session_open_at_ms", 0L)
-        var savedEndMs  = 0L
         if (savedPkg != null && savedOpenAt > 0L) {
             val entry = findAllowanceEntry(savedPkg)
             if (entry != null && (entry.mode == "time_budget" || entry.mode == "interval")) {
                 accumulateTimedUsage(savedPkg, entry, savedOpenAt)
-                // FIX for "doesn't stop when exhausted": the previous code only
-                // re-charged the elapsed gap, but did NOT re-arm the expiry Handler.
-                // That left an exhausted app running free after the service restarted
-                // (the original Handler runnable was lost when the process died).
-                // Recompute the remaining budget and re-schedule the expiry so the
-                // user is kicked out the moment the (now-reduced) budget hits zero.
-                val now = System.currentTimeMillis()
-                val allUsed = loadUsedObject()
-                val pkgUsed = allUsed.optJSONObject(savedPkg)
-                val remainingMs = when (entry.mode) {
-                    "time_budget" -> {
-                        val today = todayDateString()
-                        val usedToday = if (pkgUsed?.optString("date", "") == today)
-                                            pkgUsed?.optLong("usedMs", 0L) ?: 0L
-                                        else 0L
-                        (entry.budgetMs - usedToday).coerceAtLeast(0L)
-                    }
-                    "interval" -> {
-                        val ws = pkgUsed?.optLong("windowStartMs", 0L) ?: 0L
-                        if (now > ws + entry.windowMs) 0L
-                        else (entry.intervalMs - (pkgUsed?.optLong("usedMs", 0L) ?: 0L)).coerceAtLeast(0L)
-                    }
-                    else -> 0L
-                }
-                val effectiveOpenAt = if (savedOpenAt > now) now else now
-                currentTimedPkg = savedPkg
-                currentTimedOpenAtMs = effectiveOpenAt
-                val newEnd = now + remainingMs
-                currentTimedSessionEndMs = newEnd
-                if (remainingMs <= 0L) {
-                    // Budget already exhausted during the downtime — kick the user
-                    // out now instead of letting the exhausted app keep running.
-                    performGlobalAction(GLOBAL_ACTION_HOME)
-                } else {
-                    scheduleTimedExpiry(savedPkg, newEnd)
-                }
             }
             prefs.edit()
                 .remove("timed_session_pkg")
                 .remove("timed_session_open_at_ms")
                 .apply()
         }
-
-        // Start the proactive usage accumulator so in-flight timed usage is
-        // persisted to SharedPrefs every 15 s (durability fix).
-        startUsageAccumulator()
 
         // Start the VPN self-heal health check loop. The first check fires after
         // 10 s so we don't run anything during the cold-start window.
@@ -603,11 +522,6 @@ class AppBlockerAccessibilityService : AccessibilityService() {
                 prefs.edit().putBoolean(PREF_FOCUS_ON, false).apply()
                 focusActive = false
                 lastBlockedPkg = null
-                // Clear timed-allowance tracking so an app that was open under
-                // a focus-session allowance doesn't stay unblocked when the
-                // session expires — the session ending means enforcement ends,
-                // and the tracked usage must be finalized.
-                finalizeCurrentTimedUsage()
             }
         }
 
@@ -618,9 +532,6 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             if (untilMs > 0L && now > untilMs) {
                 prefs.edit().putBoolean(PREF_SA_ACTIVE, false).apply()
                 saActive = false
-                // Same rationale — standalone block ending means allowance
-                // tracking from this session must be finalized.
-                finalizeCurrentTimedUsage()
             }
         }
         // ── Always-on enforcement (session-independent) ───────────────────────
@@ -1261,7 +1172,6 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         currentTimedSessionEndMs = 0L
         lastBlockedPkg = null
         dismissWindowOverlay()
-        stopUsageAccumulator()
         vpnHealthHandler.removeCallbacks(vpnHealthRunnable)
     }
 
@@ -1350,24 +1260,23 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             val focusActive  = prefs.getBoolean(PREF_FOCUS_ON, false)
             val saActive     = prefs.getBoolean(PREF_SA_ACTIVE, false)
             val alwaysBlock  = prefs.getBoolean(PREF_ALWAYS_BLOCK, false)
-            // Guard: the actual (current) blocked state must still be in effect AND
-            // the allowance must be exhausted — this covers both session-based and
-            // no-session allowance cases without requiring a boolean session existence.
+            if (!focusActive && !saActive && !alwaysBlock) return@postDelayed
+            // Guard: only act if the blocked package is still in the foreground.
+            // Without this check, retries would press Home even after the user has
+            // already navigated to a legitimate allowed app, causing false kicks.
+            if (lastSeenPkg != pkg) return@postDelayed
             val isBlocked = isPackageBlocked(pkg, focusActive, saActive, alwaysBlock)
             val allowanceExhausted = run {
                 val entry = findAllowanceEntry(pkg)
                 entry != null && !isAllowanceAvailable(pkg, entry)
             }
-            if (!isBlocked && !allowanceExhausted) return@postDelayed
-            // Guard: only act if the blocked package is still in the foreground.
-            // Without this check, retries would press Home even after the user has
-            // already navigated to a legitimate allowed app, causing false kicks.
-            if (lastSeenPkg != pkg) return@postDelayed
-            // Re-raise the overlay in case it was dismissed or never rendered,
-            // then kick the app out again.
-            launchBlockOverlay(pkg)
-            dismissPackage(pkg)
-            scheduleRetryCheck(pkg, attempt + 1, focusActive, saActive, alwaysBlock)
+            if (isBlocked || allowanceExhausted) {
+                // Re-raise the overlay in case it was dismissed or never rendered,
+                // then kick the app out again.
+                launchBlockOverlay(pkg)
+                dismissPackage(pkg)
+                scheduleRetryCheck(pkg, attempt + 1, focusActive, saActive, alwaysBlock)
+            }
         }, RETRY_INTERVAL_MS * attempt)
     }
 
@@ -2042,15 +1951,11 @@ class AppBlockerAccessibilityService : AccessibilityService() {
                             pkg         = entryPkg,
                             mode        = obj.optString("mode", "count"),
                             countPerDay = obj.optInt("countPerDay", 1).coerceAtLeast(1),
-                            // FIX: Use optDouble (not optInt) — the TS UI ("DailyAllowanceModal")
-                            // may emit fractional minutes (e.g. 30.5). optInt silently truncates
-                            // such values, which was making time_budget/interval budgets
-                            // measure to wrong values ("can't measure sometimes"). optDouble
-                            // accepts both integer and fractional JSON numbers, and falls back
-                            // to the default on missing/invalid fields.
-                            budgetMs    = (obj.optDouble("budgetMinutes", 30.0)   * 60_000.0).toLong(),
-                            intervalMs  = (obj.optDouble("intervalMinutes", 5.0)  * 60_000.0).toLong(),
-                            windowMs    = (obj.optDouble("intervalHours", 1.0)   * 3_600_000.0).toLong(),
+                            // Use optInt (not optLong) — JS serialises these as plain integers.
+                            // Multiplied to ms after parsing so the data class stays in ms.
+                            budgetMs    = obj.optInt("budgetMinutes", 30).toLong() * 60_000L,
+                            intervalMs  = obj.optInt("intervalMinutes", 5).toLong() * 60_000L,
+                            windowMs    = obj.optInt("intervalHours", 1).toLong() * 3_600_000L,
                         )
                     }
                 }
@@ -2224,34 +2129,29 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         val delayMs = sessionEndMs - System.currentTimeMillis()
         if (delayMs <= 0L) {
             // Already expired — dismiss immediately
-            finalizeCurrentTimedUsage()
+            if (currentTimedPkg == pkg) {
+                val entry = findAllowanceEntry(pkg)
+                if (entry != null) accumulateTimedUsage(pkg, entry, currentTimedOpenAtMs)
+                currentTimedPkg = null
+                currentTimedOpenAtMs = 0L
+                currentTimedSessionEndMs = 0L
+            }
             performGlobalAction(GLOBAL_ACTION_HOME)
             return
         }
         val runnable = Runnable {
             timedExpireRunnable = null
-            finalizeCurrentTimedUsage()
+            val entry = findAllowanceEntry(pkg)
+            if (entry != null && currentTimedPkg == pkg) {
+                accumulateTimedUsage(pkg, entry, currentTimedOpenAtMs)
+            }
+            currentTimedPkg = null
+            currentTimedOpenAtMs = 0L
+            currentTimedSessionEndMs = 0L
             performGlobalAction(GLOBAL_ACTION_HOME)
         }
         timedExpireRunnable = runnable
         handler.postDelayed(runnable, delayMs)
-    }
-
-    /**
-     * Accumulate any pending timed usage for the currently-tracked package and
-     * clear the tracking state.  Idempotent — safe to call when no timed
-     * allowance is active (no-op).
-     */
-    private fun finalizeCurrentTimedUsage() {
-        val pkg = currentTimedPkg
-        if (pkg == null) return
-        val entry = findAllowanceEntry(pkg)
-        if (entry != null) {
-            accumulateTimedUsage(pkg, entry, currentTimedOpenAtMs)
-        }
-        currentTimedPkg = null
-        currentTimedOpenAtMs = 0L
-        currentTimedSessionEndMs = 0L
     }
 
     private fun loadUsedObject(): org.json.JSONObject {

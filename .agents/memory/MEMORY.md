@@ -1,1 +1,3 @@
+- [Import guard](import-guard.md) — on import DO NOT install deps/start workflows/do run setup; ask user first. Android app = EAS only, no browser preview.
+- [Project context](project-context.md) — monorepo layout, what lives where, what runs in browser vs what needs EAS.
 - [User preferences](user-prefs.md) — do not launch subagents (explore or otherwise); work directly.
