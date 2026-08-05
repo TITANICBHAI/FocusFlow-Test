@@ -420,8 +420,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       // ── Database / settings ────────────────────────────────────────────────
       void logger.info('AppContext', 'Loading settings from DB (timeout=8000ms)');
-      const rawSettings = await withTimeout(dbGetSettings(), 8000, defaultSettings);
-      void logger.info('AppContext', 'Settings loaded from DB');
+      // Track whether the DB loaded successfully. If it timed out we fall back
+      // to defaultSettings (empty), and we must NOT push those defaults to
+      // native SharedPreferences — that would wipe the real, previously-working
+      // config (e.g. dailyAllowanceEntries). Leave native state untouched when
+      // the DB is too slow; the Kotlin layer already has the correct values.
+      let dbLoaded = false;
+      const rawSettings = await (async () => {
+        try {
+          const result = await Promise.race<AppSettings>([
+            dbGetSettings(),
+            new Promise<never>((_, rej) =>
+              setTimeout(() => rej(new Error('DB load timeout after 8000ms')), 8000),
+            ),
+          ]);
+          dbLoaded = true;
+          return result;
+        } catch (e) {
+          void logger.warn(
+            'AppContext',
+            `DB load timed out or failed — native SharedPrefs will not be overwritten: ${String(e)}`,
+          );
+          return defaultSettings;
+        }
+      })();
+      void logger.info('AppContext', `Settings loaded from DB (dbLoaded=${dbLoaded})`);
       // Fire-and-forget: writes one [DB_DIAG] INFO line per session with
       // API level, Android version, manufacturer, model, and SQLite version.
       // Never blocks init and never throws.
@@ -499,61 +522,69 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       })();
 
       // ── Native module syncs — each isolated ───────────────────────────────
-      try {
-        void logger.info('AppContext', 'Syncing standalone block');
-        await _syncStandaloneBlock(settings);
-        void logger.info('AppContext', 'Standalone block synced');
-      } catch (e) {
-        void logger.warn('AppContext', `Standalone block sync failed: ${String(e)}`);
-      }
+      // Only push settings to native if the DB load succeeded. If it timed
+      // out we are holding defaultSettings (empty arrays), and pushing those
+      // would wipe real SharedPrefs values (e.g. dailyAllowanceEntries) that
+      // the Kotlin layer was already enforcing correctly.
+      if (dbLoaded) {
+        try {
+          void logger.info('AppContext', 'Syncing standalone block');
+          await _syncStandaloneBlock(settings);
+          void logger.info('AppContext', 'Standalone block synced');
+        } catch (e) {
+          void logger.warn('AppContext', `Standalone block sync failed: ${String(e)}`);
+        }
 
-      try {
-        void logger.info('AppContext', 'Syncing daily allowance');
-        await _syncDailyAllowance(settings);
-        void logger.info('AppContext', 'Daily allowance synced');
-      } catch (e) {
-        void logger.warn('AppContext', `Daily allowance sync failed: ${String(e)}`);
-      }
+        try {
+          void logger.info('AppContext', 'Syncing daily allowance');
+          await _syncDailyAllowance(settings);
+          void logger.info('AppContext', 'Daily allowance synced');
+        } catch (e) {
+          void logger.warn('AppContext', `Daily allowance sync failed: ${String(e)}`);
+        }
 
-      try {
-        void logger.info('AppContext', 'Syncing always-on block');
-        await _syncAlwaysBlock(settings);
-        void logger.info('AppContext', 'Always-on block synced');
-      } catch (e) {
-        void logger.warn('AppContext', `Always-on block sync failed: ${String(e)}`);
-      }
+        try {
+          void logger.info('AppContext', 'Syncing always-on block');
+          await _syncAlwaysBlock(settings);
+          void logger.info('AppContext', 'Always-on block synced');
+        } catch (e) {
+          void logger.warn('AppContext', `Always-on block sync failed: ${String(e)}`);
+        }
 
-      try {
-        void logger.info('AppContext', 'Syncing blocked words');
-        await _syncBlockedWords(settings);
-        void logger.info('AppContext', 'Blocked words synced');
-      } catch (e) {
-        void logger.warn('AppContext', `Blocked words sync failed: ${String(e)}`);
-      }
+        try {
+          void logger.info('AppContext', 'Syncing blocked words');
+          await _syncBlockedWords(settings);
+          void logger.info('AppContext', 'Blocked words synced');
+        } catch (e) {
+          void logger.warn('AppContext', `Blocked words sync failed: ${String(e)}`);
+        }
 
-      try {
-        void logger.info('AppContext', 'Syncing aversions');
-        await _syncAversions(settings);
-        void logger.info('AppContext', 'Aversions synced');
-      } catch (e) {
-        void logger.warn('AppContext', `Aversions sync failed: ${String(e)}`);
-      }
+        try {
+          void logger.info('AppContext', 'Syncing aversions');
+          await _syncAversions(settings);
+          void logger.info('AppContext', 'Aversions synced');
+        } catch (e) {
+          void logger.warn('AppContext', `Aversions sync failed: ${String(e)}`);
+        }
 
-      try {
-        void logger.info('AppContext', 'Syncing greyout schedule + recurring block schedules');
-        const combined = _recurringSchedulesToGreyoutWindows(settings);
-        await GreyoutModule.setSchedule(combined);
-        void logger.info('AppContext', 'Greyout schedule synced');
-      } catch (e) {
-        void logger.warn('AppContext', `Greyout schedule sync failed: ${String(e)}`);
-      }
+        try {
+          void logger.info('AppContext', 'Syncing greyout schedule + recurring block schedules');
+          const combined = _recurringSchedulesToGreyoutWindows(settings);
+          await GreyoutModule.setSchedule(combined);
+          void logger.info('AppContext', 'Greyout schedule synced');
+        } catch (e) {
+          void logger.warn('AppContext', `Greyout schedule sync failed: ${String(e)}`);
+        }
 
-      try {
-        void logger.info('AppContext', 'Syncing system guard');
-        await _syncSystemGuard(settings);
-        void logger.info('AppContext', 'System guard synced');
-      } catch (e) {
-        void logger.warn('AppContext', `System guard sync failed: ${String(e)}`);
+        try {
+          void logger.info('AppContext', 'Syncing system guard');
+          await _syncSystemGuard(settings);
+          void logger.info('AppContext', 'System guard synced');
+        } catch (e) {
+          void logger.warn('AppContext', `System guard sync failed: ${String(e)}`);
+        }
+      } else {
+        void logger.warn('AppContext', 'Skipping native sync — DB did not load, preserving existing SharedPrefs');
       }
 
       // ── Tasks & overdue recovery ───────────────────────────────────────────

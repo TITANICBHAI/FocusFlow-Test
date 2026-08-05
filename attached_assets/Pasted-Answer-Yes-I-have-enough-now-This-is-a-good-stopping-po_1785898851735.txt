@@ -1,0 +1,31 @@
+Answer:
+
+Yes — I have enough now. This is a good stopping point, and this last report is actually the most important one of the whole thread. Let me give you the full, final picture.
+
+The real bug list, ranked by how much it actually explains:
+
+A. Startup DB-timeout wipes the config — new, from what you just sent, and this is the strongest single finding of the whole investigation.
+init() loads settings from SQLite with an 8-second timeout that falls back to defaultSettings (empty dailyAllowanceEntries: []) if the DB is slow. That fallback value then gets unconditionally pushed to native: SharedPrefsModule.setDailyAllowanceConfig(entries). If SQLite is ever slow enough to trip that timeout — cold start under memory pressure, right after a reboot, a big DB, a slow device — the app overwrites the real, previously-working SharedPrefs config with an empty one, and it stays empty until the next clean restart.
+
+This is the one finding in this whole thread that explains all three modes failing uniformly, because it doesn't touch mode logic at all — it just deletes every entry. Count mode not working, time_budget not working, interval not working, all at once, intermittently, no error shown to the user — that's exactly the shape of "none of the 3 modes work good."
+
+B. Handler/process-death gap (from earlier, unchanged) — still real, but narrower.
+Only affects time_budget/interval (not count), only triggers on a hard process kill without a clean onInterrupt(). Real, but explains less of what you described than A does.
+
+C. Explicit-block branch doesn't clear stale tracking state — minor, cosmetic-ish, still worth fixing while in the file.
+
+Ruled out, confirmed clean (closing the loop on the whole thread): mode/field-name mismatch between JS and Kotlin, the legacy setDailyAllowancePackages shadow-write path, and stale selectedEntries props across the three modal screens. All three were real hypotheses I raised, and all three came back genuinely dead from direct evidence — not just "didn't find it."
+
+How to fix each, concretely:
+
+Fix A (highest priority): don't let a DB-timeout fallback overwrite native state. In init(), distinguish "loaded successfully" from "timed out, used default" — and only call _syncDailyAllowance(settings) (and ideally any other native-sync calls in that same init block) on the success path. On timeout, either skip the native sync entirely (leave whatever's already in SharedPrefs alone — it's more likely correct than a blank default) or retry the DB load in the background and sync once it actually succeeds.
+
+Fix B: persist timed_session_pkg/timed_session_open_at_ms on the accumulator's 15s tick in AppBlockerAccessibilityService.kt, not just in onInterrupt() — as I specified two turns ago.
+
+Fix C: in the explicitlyBlocked branch, cancel timedExpireRunnable and clear currentTimedPkg/currentTimedOpenAtMs/currentTimedSessionEndMs when it matches the currently-tracked package.
+
+What I can't resolve without a live device (not a file-review question anymore): whether A or B is actually the dominant cause in practice depends on how often SQLite trips that 8s timeout, and how often the accessibility service gets hard-killed, on your team's actual hardware. Both are real bugs regardless — fixing both is correct either way — but if you want to know which one has been causing most of the pain, that needs the force-kill test I described earlier, plus maybe logging how often the DB load actually times out.
+
+Confidence: 0.85 on Fix A being a real, currently-active bug — directly confirmed from the code and timing logic you just showed me, this isn't inference. 0.8 (unchanged) on Fix B. 0.7 on Fix C (straightforward, low-risk).
+
+Caveats: I still don't know the exact signature of withTimeout (whether it already distinguishes success-vs-fallback under the hood, or would need a small change to do so) — that's a one-line question for whoever's implementing the fix, not something I need another file to answer.
