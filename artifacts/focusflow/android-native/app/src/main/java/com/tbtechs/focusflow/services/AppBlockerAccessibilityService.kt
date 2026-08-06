@@ -597,15 +597,6 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             currentTimedPkg = null
             currentTimedOpenAtMs = 0L
             currentTimedSessionEndMs = 0L
-            // Fix B: clear the SharedPrefs mirror now that the session is over.
-            // If the process dies after this point onServiceConnected will see
-            // no saved session (correct) rather than stale data from a previous run.
-            if (::prefs.isInitialized) {
-                prefs.edit()
-                    .remove("timed_session_pkg")
-                    .remove("timed_session_open_at_ms")
-                    .apply()
-            }
         }
 
         // Never block our own app.  This guard MUST come before the overlay
@@ -1063,16 +1054,6 @@ class AppBlockerAccessibilityService : AccessibilityService() {
                     val sessionEndMs = recordAllowanceOpen(pkg, allowanceEntry)
                     currentTimedPkg        = pkg
                     currentTimedOpenAtMs   = System.currentTimeMillis()
-                    // Fix B: mirror currentTimedPkg/currentTimedOpenAtMs to SharedPrefs
-                    // immediately on session start so that onServiceConnected() can
-                    // re-arm the expiry timer after any hard process kill, not just a
-                    // clean onInterrupt().
-                    if (::prefs.isInitialized) {
-                        prefs.edit()
-                            .putString("timed_session_pkg", pkg)
-                            .putLong("timed_session_open_at_ms", currentTimedOpenAtMs)
-                            .apply()
-                    }
                     if (allowanceEntry.mode != "count" && sessionEndMs > 0L) {
                         currentTimedSessionEndMs = sessionEndMs
                         scheduleTimedExpiry(pkg, sessionEndMs)
@@ -1096,23 +1077,6 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         // the block list and the allowance list is always blocked, never let through.
         val explicitlyBlocked = isPackageBlocked(pkg, focusActive, saActive, alwaysBlockActive)
         if (explicitlyBlocked) {
-            // Fix C: if this pkg was the active timed-allowance session, cancel the
-            // expiry timer and clear tracking state. Without this, timedExpireRunnable
-            // and currentTimedPkg stay set even though the app is now hard-blocked,
-            // leaving stale state that can misfire when the block is later lifted.
-            if (currentTimedPkg == pkg) {
-                timedExpireRunnable?.let { handler.removeCallbacks(it) }
-                timedExpireRunnable = null
-                currentTimedPkg = null
-                currentTimedOpenAtMs = 0L
-                currentTimedSessionEndMs = 0L
-                if (::prefs.isInitialized) {
-                    prefs.edit()
-                        .remove("timed_session_pkg")
-                        .remove("timed_session_open_at_ms")
-                        .apply()
-                }
-            }
             val samePackage = pkg == lastBlockedPkg
             val cooldownExpired = (now - lastBlockedAtMs) > 2_000L
             if (!samePackage || cooldownExpired) {
@@ -1142,14 +1106,6 @@ class AppBlockerAccessibilityService : AccessibilityService() {
                     val sessionEndMs = recordAllowanceOpen(pkg, allowanceEntry)
                     currentTimedPkg = pkg
                     currentTimedOpenAtMs = System.currentTimeMillis()
-                    // Fix B: mirror to SharedPrefs on session start so a hard process
-                    // kill can be recovered in onServiceConnected().
-                    if (::prefs.isInitialized) {
-                        prefs.edit()
-                            .putString("timed_session_pkg", pkg)
-                            .putLong("timed_session_open_at_ms", currentTimedOpenAtMs)
-                            .apply()
-                    }
                     if (allowanceEntry.mode != "count" && sessionEndMs > 0L) {
                         currentTimedSessionEndMs = sessionEndMs
                         scheduleTimedExpiry(pkg, sessionEndMs)
@@ -2179,14 +2135,6 @@ class AppBlockerAccessibilityService : AccessibilityService() {
                 currentTimedPkg = null
                 currentTimedOpenAtMs = 0L
                 currentTimedSessionEndMs = 0L
-                // Fix B: clear SharedPrefs mirror so stale keys don't resurrect
-                // a dead session if the process is killed right after expiry.
-                if (::prefs.isInitialized) {
-                    prefs.edit()
-                        .remove("timed_session_pkg")
-                        .remove("timed_session_open_at_ms")
-                        .apply()
-                }
             }
             performGlobalAction(GLOBAL_ACTION_HOME)
             return
@@ -2200,13 +2148,6 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             currentTimedPkg = null
             currentTimedOpenAtMs = 0L
             currentTimedSessionEndMs = 0L
-            // Fix B: clear SharedPrefs mirror on normal timer expiry.
-            if (::prefs.isInitialized) {
-                prefs.edit()
-                    .remove("timed_session_pkg")
-                    .remove("timed_session_open_at_ms")
-                    .apply()
-            }
             performGlobalAction(GLOBAL_ACTION_HOME)
         }
         timedExpireRunnable = runnable
