@@ -126,6 +126,55 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         /** JSON array of package names hidden from the FocusFlow launcher drawer. */
         const val PREF_LAUNCHER_HIDDEN_PKGS     = "launcher_hidden_packages"
 
+        // ── Task / focus-session state ─────────────────────────────────────────
+        // Written by SharedPrefsModule (JS layer); read by ForegroundTaskService,
+        // AppBlockerAccessibilityService, BootReceiver, and the home-screen widget.
+        // Centralised here so a key rename only touches one file.
+        const val PREF_TASK_ID              = "task_id"
+        const val PREF_TASK_NAME            = "task_name"
+        const val PREF_TASK_END_MS          = "task_end_ms"
+        const val PREF_TASK_START_MS        = "task_start_ms"
+        const val PREF_NEXT_TASK_NAME       = "next_task_name"
+        const val PREF_TASK_COLOR           = "task_color"
+        const val PREF_TASK_DURATION_MS     = "task_duration_ms"
+        const val PREF_TASK_LAST_WRITTEN_MS = "task_last_written_ms"
+
+        // ── Timed daily-allowance session ──────────────────────────────────────
+        // Written + read exclusively by AppBlockerAccessibilityService (persisted
+        // in onInterrupt so the elapsed gap can be charged in onServiceConnected).
+        const val PREF_TIMED_SESSION_PKG        = "timed_session_pkg"
+        const val PREF_TIMED_SESSION_OPEN_AT_MS = "timed_session_open_at_ms"
+
+        // ── Block overlay / cooldown state ─────────────────────────────────────
+        // Shared between AppBlockerAccessibilityService, ForegroundTaskService,
+        // and BlockOverlayActivity.
+        const val PREF_BLOCK_COOLDOWN_RESET = "block_cooldown_reset"
+        const val PREF_OVERLAY_AWAITING_PKG = "overlay_awaiting_pkg"
+        const val PREF_CURRENT_FG_PKG       = "current_foreground_pkg"
+        const val PREF_CURRENT_FG_CLS       = "current_foreground_cls"
+
+        // ── Network / VPN block ────────────────────────────────────────────────
+        // Written by SharedPrefsModule (JS layer); read by both
+        // AppBlockerAccessibilityService and ForegroundTaskService.
+        const val PREF_NET_BLOCK_ENABLED     = "net_block_enabled"
+        const val PREF_NET_BLOCK_VPN         = "net_block_vpn"
+        const val PREF_NET_BLOCK_SELF_HEAL   = "net_block_self_heal"
+        const val PREF_NET_BLOCK_PACKAGES    = "net_block_packages"
+        const val PREF_NET_BLOCK_GLOBAL      = "net_block_global"
+        const val PREF_VPN_SELECTED_PACKAGES = "vpn_selected_packages"
+        const val PREF_VPN_PERMISSION_LOST   = "vpn_permission_lost"
+
+        // ── Launcher prefs ─────────────────────────────────────────────────────
+        // Written by SharedPrefsModule; read by LauncherActivity and returned by
+        // getAllEnforcementSettings() for cold-start seeding of JS context.
+        const val PREF_LAUNCHER_DOCK_PACKAGES = "launcher_dock_packages"
+        const val PREF_LAUNCHER_CLOCK_STYLE   = "launcher_clock_style"
+
+        // ── Greyout / recurring block schedule ────────────────────────────────
+        // Written by GreyoutModule; read by AppBlockerAccessibilityService and
+        // ForegroundTaskService fallback-block path.
+        const val PREF_GREYOUT_SCHEDULE = "greyout_schedule"
+
         /** Notification channel used to launch the block overlay via full-screen intent. */
         private const val BLOCK_ALERT_CHANNEL  = "focusday_block_alert"
         private const val BLOCK_ALERT_NOTIF_ID = 9001
@@ -477,16 +526,16 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         // (killed by Android, device rebooted, user toggled accessibility off/on).
         // Charging elapsed gap here prevents users from bypassing a time-budget limit
         // by force-stopping or toggling the accessibility service.
-        val savedPkg    = prefs.getString("timed_session_pkg", null)
-        val savedOpenAt = prefs.getLong("timed_session_open_at_ms", 0L)
+        val savedPkg    = prefs.getString(PREF_TIMED_SESSION_PKG, null)
+        val savedOpenAt = prefs.getLong(PREF_TIMED_SESSION_OPEN_AT_MS, 0L)
         if (savedPkg != null && savedOpenAt > 0L) {
             val entry = findAllowanceEntry(savedPkg)
             if (entry != null && (entry.mode == "time_budget" || entry.mode == "interval")) {
                 accumulateTimedUsage(savedPkg, entry, savedOpenAt)
             }
             prefs.edit()
-                .remove("timed_session_pkg")
-                .remove("timed_session_open_at_ms")
+                .remove(PREF_TIMED_SESSION_PKG)
+                .remove(PREF_TIMED_SESSION_OPEN_AT_MS)
                 .apply()
         }
 
@@ -517,7 +566,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         // ── Task-based focus state ────────────────────────────────────────────
         var focusActive = prefs.getBoolean(PREF_FOCUS_ON, false)
         if (focusActive) {
-            val endMs = prefs.getLong("task_end_ms", 0L)
+            val endMs = prefs.getLong(PREF_TASK_END_MS, 0L)
             if (endMs > 0L && now > endMs) {
                 prefs.edit().putBoolean(PREF_FOCUS_ON, false).apply()
                 focusActive = false
@@ -548,8 +597,8 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         // ── Cooldown reset: fired when user taps ✕ to dismiss the overlay ───
         // BlockOverlayActivity writes this flag on intentional dismiss so the
         // next open of the same blocked app is caught immediately (no 2 s gap).
-        if (prefs.getBoolean("block_cooldown_reset", false)) {
-            prefs.edit().putBoolean("block_cooldown_reset", false).apply()
+        if (prefs.getBoolean(PREF_BLOCK_COOLDOWN_RESET, false)) {
+            prefs.edit().putBoolean(PREF_BLOCK_COOLDOWN_RESET, false).apply()
             lastBlockedPkg = null
             lastBlockedAtMs = 0L
         }
@@ -566,8 +615,8 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         // screens (MainActivity, SettingsActivity) from any deeplink/custom-tab
         // activity in the same package — which is the self-package loophole.
         prefs.edit()
-            .putString("current_foreground_pkg", pkg)
-            .putString("current_foreground_cls", cls)
+            .putString(PREF_CURRENT_FG_PKG, pkg)
+            .putString(PREF_CURRENT_FG_CLS, cls)
             .apply()
 
         // ── Recents screen block ─────────────────────────────────────────────
@@ -616,11 +665,11 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         // It also lives BEFORE the BLOCKABLE_AFTER_WARNING early-return below
         // so that the launcher (which is in BLOCKABLE_AFTER_WARNING) correctly
         // triggers it after the user presses HOME.
-        val awaitingPkg = prefs.getString("overlay_awaiting_pkg", "") ?: ""
+        val awaitingPkg = prefs.getString(PREF_OVERLAY_AWAITING_PKG, "") ?: ""
         if (awaitingPkg.isNotEmpty() && !pkg.equals(awaitingPkg, ignoreCase = true)) {
             prefs.edit()
                 .putBoolean(BlockOverlayActivity.PREF_OVERLAY_X_READY, true)
-                .putString("overlay_awaiting_pkg", "")
+                .putString(PREF_OVERLAY_AWAITING_PKG, "")
                 .apply()
             // Also reveal directly on the WindowManager overlay (no polling needed)
             revealWindowXButton()
@@ -1155,13 +1204,13 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         if (::prefs.isInitialized) {
             if (currentTimedPkg != null && currentTimedOpenAtMs > 0L) {
                 prefs.edit()
-                    .putString("timed_session_pkg", currentTimedPkg)
-                    .putLong("timed_session_open_at_ms", currentTimedOpenAtMs)
+                    .putString(PREF_TIMED_SESSION_PKG, currentTimedPkg)
+                    .putLong(PREF_TIMED_SESSION_OPEN_AT_MS, currentTimedOpenAtMs)
                     .apply()
             } else {
                 prefs.edit()
-                    .remove("timed_session_pkg")
-                    .remove("timed_session_open_at_ms")
+                    .remove(PREF_TIMED_SESSION_PKG)
+                    .remove(PREF_TIMED_SESSION_OPEN_AT_MS)
                     .apply()
             }
         }
@@ -1193,15 +1242,15 @@ class AppBlockerAccessibilityService : AccessibilityService() {
      */
     private fun checkAndHealVpn() {
         if (!::prefs.isInitialized) return
-        if (!prefs.getBoolean("net_block_self_heal", false)) return
-        if (!prefs.getBoolean("net_block_vpn", false)) return
+        if (!prefs.getBoolean(PREF_NET_BLOCK_SELF_HEAL, false)) return
+        if (!prefs.getBoolean(PREF_NET_BLOCK_VPN, false)) return
         if (NetworkBlockerVpnService.isRunning) return
 
         val now = System.currentTimeMillis()
         val focusActive = prefs.getBoolean(PREF_FOCUS_ON, false).let { on ->
             if (!on) false
             else {
-                val endMs = prefs.getLong("task_end_ms", 0L)
+                val endMs = prefs.getLong(PREF_TASK_END_MS, 0L)
                 endMs <= 0L || now < endMs
             }
         }
@@ -1214,19 +1263,19 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         }
         // Also heal when always-on VPN packages are configured — the VPN must stay
         // alive 24/7 even when no timed focus or standalone session is active.
-        val alwaysOnPkgs = prefs.getString("net_block_packages", "[]") ?: "[]"
+        val alwaysOnPkgs = prefs.getString(PREF_NET_BLOCK_PACKAGES, "[]") ?: "[]"
         val hasAlwaysOnPkgs = try { org.json.JSONArray(alwaysOnPkgs).length() > 0 } catch (_: Exception) { false }
         if (!focusActive && !saActive && !hasAlwaysOnPkgs) return
 
         // Bail out if VPN permission was revoked — cannot restart silently.
         // Write the permission-lost flag so the JS layer can show a re-grant prompt.
         if (VpnService.prepare(this) != null) {
-            prefs.edit().putBoolean("vpn_permission_lost", true).apply()
+            prefs.edit().putBoolean(PREF_VPN_PERMISSION_LOST, true).apply()
             return
         }
 
-        val pkgs   = prefs.getString("net_block_packages", "[]") ?: "[]"
-        val global = prefs.getBoolean("net_block_global", false)
+        val pkgs   = prefs.getString(PREF_NET_BLOCK_PACKAGES, "[]") ?: "[]"
+        val global = prefs.getBoolean(PREF_NET_BLOCK_GLOBAL, false)
         val mode   = if (global) NetworkBlockerVpnService.MODE_GLOBAL
                      else        NetworkBlockerVpnService.MODE_PER_APP
         try {
@@ -2249,7 +2298,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         // 2. Set the awaiting package BEFORE launching/dismissing so the very next
         //    window event (launcher coming to front) is guaranteed to trigger the
         //    X-button reveal without a race condition.
-        prefs.edit().putString("overlay_awaiting_pkg", blockedPackage).apply()
+        prefs.edit().putString(PREF_OVERLAY_AWAITING_PKG, blockedPackage).apply()
 
         // 3. Launch the full-screen overlay. This takes the foreground before the
         //    blocked app finishes rendering on most devices. The overlay handles its
@@ -2285,13 +2334,13 @@ class AppBlockerAccessibilityService : AccessibilityService() {
      * when the user manually starts a session. The VPN tunnel covers both channels.
      */
     private fun triggerNetworkBlock(blockedPackage: String) {
-        if (!prefs.getBoolean("net_block_enabled", false)) return
-        if (!prefs.getBoolean("net_block_vpn", false)) return
+        if (!prefs.getBoolean(PREF_NET_BLOCK_ENABLED, false)) return
+        if (!prefs.getBoolean(PREF_NET_BLOCK_VPN, false)) return
         if (NetworkBlockerVpnService.isRunning) return   // already active
 
         // Per-app VPN: if a non-empty package selection list is configured,
         // only apply network blocking to packages that appear in that list.
-        val vpnSelectedJson = prefs.getString("vpn_selected_packages", "[]") ?: "[]"
+        val vpnSelectedJson = prefs.getString(PREF_VPN_SELECTED_PACKAGES, "[]") ?: "[]"
         if (vpnSelectedJson != "[]" && vpnSelectedJson != "null") {
             val inList = try {
                 val arr = org.json.JSONArray(vpnSelectedJson)
@@ -2310,7 +2359,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             if (permissionIntent != null) return  // not yet granted — skip, don't crash
         } catch (_: Exception) { return }
 
-        val global = prefs.getBoolean("net_block_global", false)
+        val global = prefs.getBoolean(PREF_NET_BLOCK_GLOBAL, false)
         val mode   = if (global) NetworkBlockerVpnService.MODE_GLOBAL
                      else        NetworkBlockerVpnService.MODE_PER_APP
         // Use the full configured VPN package list so all network-blocked apps lose
@@ -2488,7 +2537,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         navRow.addView(navBtn("\u21A9  Back") {
             prefs.edit()
                 .putBoolean(BlockOverlayActivity.PREF_OVERLAY_X_READY, false)
-                .putBoolean("block_cooldown_reset", true)
+                .putBoolean(PREF_BLOCK_COOLDOWN_RESET, true)
                 .apply()
             dismissWindowOverlay()
             performGlobalAction(GLOBAL_ACTION_BACK)
@@ -2496,7 +2545,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         navRow.addView(navBtn("\u2302  Home") {
             prefs.edit()
                 .putBoolean(BlockOverlayActivity.PREF_OVERLAY_X_READY, false)
-                .putBoolean("block_cooldown_reset", true)
+                .putBoolean(PREF_BLOCK_COOLDOWN_RESET, true)
                 .apply()
             dismissWindowOverlay()
             performGlobalAction(GLOBAL_ACTION_HOME)
@@ -2523,7 +2572,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             setOnClickListener {
                 prefs.edit()
                     .putBoolean(BlockOverlayActivity.PREF_OVERLAY_X_READY, false)
-                    .putBoolean("block_cooldown_reset", true)
+                    .putBoolean(PREF_BLOCK_COOLDOWN_RESET, true)
                     .apply()
                 dismissWindowOverlay()
             }
@@ -2763,7 +2812,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
      */
     private fun handlePowerMenuIntercepted() {
         // Show the block overlay straight away — user sees "Power Menu" blocked label
-        prefs.edit().putString("overlay_awaiting_pkg", "system.power_menu").apply()
+        prefs.edit().putString(PREF_OVERLAY_AWAITING_PKG, "system.power_menu").apply()
         launchBlockOverlay("system.power_menu")
 
         // Dismiss immediately (no artificial delay for the first BACK)
@@ -3482,7 +3531,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
      * Overnight windows are supported (startHour > endHour).
      */
     private fun isInGreyoutWindow(pkg: String): Boolean {
-        val json = prefs.getString("greyout_schedule", "[]") ?: "[]"
+        val json = prefs.getString(PREF_GREYOUT_SCHEDULE, "[]") ?: "[]"
         if (json == "[]" || json.isEmpty()) return false
         return try {
             val arr = org.json.JSONArray(json)
