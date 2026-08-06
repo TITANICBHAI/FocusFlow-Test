@@ -8,6 +8,16 @@ const PRIMARY_DB_NAME = 'focusday.db';
 const RECOVERY_DB_NAME = 'focusday_recovery.db';
 
 /**
+ * Increment this whenever a new migration is added to migrateSettings().
+ * Every saved blob is stamped with this version so future migrations can
+ * skip steps that have already been applied.
+ *
+ * Migration log:
+ *   0 → 1  dailyAllowancePackages: string[] → dailyAllowanceEntries: DailyAllowanceEntry[]
+ */
+const CURRENT_SCHEMA_VERSION = 1;
+
+/**
  * Single-flight guard: if a getDb() call is already in progress, all
  * concurrent callers await the same promise instead of each racing to
  * open their own copy of the database. Without this, multiple app
@@ -30,6 +40,7 @@ let _openingPromise: Promise<SQLite.SQLiteDatabase | null> | null = null;
 let _dbUnrecoverable = false;
 
 const DEFAULT_SETTINGS: AppSettings = {
+  schemaVersion: CURRENT_SCHEMA_VERSION,
   darkMode: Appearance.getColorScheme() === 'dark',
   defaultDuration: 60,
   defaultReminderOffsets: [-10, -5, 0],
@@ -451,6 +462,14 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
   await db.runAsync('CREATE INDEX IF NOT EXISTS idx_tasks_start_time ON tasks(start_time)');
   await db.runAsync('CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)');
   await db.runAsync('CREATE INDEX IF NOT EXISTS idx_tasks_status_end ON tasks(status, end_time)');
+
+  // ── focus_sessions indexes ────────────────────────────────────────────────
+  // task_id: WHERE task_id = ? (end/get session by task)
+  // started_at: WHERE started_at >= ? (today's focus minutes, all-time stats)
+  // is_active: WHERE is_active = 1 (get active session)
+  await db.runAsync('CREATE INDEX IF NOT EXISTS idx_focus_sessions_task_id ON focus_sessions(task_id)');
+  await db.runAsync('CREATE INDEX IF NOT EXISTS idx_focus_sessions_started_at ON focus_sessions(started_at)');
+  await db.runAsync('CREATE INDEX IF NOT EXISTS idx_focus_sessions_is_active ON focus_sessions(is_active)');
 }
 
 // ─── Tasks ────────────────────────────────────────────────────────────────────
@@ -649,6 +668,38 @@ function rowToTask(row: Record<string, unknown>): Task {
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 
+/**
+ * Applies every pending migration to a raw parsed settings blob and returns
+ * the result stamped with CURRENT_SCHEMA_VERSION.  Each `if (version < N)`
+ * block is idempotent and runs only once per blob — add future migrations here.
+ */
+function migrateSettings(
+  raw: Partial<AppSettings> & { dailyAllowancePackages?: string[] },
+): Partial<AppSettings> {
+  let version = raw.schemaVersion ?? 0;
+
+  // ── v0 → v1: dailyAllowancePackages: string[] → dailyAllowanceEntries ──────
+  if (version < 1) {
+    if (raw.dailyAllowancePackages && !raw.dailyAllowanceEntries) {
+      raw.dailyAllowanceEntries = raw.dailyAllowancePackages.map((pkg): DailyAllowanceEntry => ({
+        packageName: pkg,
+        mode: 'count',
+        countPerDay: 1,
+        budgetMinutes: 30,
+        intervalMinutes: 5,
+        intervalHours: 1,
+      }));
+    }
+    delete raw.dailyAllowancePackages;
+    version = 1;
+  }
+
+  // ── Add future migrations here (version < 2, version < 3, …) ──────────────
+
+  raw.schemaVersion = version;
+  return raw;
+}
+
 export async function dbGetSettings(): Promise<AppSettings> {
   return runWithDbOr('dbGetSettings', DEFAULT_SETTINGS, async (database) => {
     const row = await database.getFirstAsync<{ value: string }>(
@@ -656,20 +707,9 @@ export async function dbGetSettings(): Promise<AppSettings> {
     );
     if (!row) return DEFAULT_SETTINGS;
     try {
-      const parsed = JSON.parse(row.value) as Partial<AppSettings> & { dailyAllowancePackages?: string[] };
-      // Migrate old dailyAllowancePackages: string[] → dailyAllowanceEntries: DailyAllowanceEntry[]
-      if (parsed.dailyAllowancePackages && !parsed.dailyAllowanceEntries) {
-        parsed.dailyAllowanceEntries = parsed.dailyAllowancePackages.map((pkg): DailyAllowanceEntry => ({
-          packageName: pkg,
-          mode: 'count',
-          countPerDay: 1,
-          budgetMinutes: 30,
-          intervalMinutes: 5,
-          intervalHours: 1,
-        }));
-        delete parsed.dailyAllowancePackages;
-      }
-      return { ...DEFAULT_SETTINGS, ...parsed };
+      const raw = JSON.parse(row.value) as Partial<AppSettings> & { dailyAllowancePackages?: string[] };
+      const migrated = migrateSettings(raw);
+      return { ...DEFAULT_SETTINGS, ...migrated };
     } catch {
       return DEFAULT_SETTINGS;
     }
@@ -677,9 +717,12 @@ export async function dbGetSettings(): Promise<AppSettings> {
 }
 
 export async function dbSaveSettings(settings: AppSettings): Promise<void> {
+  const stamped = settings.schemaVersion === CURRENT_SCHEMA_VERSION
+    ? settings
+    : { ...settings, schemaVersion: CURRENT_SCHEMA_VERSION };
   return runWithDb('dbSaveSettings', (database) => database.runAsync(
     `INSERT OR REPLACE INTO settings (key, value) VALUES ('app_settings', ?)`,
-    [JSON.stringify(settings)],
+    [JSON.stringify(stamped)],
   ).then(() => undefined));
 }
 

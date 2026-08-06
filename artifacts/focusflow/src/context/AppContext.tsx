@@ -56,7 +56,7 @@ import {
   stopFocusMode as _stopFocusMode,
   isFocusActive,
 } from '@/services/focusService';
-import { SharedPrefsModule } from '@/native-modules/SharedPrefsModule';
+import { SharedPrefsModule, SP_KEYS } from '@/native-modules/SharedPrefsModule';
 import { ForegroundServiceModule } from '@/native-modules/ForegroundServiceModule';
 import { TaskAlarmModule } from '@/native-modules/TaskAlarmModule';
 import { EventBridge } from '@/services/eventBridge';
@@ -480,7 +480,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       let restoredFromSp = false;
       if (!rawSettings.privacyAccepted) {
         try {
-          const spValue = await SharedPrefsModule.getString('privacy_accepted');
+          const spValue = await SharedPrefsModule.getString(SP_KEYS.PRIVACY_ACCEPTED);
           if (spValue === 'true') {
             void logger.info('AppContext', 'privacyAccepted restored from SharedPreferences backup');
             settings = { ...settings, privacyAccepted: true };
@@ -492,7 +492,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       if (!rawSettings.onboardingComplete) {
         try {
-          const spValue = await SharedPrefsModule.getString('onboarding_complete');
+          const spValue = await SharedPrefsModule.getString(SP_KEYS.ONBOARDING_COMPLETE);
           if (spValue === 'true') {
             void logger.info('AppContext', 'onboardingComplete restored from SharedPreferences backup');
             settings = { ...settings, onboardingComplete: true };
@@ -970,9 +970,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         await SharedPrefsModule.setActiveTaskColor(active.color ?? '');
         await SharedPrefsModule.setActiveTaskStartMs(active.id, startMs);
         // Clear awaiting-decision and next-upcoming so they don't bleed through
-        await SharedPrefsModule.putString('task_awaiting_decision', '');
-        await SharedPrefsModule.putString('next_upcoming_name', '');
-        await SharedPrefsModule.putString('next_upcoming_start_ms', '0');
+        await SharedPrefsModule.putString(SP_KEYS.TASK_AWAITING_DECISION, '');
+        await SharedPrefsModule.putString(SP_KEYS.NEXT_UPCOMING_NAME, '');
+        await SharedPrefsModule.putString(SP_KEYS.NEXT_UPCOMING_START_MS, '0');
       } else if (awaiting) {
         // ── State 2: task ended, user hasn't resolved it yet ─────────────────
         // Keep task_name / task_end_ms in SharedPrefs so the widget can show
@@ -982,26 +982,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         await SharedPrefsModule.setActiveTask(awaiting.id, awaiting.title, endMs, null);
         await SharedPrefsModule.setActiveTaskColor(awaiting.color ?? '');
         await SharedPrefsModule.setActiveTaskStartMs(awaiting.id, startMs);
-        await SharedPrefsModule.putString('task_awaiting_decision', 'true');
-        await SharedPrefsModule.putString('next_upcoming_name', '');
-        await SharedPrefsModule.putString('next_upcoming_start_ms', '0');
+        await SharedPrefsModule.putString(SP_KEYS.TASK_AWAITING_DECISION, 'true');
+        await SharedPrefsModule.putString(SP_KEYS.NEXT_UPCOMING_NAME, '');
+        await SharedPrefsModule.putString(SP_KEYS.NEXT_UPCOMING_START_MS, '0');
         await SharedPrefsModule.pushWidgetUpdate();
       } else {
         // ── State 3 / 4 / 5: idle ────────────────────────────────────────────
         await SharedPrefsModule.clearActiveTask();
-        await SharedPrefsModule.putString('task_awaiting_decision', '');
+        await SharedPrefsModule.putString(SP_KEYS.TASK_AWAITING_DECISION, '');
 
         // Show the next upcoming task in the widget if one exists today
         const upcoming = getUpcomingTask(s.tasks);
         if (upcoming) {
-          await SharedPrefsModule.putString('next_upcoming_name', upcoming.title);
+          await SharedPrefsModule.putString(SP_KEYS.NEXT_UPCOMING_NAME, upcoming.title);
           await SharedPrefsModule.putString(
-            'next_upcoming_start_ms',
+            SP_KEYS.NEXT_UPCOMING_START_MS,
             String(new Date(upcoming.startTime).getTime()),
           );
         } else {
-          await SharedPrefsModule.putString('next_upcoming_name', '');
-          await SharedPrefsModule.putString('next_upcoming_start_ms', '0');
+          await SharedPrefsModule.putString(SP_KEYS.NEXT_UPCOMING_NAME, '');
+          await SharedPrefsModule.putString(SP_KEYS.NEXT_UPCOMING_START_MS, '0');
         }
         // Standalone-block state may still be active — push so the widget
         // re-renders to the standalone or idle state immediately.
@@ -1589,9 +1589,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const prevSettings = stateRef.current.settings;
     dispatch({ type: 'SET_SETTINGS', payload: settings });
     try {
-      await dbSaveSettings(settings);
-      // Run all native syncs concurrently — they are independent of each other.
+      // DB save and all native SP syncs run concurrently — they are independent
+      // of each other. Running them in a single Promise.all closes the kill-window
+      // that existed when DB was awaited first: if the app was killed between the
+      // DB write and the SP syncs, the AccessibilityService would keep enforcing
+      // stale enforcement config until the next cold start re-sync.
+      // Rollback fires when dbSaveSettings throws; SP sync failures are swallowed
+      // by callNative and logged, which is acceptable (cold start re-syncs SP from DB).
       await Promise.all([
+        dbSaveSettings(settings),
         state.focusSession !== null
           ? SharedPrefsModule.setAllowedPackages(
               settings.allowedInFocus.filter((p) => p.includes('.')),
@@ -1601,10 +1607,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         _syncDailyAllowance(settings),
         _syncAlwaysBlock(settings),
         _syncAversions(settings),
-        // Bug fix: _syncBlockedWords was missing here — backup restores and any
-        // other bulk updateSettings call would save blocked words to SQLite but
-        // never push them to SharedPrefs, so the AccessibilityService kept
-        // enforcing the old keyword list until the next dedicated setBlockedWords call.
         _syncBlockedWords(settings),
         GreyoutModule.setSchedule(_recurringSchedulesToGreyoutWindows(settings)).catch((e) =>
           void logger.warn('AppContext', `greyout sync failed: ${String(e)}`),
@@ -1632,9 +1634,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ...state.settings,
       dailyAllowanceEntries: entries,
     };
-    try { await dbSaveSettings(newSettings); } catch (e) { void logger.warn('AppContext', `setDailyAllowanceEntries: dbSaveSettings non-fatal: ${String(e)}`); }
-    dispatch({ type: 'SET_SETTINGS', payload: newSettings });
-    await SharedPrefsModule.setDailyAllowanceConfig(entries);
     // Enable always-on enforcement whenever allowance entries are configured.
     // Must use alwaysOnPackages (the 24/7 block list), NOT standaloneBlockPackages
     // (the timed-session list), so that saving daily allowance entries does not
@@ -1643,7 +1642,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const alwaysOnPkgs = newSettings.alwaysOnPackages ?? [];
     const enforcementOn = newSettings.alwaysOnEnforcementEnabled !== false;
     const alwaysActive = enforcementOn && (alwaysOnPkgs.length > 0 || entries.length > 0);
-    await SharedPrefsModule.setAlwaysBlockActive(alwaysActive, alwaysOnPkgs).catch(() => {});
+    const prevSettings = stateRef.current.settings;
+    dispatch({ type: 'SET_SETTINGS', payload: newSettings });
+    try {
+      await Promise.all([
+        dbSaveSettings(newSettings),
+        SharedPrefsModule.setDailyAllowanceConfig(entries),
+        SharedPrefsModule.setAlwaysBlockActive(alwaysActive, alwaysOnPkgs).catch(() => {}),
+      ]);
+    } catch (e) {
+      dispatch({ type: 'SET_SETTINGS', payload: prevSettings });
+      void logger.warn('AppContext', `setDailyAllowanceEntries: failed: ${String(e)}`);
+    }
   }, [state.settings]);
 
   const setBlockedWords = useCallback(async (words: string[]) => {
@@ -1651,9 +1661,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ...state.settings,
       blockedWords: words,
     };
-    try { await dbSaveSettings(newSettings); } catch (e) { void logger.warn('AppContext', `setBlockedWords: dbSaveSettings non-fatal: ${String(e)}`); }
+    const prevSettings = stateRef.current.settings;
     dispatch({ type: 'SET_SETTINGS', payload: newSettings });
-    await SharedPrefsModule.setBlockedWords(words);
+    try {
+      await Promise.all([
+        dbSaveSettings(newSettings),
+        SharedPrefsModule.setBlockedWords(words),
+      ]);
+    } catch (e) {
+      dispatch({ type: 'SET_SETTINGS', payload: prevSettings });
+      void logger.warn('AppContext', `setBlockedWords: failed: ${String(e)}`);
+    }
   }, [state.settings]);
 
   const setRecurringBlockSchedules = useCallback(async (schedules: RecurringBlockSchedule[]) => {
@@ -1661,13 +1679,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ...state.settings,
       recurringBlockSchedules: schedules,
     };
-    try { await dbSaveSettings(newSettings); } catch (e) { void logger.warn('AppContext', `setRecurringBlockSchedules: dbSaveSettings non-fatal: ${String(e)}`); }
+    const prevSettings = stateRef.current.settings;
     dispatch({ type: 'SET_SETTINGS', payload: newSettings });
     // Sync combined greyout windows (user windows + recurring schedule windows)
     const combined = _recurringSchedulesToGreyoutWindows(newSettings);
-    await GreyoutModule.setSchedule(combined).catch((e) =>
-      void logger.warn('AppContext', `greyout sync (recurring) failed: ${String(e)}`),
-    );
+    try {
+      await Promise.all([
+        dbSaveSettings(newSettings),
+        GreyoutModule.setSchedule(combined).catch((e) =>
+          void logger.warn('AppContext', `greyout sync (recurring) failed: ${String(e)}`),
+        ),
+      ]);
+    } catch (e) {
+      dispatch({ type: 'SET_SETTINGS', payload: prevSettings });
+      void logger.warn('AppContext', `setRecurringBlockSchedules: failed: ${String(e)}`);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.settings]);
 
@@ -1696,15 +1722,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       standaloneBlockUntil: untilIso,
       alwaysOnPackages,
     };
-    try { await dbSaveSettings(newSettings); } catch (e) { void logger.warn('AppContext', `setStandaloneBlock: dbSaveSettings non-fatal: ${String(e)}`); }
+    const prevSettings = stateRef.current.settings;
     dispatch({ type: 'SET_SETTINGS', payload: newSettings });
     const active = packages.length > 0 && untilMs !== null && untilMs > Date.now();
-    await SharedPrefsModule.setStandaloneBlock(active, packages, untilMs ?? 0, pinHash);
     // Sync always-on enforcement using the dedicated alwaysOnPackages list
     const allowanceEntries = newSettings.dailyAllowanceEntries ?? [];
     const alwaysOnActive = (newSettings.alwaysOnEnforcementEnabled !== false) &&
       ((newSettings.alwaysOnPackages ?? []).length > 0 || allowanceEntries.length > 0);
-    await SharedPrefsModule.setAlwaysBlockActive(alwaysOnActive, newSettings.alwaysOnPackages ?? []).catch(() => {});
+    try {
+      await Promise.all([
+        dbSaveSettings(newSettings),
+        SharedPrefsModule.setStandaloneBlock(active, packages, untilMs ?? 0, pinHash),
+        SharedPrefsModule.setAlwaysBlockActive(alwaysOnActive, newSettings.alwaysOnPackages ?? []).catch(() => {}),
+      ]);
+    } catch (e) {
+      dispatch({ type: 'SET_SETTINGS', payload: prevSettings });
+      void logger.warn('AppContext', `setStandaloneBlock: failed: ${String(e)}`);
+      throw e;
+    }
     // Schedule or cancel the expiry warning notification
     if (active && untilMs) {
       void scheduleStandaloneBlockExpiry(untilMs, packages.length).catch(() => {});

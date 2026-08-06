@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { InstalledAppsModule, InstalledApp } from '@/native-modules/InstalledAppsModule';
-import { SharedPrefsModule } from '@/native-modules/SharedPrefsModule';
+import { SharedPrefsModule, SP_KEYS } from '@/native-modules/SharedPrefsModule';
 import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
 import { useTheme } from '@/hooks/useTheme';
 import type { DailyAllowanceEntry, AllowanceMode } from '@/data/types';
@@ -106,7 +106,7 @@ export function DailyAllowanceModal({
         .finally(() => setLoading(false));
     }
     // Load live usage data so we can show remaining time/opens per app
-    SharedPrefsModule.getString('daily_allowance_used')
+    SharedPrefsModule.getString(SP_KEYS.DAILY_ALLOWANCE_USED)
       .then((raw) => {
         if (!raw) return;
         try {
@@ -171,7 +171,7 @@ export function DailyAllowanceModal({
         action();
         return;
       }
-      SharedPrefsModule.getString('defense_pin_hash')
+      SharedPrefsModule.getString(SP_KEYS.DEFENSE_PIN_HASH)
         .then((hash) => {
           if (!hash) {
             action();

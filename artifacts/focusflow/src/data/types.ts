@@ -288,6 +288,17 @@ export interface AppSettings {
    * to commit or drop the preset. Cleared per-category once applied/dismissed.
    */
   pendingPresets?: PendingPresets;
+
+  /**
+   * Monotonically increasing integer that tracks which migrations have been
+   * applied to this settings blob.  Absent on blobs written before versioning
+   * was introduced (treated as version 0 during read).  Always written at the
+   * CURRENT_SCHEMA_VERSION when the blob is saved.
+   *
+   * Migration log:
+   *   0 → 1  dailyAllowancePackages: string[] → dailyAllowanceEntries: DailyAllowanceEntry[]
+   */
+  schemaVersion?: number;
 }
 
 /**

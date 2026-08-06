@@ -34,6 +34,28 @@ async function callNative<T>(methodName: string, fn: () => Promise<T>): Promise<
 
 export const isSharedPrefsAvailable = Platform.OS === 'android' && SharedPrefs != null;
 
+/**
+ * Typed constants for every raw SharedPreferences key used from JS.
+ * Import this instead of writing string literals so a key rename is
+ * caught by the compiler rather than silently broken at runtime.
+ */
+export const SP_KEYS = {
+  // One-time flags (backed up from SQLite)
+  PRIVACY_ACCEPTED:       'privacy_accepted',
+  ONBOARDING_COMPLETE:    'onboarding_complete',
+  // Defense PIN (JS-only verification; distinct from focus-session PIN)
+  DEFENSE_PIN_HASH:       'defense_pin_hash',
+  // Widget / task state
+  TASK_AWAITING_DECISION: 'task_awaiting_decision',
+  NEXT_UPCOMING_NAME:     'next_upcoming_name',
+  NEXT_UPCOMING_START_MS: 'next_upcoming_start_ms',
+  // Daily allowance runtime usage
+  DAILY_ALLOWANCE_USED:   'daily_allowance_used',
+  // Block overlay appearance
+  BLOCK_OVERLAY_QUOTES:   'block_overlay_quotes',
+  BLOCK_OVERLAY_WALLPAPER:'block_overlay_wallpaper',
+} as const;
+
 function hasSharedPrefsMethod(name: string): boolean {
   return !!SharedPrefs && typeof SharedPrefs[name] === 'function';
 }

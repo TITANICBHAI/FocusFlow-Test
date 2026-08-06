@@ -219,7 +219,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
     @ReactMethod
     fun setStandaloneBlock(active: Boolean, packages: ReadableArray, untilMs: Double, pinHash: String?, promise: Promise) {
         if (!active) {
-            val currentUntil = prefs().getLong("standalone_block_until_ms", 0L)
+            val currentUntil = prefs().getLong(AppBlockerAccessibilityService.PREF_SA_UNTIL, 0L)
             if (currentUntil > System.currentTimeMillis()) {
                 // User is cancelling an active (not-yet-expired) standalone session — require PIN.
                 val storedHash = prefs().getString(
@@ -237,9 +237,9 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
         val list = (0 until packages.size()).map { "\"${packages.getString(it)}\"" }
         val json = "[${list.joinToString(",")}]"
         prefs().edit()
-            .putBoolean("standalone_block_active", active)
-            .putString("standalone_blocked_packages", json)
-            .putLong("standalone_block_until_ms", untilMs.toLong())
+            .putBoolean(AppBlockerAccessibilityService.PREF_SA_ACTIVE, active)
+            .putString(AppBlockerAccessibilityService.PREF_SA_PKGS, json)
+            .putLong(AppBlockerAccessibilityService.PREF_SA_UNTIL, untilMs.toLong())
             .apply()
         // Standalone block changes are independent of focus mode, so the widget
         // needs an explicit nudge to re-read prefs and switch render mode.
@@ -491,7 +491,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
      */
     @ReactMethod
     fun setLauncherHiddenPackages(packagesJson: String, promise: Promise) {
-        prefs().edit().putString("launcher_hidden_packages", packagesJson).apply()
+        prefs().edit().putString(AppBlockerAccessibilityService.PREF_LAUNCHER_HIDDEN_PKGS, packagesJson).apply()
         promise.resolve(null)
     }
 
@@ -503,7 +503,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
      */
     @ReactMethod
     fun setLauncherLockDuringStandalone(enabled: Boolean, promise: Promise) {
-        prefs().edit().putBoolean("launcher_lock_during_standalone", enabled).apply()
+        prefs().edit().putBoolean(AppBlockerAccessibilityService.PREF_LAUNCHER_LOCK_DURING_SA, enabled).apply()
         promise.resolve(null)
     }
 
@@ -515,7 +515,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
      */
     @ReactMethod
     fun setLauncherBlockUninstall(enabled: Boolean, promise: Promise) {
-        prefs().edit().putBoolean("launcher_block_uninstall", enabled).apply()
+        prefs().edit().putBoolean(AppBlockerAccessibilityService.PREF_LAUNCHER_BLOCK_UNINSTALL, enabled).apply()
         promise.resolve(null)
     }
 
@@ -568,9 +568,9 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
 
             // Standalone block
             obj.put("standaloneBlockPackages",
-                p.getString("standalone_blocked_packages", "[]") ?: "[]")
+                p.getString(AppBlockerAccessibilityService.PREF_SA_PKGS, "[]") ?: "[]")
             obj.put("standaloneBlockUntilMs",
-                p.getLong("standalone_block_until_ms", 0L))
+                p.getLong(AppBlockerAccessibilityService.PREF_SA_UNTIL, 0L))
 
             // Always-on enforcement
             obj.put("alwaysOnEnforcementEnabled",
@@ -604,11 +604,11 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
 
             // Launcher settings
             obj.put("launcherBlockUninstall",
-                p.getBoolean("launcher_block_uninstall", false))
+                p.getBoolean(AppBlockerAccessibilityService.PREF_LAUNCHER_BLOCK_UNINSTALL, false))
             obj.put("launcherLockDuringStandalone",
-                p.getBoolean("launcher_lock_during_standalone", true))
+                p.getBoolean(AppBlockerAccessibilityService.PREF_LAUNCHER_LOCK_DURING_SA, true))
             obj.put("launcherHiddenPackages",
-                p.getString("launcher_hidden_packages", "[]") ?: "[]")
+                p.getString(AppBlockerAccessibilityService.PREF_LAUNCHER_HIDDEN_PKGS, "[]") ?: "[]")
             obj.put("launcherDockPackages",
                 p.getString("launcher_dock_packages", "[]") ?: "[]")
             obj.put("launcherClockStyle",
