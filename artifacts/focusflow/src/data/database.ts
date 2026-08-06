@@ -474,6 +474,19 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
 
 // ─── Tasks ────────────────────────────────────────────────────────────────────
 
+/**
+ * Returns every task row, ordered by start_time ascending.
+ *
+ * **Backup / export use only.** This query is intentionally unbounded because
+ * backup callers need the complete dataset. Do not call this from the UI or
+ * Stats screens — use `dbGetTasksForDate` or `dbGetTasksInDateRange` instead,
+ * which are scoped by date and safe to call on large datasets.
+ *
+ * Pruning note: completed/skipped tasks are pruned at 365 days; 'scheduled'
+ * tasks are never pruned, so this result set can grow without bound on
+ * long-running installs. If memory pressure becomes a concern for very large
+ * exports, convert to a paginated batch approach using LIMIT/OFFSET.
+ */
 export async function dbGetAllTasks(): Promise<Task[]> {
   return runWithDbOr('dbGetAllTasks', [], async (database) => {
     const rows = await database.getAllAsync<Record<string, unknown>>('SELECT * FROM tasks ORDER BY start_time ASC');

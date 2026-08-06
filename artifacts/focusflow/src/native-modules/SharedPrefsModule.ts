@@ -56,6 +56,21 @@ export const SP_KEYS = {
   BLOCK_OVERLAY_WALLPAPER:'block_overlay_wallpaper',
 } as const;
 
+/**
+ * Union of all valid SharedPreferences string keys used from JS.
+ *
+ * `SPKey`       — values from the SP_KEYS constant above.
+ * `PinReuseKey` — dynamic keys written by pinReuseTracker (template literal,
+ *                 fully enumerable: 4 possible strings).
+ *
+ * `putString` and `getString` accept only `ValidSPKey` so that typos or
+ * untracked keys produce a compile-time error. To add a new key: add it to
+ * SP_KEYS above (preferred) or extend PinReuseKey if it must stay dynamic.
+ */
+export type SPKey = typeof SP_KEYS[keyof typeof SP_KEYS];
+export type PinReuseKey = `pin_reuse_${'count' | 'date'}_${'focus' | 'alwayson'}`;
+export type ValidSPKey = SPKey | PinReuseKey;
+
 function hasSharedPrefsMethod(name: string): boolean {
   return !!SharedPrefs && typeof SharedPrefs[name] === 'function';
 }
@@ -261,7 +276,12 @@ export const SharedPrefsModule = {
     return Boolean(result ?? false);
   },
 
-  async putString(key: string, value: string): Promise<void> {
+  /**
+   * Writes a string value to SharedPreferences.
+   * Only keys in `ValidSPKey` are accepted — add new keys to SP_KEYS (or
+   * PinReuseKey for dynamic pin-reuse keys) before calling this.
+   */
+  async putString(key: ValidSPKey, value: string): Promise<void> {
     if (!hasSharedPrefsMethod('putString')) return;
     await callNative('putString', () => SharedPrefs.putString(key, value));
   },
@@ -272,7 +292,7 @@ export const SharedPrefsModule = {
    * Used by AppContext to cross-check critical flags (e.g. privacy_accepted)
    * that are backed up in SharedPreferences in case the SQLite DB is wiped.
    */
-  async getString(key: string): Promise<string | null> {
+  async getString(key: ValidSPKey): Promise<string | null> {
     if (!hasSharedPrefsMethod('getString')) return null;
     const result = await callNative('getString', () => SharedPrefs.getString(key) as Promise<string | null>);
     return result ?? null;

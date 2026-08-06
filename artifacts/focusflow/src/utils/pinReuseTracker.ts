@@ -12,14 +12,16 @@
  *   pin_reuse_date_alwayson    — ISO date count was last updated
  */
 
-import { SharedPrefsModule } from '@/native-modules/SharedPrefsModule';
+import { SharedPrefsModule, PinReuseKey } from '@/native-modules/SharedPrefsModule';
 
 export const MAX_DAILY_REUSES = 3;
 
 export type ReuseTrackerKey = 'focus' | 'alwayson';
 
-function countKey(k: ReuseTrackerKey) { return `pin_reuse_count_${k}`; }
-function dateKey(k: ReuseTrackerKey)  { return `pin_reuse_date_${k}`; }
+// Explicit return types ensure TypeScript narrows these to PinReuseKey (a
+// ValidSPKey) rather than plain `string`, satisfying putString/getString.
+function countKey(k: ReuseTrackerKey): PinReuseKey { return `pin_reuse_count_${k}`; }
+function dateKey(k: ReuseTrackerKey): PinReuseKey  { return `pin_reuse_date_${k}`; }
 
 function todayISO(): string {
   const d = new Date();

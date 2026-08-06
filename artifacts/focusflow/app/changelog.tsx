@@ -23,6 +23,8 @@ const CHANGELOG: Entry[] = [
         items: [
           'SharedPreferences key constants — all Android-side SP key strings are now shared constants between the module that writes them and the AccessibilityService that reads them; a key rename can no longer silently diverge the write and read paths',
           'Typed JS key constants (SP_KEYS) — every raw string key passed to putString/getString is now a typed constant; typos produce a compile-time error instead of silently reading the wrong preference at runtime',
+          'putString / getString compile-time key enforcement — both bridge methods now accept only ValidSPKey values (the SP_KEYS union plus the four pin-reuse tracker keys); passing an arbitrary string literal is a type error, so untracked keys are caught at build time rather than silently reading or writing the wrong preference at runtime',
+          'dbGetAllTasks scoped to backup/export — the function is now documented as intentionally unbounded and restricted to backup callers; all UI and Stats paths use the date-scoped dbGetTasksForDate or dbGetTasksInDateRange so they are never exposed to an unbounded task scan',
           'Settings schema versioning — the settings blob now carries a schemaVersion field; future migrations apply in numbered order (v0→v1, v1→v2, …) instead of accumulating as ad-hoc inline checks; existing installs are stamped on their next save',
           'focus_sessions indexes — three new SQLite indexes on task_id, started_at, and is_active; queries for today\'s focus minutes, active session lookup, and session-end by task are now index-scanned instead of full-table',
         ],
