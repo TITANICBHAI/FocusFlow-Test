@@ -17,14 +17,10 @@ import { NativeEventEmitter, NativeModules, Platform, EmitterSubscription } from
 
 export type NativeEventType =
   | 'TASK_ENDED'        // foreground service: task timer reached zero
-  | 'TASK_TICK'         // foreground service: every 30s update
   | 'APP_BLOCKED'       // app blocker: forbidden app was detected
-  | 'FOCUS_START'       // native side started focus mode
-  | 'FOCUS_STOP'        // native side stopped focus mode
-  | 'SERVICE_RESTART'   // foreground service restarted after being killed
-  | 'BOOT_COMPLETED'    // device rebooted, schedule needs restoring
-  | 'PERMISSION_RESULT' // user responded to a permission prompt
-  | 'BATTERY_LOW'       // battery optimization is blocking the service
+  | 'FOCUS_STARTED'     // native side started focus mode
+  | 'FOCUS_ENDED'       // native side stopped focus mode
+  | 'FOCUS_VIOLATION'   // app blocker: forbidden app was detected during focus
   | 'NOTIF_ACTION';     // user tapped an action button on the foreground notification
 
 export interface NativeEvent {

@@ -214,9 +214,9 @@ class BlockOverlayActivity : Activity() {
         // packageName is too broad — any activity inside com.tbtechs.focusflow
         // (including deeplinks or future custom tabs) would bypass the overlay.
         // We instead check the specific class name of the current foreground window
-        // as written by AppBlockerAccessibilityService into "current_foreground_cls".
-        val currentFg = prefs.getString("current_foreground_pkg", "") ?: ""
-        val currentCls = prefs.getString("current_foreground_cls", "") ?: ""
+        // as written by AppBlockerAccessibilityService into PREF_CURRENT_FG_CLS.
+        val currentFg = prefs.getString(AppBlockerAccessibilityService.PREF_CURRENT_FG_PKG, "") ?: ""
+        val currentCls = prefs.getString(AppBlockerAccessibilityService.PREF_CURRENT_FG_CLS, "") ?: ""
         val isTrustedFocusFlowScreen = currentFg == packageName &&
             TRUSTED_FOCUSFLOW_CLASSES.any { trusted -> currentCls.endsWith(trusted, ignoreCase = true) }
         if (isTrustedFocusFlowScreen) return
@@ -224,8 +224,8 @@ class BlockOverlayActivity : Activity() {
         handler.postDelayed({
             if (!isFinishing && !isDestroyed && !intentionalFinish) {
                 // Re-check: still don't re-raise if a trusted FocusFlow screen is foreground.
-                val fg  = prefs.getString("current_foreground_pkg", "") ?: ""
-                val cls = prefs.getString("current_foreground_cls", "") ?: ""
+                val fg  = prefs.getString(AppBlockerAccessibilityService.PREF_CURRENT_FG_PKG, "") ?: ""
+                val cls = prefs.getString(AppBlockerAccessibilityService.PREF_CURRENT_FG_CLS, "") ?: ""
                 val trusted = fg == packageName &&
                     TRUSTED_FOCUSFLOW_CLASSES.any { cls.endsWith(it, ignoreCase = true) }
                 if (trusted) return@postDelayed
@@ -476,7 +476,7 @@ class BlockOverlayActivity : Activity() {
             .putBoolean(PREF_OVERLAY_X_READY, false)
             // Tell the accessibility service to reset its cooldown so the next
             // open of the same blocked app is caught immediately (no 2 s gap).
-            .putBoolean("block_cooldown_reset", true)
+            .putBoolean(AppBlockerAccessibilityService.PREF_BLOCK_COOLDOWN_RESET, true)
             .apply()
         finish()
     }

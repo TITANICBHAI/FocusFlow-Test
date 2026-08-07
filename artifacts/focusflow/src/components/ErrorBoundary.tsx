@@ -1,61 +1,82 @@
-import React, { Component, ComponentType, PropsWithChildren } from "react";
-import { logger } from "@/services/startupLogger";
+import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Alert, View, Text, StyleSheet, Button } from 'react-native';
 
-import { ErrorFallback, ErrorFallbackProps } from "./ErrorFallback";
+interface Props {
+  children: ReactNode;
+  fallback?: ReactNode;
+}
 
-export type ErrorBoundaryProps = PropsWithChildren<{
-  FallbackComponent?: ComponentType<ErrorFallbackProps>;
-  onError?: (error: Error, stackTrace: string) => void;
-  screenName?: string;
-}>;
+interface State {
+  hasError: boolean;
+  error: Error | null;
+}
 
-type ErrorBoundaryState = { error: Error | null };
-
-/**
- * This is a special case for for using the class components. Error boundaries must be class components because React only provides error boundary functionality through lifecycle methods (componentDidCatch and getDerivedStateFromError) which are not available in functional components.
- * https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary
- */
-export class ErrorBoundary extends Component<
-  ErrorBoundaryProps,
-  ErrorBoundaryState
-> {
-  state: ErrorBoundaryState = { error: null };
-
-  static defaultProps: {
-    FallbackComponent: ComponentType<ErrorFallbackProps>;
-  } = {
-    FallbackComponent: ErrorFallback,
-  };
-
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { error };
+export class ErrorBoundary extends Component<Props, State> {
+  constructor(props: Props) {
+    super(props);
+    this.state = { hasError: false, error: null };
   }
 
-  componentDidCatch(error: Error, info: { componentStack: string }): void {
-    const screen = this.props.screenName ?? "unknown";
-    void logger.error(
-      `ErrorBoundary[${screen}]`,
-      `${error.message}\n${info.componentStack}`
-    );
-    if (typeof this.props.onError === "function") {
-      this.props.onError(error, info.componentStack);
-    }
+  static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, error };
   }
 
-  resetError = (): void => {
-    this.setState({ error: null });
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // Could send to error reporting service here
+  }
+
+  handleRetry = () => {
+    this.setState({ hasError: false, error: null });
   };
 
   render() {
-    const { FallbackComponent } = this.props;
+    if (this.state.hasError) {
+      if (this.props.fallback) {
+        return this.props.fallback;
+      }
+      return (
+        <View style={styles.container}>
+          <Text style={styles.title}>Something went wrong</Text>
+          <Text style={styles.message}>
+            The app encountered an unexpected error. Please restart the app.
+          </Text>
+          <Button title="Retry" onPress={this.handleRetry} />
+          {__DEV__ && this.state.error && (
+            <Text style={styles.errorDetails}>{this.state.error.toString()}</Text>
+          )}
+        </View>
+      );
+    }
 
-    return this.state.error && FallbackComponent ? (
-      <FallbackComponent
-        error={this.state.error}
-        resetError={this.resetError}
-      />
-    ) : (
-      this.props.children
-    );
+    return this.props.children;
   }
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#0C0C1A',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FF6B6B',
+    marginBottom: 12,
+  },
+  message: {
+    fontSize: 16,
+    color: '#E8E8F0',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  errorDetails: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+});

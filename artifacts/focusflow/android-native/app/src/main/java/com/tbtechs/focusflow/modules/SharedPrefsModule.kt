@@ -7,6 +7,7 @@ import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableArray
 import com.tbtechs.focusflow.services.AppBlockerAccessibilityService
 import com.tbtechs.focusflow.widget.FocusFlowWidget
+import com.tbtechs.focusflow.modules.FocusDayBridgeModule
 
 /**
  * SharedPrefsModule
@@ -60,6 +61,24 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
                     return
                 }
             }
+            // Emit FOCUS_ENDED broadcast
+            val intentEnded = Intent(FocusDayBridgeModule.ACTION_FOCUS_ENDED)
+            intentEnded.setPackage(reactContext.packageName)
+            reactContext.sendBroadcast(intentEnded)
+        } else {
+            // Emit FOCUS_STARTED broadcast when focus activates
+            val taskId = prefs().getString(AppBlockerAccessibilityService.PREF_TASK_ID, "")
+            val taskName = prefs().getString(AppBlockerAccessibilityService.PREF_TASK_NAME, "")
+            val allowedPackages = prefs().getString(AppBlockerAccessibilityService.PREF_ALLOWED_PKG, "[]")
+            val startedAt = System.currentTimeMillis().toString()
+            
+            val intentStarted = Intent(FocusDayBridgeModule.ACTION_FOCUS_STARTED)
+            intentStarted.setPackage(reactContext.packageName)
+            intentStarted.putExtra(FocusDayBridgeModule.EXTRA_TASK_ID, taskId)
+            intentStarted.putExtra(FocusDayBridgeModule.EXTRA_TASK_NAME, taskName)
+            intentStarted.putExtra(FocusDayBridgeModule.EXTRA_STARTED_AT, startedAt)
+            intentStarted.putExtra(FocusDayBridgeModule.EXTRA_ALLOWED_PACKAGES, allowedPackages)
+            reactContext.sendBroadcast(intentStarted)
         }
         prefs().edit().putBoolean(AppBlockerAccessibilityService.PREF_FOCUS_ON, active).apply()
         promise.resolve(null)

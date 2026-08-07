@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center"
+    android:padding="8dp">
+
+    <!-- Dock Card (Frosted Glass MaterialCardView) -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/dock_card"
+        android:layout_width="match_parent"
+        android:layout_height="90dp"
+        android:layout_gravity="center"
+        android:layout_margin="16dp"
+        app:cardBackgroundColor="?attr/colorSurfaceContainer"
+        app:cardCornerRadius="28dp"
+        app:cardElevation="4dp"
+        app:strokeWidth="1dp"
+        app:strokeColor="?attr/colorOutline"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="24dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:padding="4dp">
+
+            <!-- All Apps Chip (3x3 dots) -->
+            <com.google.android.material.chip.Chip
+                android:id="@+id/all_apps_chip"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="8dp"
+                android:layout_gravity="center_horizontal"
+                android:gravity="center_vertical"
+                android:text="All Apps"
+                android:textSize="13sp"
+                android:paddingStart="18dp"
+                android:paddingEnd="20dp"
+                app:chipBackgroundColor="?attr/colorSurfaceContainer"
+                app:chipStrokeWidth="1dp"
+                app:chipStrokeColor="?attr/colorOutline"
+                app:chipCornerRadius="22dp"
+                app:chipIcon="@drawable/ic_apps_grid"
+                app:chipIconSize="26dp"
+                app:iconStartPadding="0dp"
+                app:iconEndPadding="8dp" />
+
+            <!-- Focus Slot Chip (Dynamic) -->
+            <com.google.android.material.chip.Chip
+                android:id="@+id/focus_slot_chip"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="8dp"
+                android:gravity="center_vertical"
+                android:text="▶ Start Focus"
+                android:textSize="13sp"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                app:chipBackgroundColor="?attr/colorSurfaceVariant"
+                app:chipStrokeWidth="1dp"
+                app:chipStrokeColor="?attr/colorOutline"
+                app:chipCornerRadius="22dp" />
+
+            <!-- Pinned Apps Container (3 chips) -->
+            <LinearLayout
+                android:id="@+id/pinned_chips_container"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:padding="4dp" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</LinearLayout>

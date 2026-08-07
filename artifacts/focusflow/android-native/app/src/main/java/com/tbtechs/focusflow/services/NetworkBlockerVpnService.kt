@@ -55,8 +55,8 @@ import org.json.JSONArray
  *      or BlockOverlayActivity calls it when the user navigates back to FocusFlow.
  *
  * SharedPrefs keys consumed (read on start):
- *   net_block_mode          "per_app" | "global"
- *   net_block_packages      JSON array — packages to block (used in per_app mode)
+ *   PREF_NET_BLOCK_MODE      "per_app" | "global"
+ *   PREF_NET_BLOCK_PACKAGES  JSON array — packages to block (used in per_app mode)
  *
  * Static state:
  *   isRunning               Boolean — checked by AccessibilityService before starting
@@ -75,7 +75,7 @@ class NetworkBlockerVpnService : VpnService() {
 
         private const val CHANNEL_ID      = "focusday_vpn"
         private const val NOTIFICATION_ID = 1002
-        private const val PREFS_NAME      = "focusday_prefs"
+        private const val PREFS_NAME      = AppBlockerAccessibilityService.PREFS_NAME
 
         /** Separate high-importance channel for the VPN-revoked alert. */
         private const val ALERT_CHANNEL_ID     = "focusday_vpn_alert"
@@ -127,15 +127,15 @@ class NetworkBlockerVpnService : VpnService() {
             else -> {
                 // Restarted by OS — restore from prefs
                 val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                val focusActive = prefs.getBoolean("focus_active", false)
-                val saActive    = prefs.getBoolean("standalone_block_active", false)
-                val pkgs        = prefs.getString("net_block_packages", "[]") ?: "[]"
+                val focusActive = prefs.getBoolean(AppBlockerAccessibilityService.PREF_FOCUS_ON, false)
+                val saActive    = prefs.getBoolean(AppBlockerAccessibilityService.PREF_SA_ACTIVE, false)
+                val pkgs        = prefs.getString(AppBlockerAccessibilityService.PREF_NET_BLOCK_PACKAGES, "[]") ?: "[]"
                 // Also restore when always-on VPN packages are configured. net_block_packages
                 // is persisted by startVpn() on every successful tunnel start, so it survives
                 // process kills and device reboots and reflects the last active package list.
                 val hasAlwaysOnPkgs = try { JSONArray(pkgs).length() > 0 } catch (_: Exception) { false }
                 if (focusActive || saActive || hasAlwaysOnPkgs) {
-                    val mode = prefs.getString("net_block_mode", MODE_PER_APP) ?: MODE_PER_APP
+                    val mode = prefs.getString(AppBlockerAccessibilityService.PREF_NET_BLOCK_MODE, MODE_PER_APP) ?: MODE_PER_APP
                     startVpn(pkgs, mode)
                 } else {
                     stopSelf()
@@ -161,20 +161,20 @@ class NetworkBlockerVpnService : VpnService() {
      */
     override fun onRevoke() {
         val prefs     = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val selfHeal  = prefs.getBoolean("net_block_self_heal", false)
+        val selfHeal  = prefs.getBoolean(AppBlockerAccessibilityService.PREF_NET_BLOCK_SELF_HEAL, false)
 
         val now = System.currentTimeMillis()
-        val focusOn = prefs.getBoolean("focus_active", false).let { on ->
+        val focusOn = prefs.getBoolean(AppBlockerAccessibilityService.PREF_FOCUS_ON, false).let { on ->
             if (!on) false
             else {
-                val endMs = prefs.getLong("task_end_ms", 0L)
+                val endMs = prefs.getLong(AppBlockerAccessibilityService.PREF_TASK_END_MS, 0L)
                 endMs <= 0L || now < endMs
             }
         }
-        val saOn = prefs.getBoolean("standalone_block_active", false).let { on ->
+        val saOn = prefs.getBoolean(AppBlockerAccessibilityService.PREF_SA_ACTIVE, false).let { on ->
             if (!on) false
             else {
-                val untilMs = prefs.getLong("standalone_block_until_ms", 0L)
+                val untilMs = prefs.getLong(AppBlockerAccessibilityService.PREF_SA_UNTIL, 0L)
                 untilMs <= 0L || now < untilMs
             }
         }
@@ -183,7 +183,7 @@ class NetworkBlockerVpnService : VpnService() {
 
         // Determine whether always-on packages are configured. Computed here so both
         // the permission-lost flag and the self-heal block can use the same value.
-        val revokePkgs      = prefs.getString("net_block_packages", "[]") ?: "[]"
+        val revokePkgs      = prefs.getString(AppBlockerAccessibilityService.PREF_NET_BLOCK_PACKAGES, "[]") ?: "[]"
         val hasAlwaysOnPkgs = try { JSONArray(revokePkgs).length() > 0 } catch (_: Exception) { false }
 
         // Signal to the JS layer that VPN permission was lost so the in-app banner
@@ -191,14 +191,14 @@ class NetworkBlockerVpnService : VpnService() {
         // alerted even when the app is backgrounded or the screen is off.
         // The flag is cleared by startVpn() on a successful subsequent restart.
         if (focusOn || saOn || hasAlwaysOnPkgs) {
-            prefs.edit().putBoolean("vpn_permission_lost", true).apply()
+            prefs.edit().putBoolean(AppBlockerAccessibilityService.PREF_VPN_PERMISSION_LOST, true).apply()
             postVpnRevokedNotification()
         }
 
         if (selfHeal && (focusOn || saOn || hasAlwaysOnPkgs)) {
             val ctx  = applicationContext
             val pkgs = revokePkgs
-            val mode = prefs.getString("net_block_mode", MODE_PER_APP) ?: MODE_PER_APP
+            val mode = prefs.getString(AppBlockerAccessibilityService.PREF_NET_BLOCK_MODE, MODE_PER_APP) ?: MODE_PER_APP
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
                     val restartIntent = Intent(ctx, NetworkBlockerVpnService::class.java).apply {
@@ -226,7 +226,7 @@ class NetworkBlockerVpnService : VpnService() {
         super.onDestroy()
     }
 
-    // ─── VPN establishment ────────────────────────────────────────────────────
+    // ─── VPN establishment ─────────────────────────────────────────────────────
 
     /**
      * Establishes a null-routing VPN tunnel.
@@ -288,9 +288,9 @@ class NetworkBlockerVpnService : VpnService() {
                 // Persist mode and packages so we can restore after an OS restart.
                 // Also clear the permission-lost flag — the tunnel is up again.
                 sp.edit()
-                    .putString("net_block_packages",  packagesJson)
-                    .putString("net_block_mode",       mode)
-                    .putBoolean("vpn_permission_lost", false)
+                    .putString(AppBlockerAccessibilityService.PREF_NET_BLOCK_PACKAGES,  packagesJson)
+                    .putString(AppBlockerAccessibilityService.PREF_NET_BLOCK_MODE,       mode)
+                    .putBoolean(AppBlockerAccessibilityService.PREF_VPN_PERMISSION_LOST, false)
                     .apply()
                 // Schedule the AlarmManager watchdog so the VPN is restarted even if
                 // Android kills the entire process (battery optimisers, memory pressure).
@@ -300,7 +300,7 @@ class NetworkBlockerVpnService : VpnService() {
                 // was revoked between the prepare() check and the actual establish() call
                 // (race with the user dismissing the system prompt, another VPN starting, etc.)
                 sp.edit()
-                    .putBoolean("vpn_permission_lost", true)
+                    .putBoolean(AppBlockerAccessibilityService.PREF_VPN_PERMISSION_LOST, true)
                     .apply()
                 stopSelf()
             }

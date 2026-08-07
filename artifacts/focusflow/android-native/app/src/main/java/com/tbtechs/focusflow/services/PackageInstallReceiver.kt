@@ -59,7 +59,7 @@ class PackageInstallReceiver : BroadcastReceiver() {
 
         val focusActive = prefs.getBoolean(AppBlockerAccessibilityService.PREF_FOCUS_ON, false).let { on ->
             if (on) {
-                val endMs = prefs.getLong("task_end_ms", 0L)
+                val endMs = prefs.getLong(AppBlockerAccessibilityService.PREF_TASK_END_MS, 0L)
                 endMs == 0L || now < endMs
             } else false
         }

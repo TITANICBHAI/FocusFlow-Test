@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.net.VpnService
 import android.os.Build
 import android.os.SystemClock
@@ -48,7 +49,7 @@ import android.os.SystemClock
 class VpnWatchdogReceiver : BroadcastReceiver() {
 
     companion object {
-        private const val PREFS_NAME      = "focusday_prefs"
+        private const val PREFS_NAME      = AppBlockerAccessibilityService.PREFS_NAME
         private const val ACTION_WATCHDOG = "com.tbtechs.focusflow.VPN_WATCHDOG"
         private const val REQUEST_CODE    = 8801
 
@@ -104,25 +105,25 @@ class VpnWatchdogReceiver : BroadcastReceiver() {
 
         // ── Gate checks — bail early if we should not be restarting ────────────
 
-        if (!prefs.getBoolean("net_block_enabled",  false)) return
-        if (!prefs.getBoolean("net_block_vpn",      false)) return
-        if (!prefs.getBoolean("net_block_self_heal", false)) return
+        if (!prefs.getBoolean(AppBlockerAccessibilityService.PREF_NET_BLOCK_ENABLED,  false)) return
+        if (!prefs.getBoolean(AppBlockerAccessibilityService.PREF_NET_BLOCK_VPN,      false)) return
+        if (!prefs.getBoolean(AppBlockerAccessibilityService.PREF_NET_BLOCK_SELF_HEAL, false)) return
 
         // ── Session validity ────────────────────────────────────────────────────
 
         val now = System.currentTimeMillis()
 
-        val focusActive = prefs.getBoolean("focus_active", false).let { on ->
+        val focusActive = prefs.getBoolean(AppBlockerAccessibilityService.PREF_FOCUS_ON, false).let { on ->
             if (!on) false
             else {
-                val endMs = prefs.getLong("task_end_ms", 0L)
+                val endMs = prefs.getLong(AppBlockerAccessibilityService.PREF_TASK_END_MS, 0L)
                 endMs <= 0L || now < endMs
             }
         }
-        val saActive = prefs.getBoolean("standalone_block_active", false).let { on ->
+        val saActive = prefs.getBoolean(AppBlockerAccessibilityService.PREF_SA_ACTIVE, false).let { on ->
             if (!on) false
             else {
-                val untilMs = prefs.getLong("standalone_block_until_ms", 0L)
+                val untilMs = prefs.getLong(AppBlockerAccessibilityService.PREF_SA_UNTIL, 0L)
                 untilMs <= 0L || now < untilMs
             }
         }
@@ -130,7 +131,7 @@ class VpnWatchdogReceiver : BroadcastReceiver() {
         // Also keep the watchdog alive when always-on VPN packages are configured.
         // net_block_packages is persisted by NetworkBlockerVpnService.startVpn() and
         // reflects the last active package list, so it serves as the always-on indicator.
-        val alwaysOnPkgs    = prefs.getString("net_block_packages", "[]") ?: "[]"
+        val alwaysOnPkgs    = prefs.getString(AppBlockerAccessibilityService.PREF_NET_BLOCK_PACKAGES, "[]") ?: "[]"
         val hasAlwaysOnPkgs = try { org.json.JSONArray(alwaysOnPkgs).length() > 0 } catch (_: Exception) { false }
         if (!focusActive && !saActive && !hasAlwaysOnPkgs) {
             // No active session and no always-on packages — cancel the alarm
@@ -148,15 +149,15 @@ class VpnWatchdogReceiver : BroadcastReceiver() {
 
         try {
             if (VpnService.prepare(context) != null) {
-                prefs.edit().putBoolean("vpn_permission_lost", true).apply()
+                prefs.edit().putBoolean(AppBlockerAccessibilityService.PREF_VPN_PERMISSION_LOST, true).apply()
                 return
             }
         } catch (_: Exception) { return }
 
         // ── Restart the VPN tunnel ──────────────────────────────────────────────
 
-        val pkgs   = prefs.getString("net_block_packages", "[]") ?: "[]"
-        val global = prefs.getBoolean("net_block_global", false)
+        val pkgs   = prefs.getString(AppBlockerAccessibilityService.PREF_NET_BLOCK_PACKAGES, "[]") ?: "[]"
+        val global = prefs.getBoolean(AppBlockerAccessibilityService.PREF_NET_BLOCK_GLOBAL, false)
         val mode   = if (global) NetworkBlockerVpnService.MODE_GLOBAL
                      else        NetworkBlockerVpnService.MODE_PER_APP
 

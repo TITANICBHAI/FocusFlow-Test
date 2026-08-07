@@ -174,6 +174,10 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         // Written by GreyoutModule; read by AppBlockerAccessibilityService and
         // ForegroundTaskService fallback-block path.
         const val PREF_GREYOUT_SCHEDULE = "greyout_schedule"
+        
+        // Focus lifecycle broadcast actions
+        const val ACTION_FOCUS_VIOLATION = "com.tbtechs.focusflow.FOCUS_VIOLATION"
+        const val EXTRA_VIOLATION_APP = "violationApp"
 
         /** Notification channel used to launch the block overlay via full-screen intent. */
         private const val BLOCK_ALERT_CHANNEL  = "focusday_block_alert"
@@ -504,6 +508,31 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         }
     }
 
+    // ── Timed allowance real-time tracking ─────────────────────────────────────
+    // Runs every 30 seconds while the service is connected. For time_budget and
+    // interval modes, this accumulates elapsed time for the currently-foreground
+    // timed-allowance app so that usage is tracked in real-time (not just on
+    // app-switch). This fixes the bug where a user could stay in an app for 30+
+    // minutes and the usage counter wouldn't update until they switched away.
+    private val allowanceTrackHandler = Handler(Looper.getMainLooper())
+    private val allowanceTrackRunnable: Runnable = object : Runnable {
+        override fun run() {
+            if (currentTimedPkg != null && currentTimedOpenAtMs > 0L) {
+                val entry = findAllowanceEntry(currentTimedPkg!!)
+                if (entry != null && (entry.mode == "time_budget" || entry.mode == "interval")) {
+                    val now = System.currentTimeMillis()
+                    val elapsed = (now - currentTimedOpenAtMs).coerceAtLeast(0L)
+                    if (elapsed > 0L) {
+                        // Update the in-memory baseline and persist elapsed time
+                        accumulateTimedUsage(currentTimedPkg!!, entry, currentTimedOpenAtMs)
+                        currentTimedOpenAtMs = now
+                    }
+                }
+            }
+            allowanceTrackHandler.postDelayed(this, 30_000L)
+        }
+    }
+
     // ── Keyword blocker: debounce + throttle state ────────────────────────────
     // Text-changed events fire on every keystroke — we debounce the keyword check
     // so it only runs 400 ms after the user stops typing.
@@ -542,6 +571,9 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         // Start the VPN self-heal health check loop. The first check fires after
         // 10 s so we don't run anything during the cold-start window.
         vpnHealthHandler.postDelayed(vpnHealthRunnable, 10_000L)
+
+        // Start the timed allowance real-time tracking loop. First tick after 30 s.
+        allowanceTrackHandler.postDelayed(allowanceTrackRunnable, 30_000L)
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -1222,6 +1254,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         lastBlockedPkg = null
         dismissWindowOverlay()
         vpnHealthHandler.removeCallbacks(vpnHealthRunnable)
+        allowanceTrackHandler.removeCallbacks(allowanceTrackRunnable)
     }
 
     // ─── VPN self-heal ────────────────────────────────────────────────────────
@@ -2083,23 +2116,35 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             "time_budget" -> {
                 val today = todayDateString()
                 val usedDate = pkgUsed.optString("date", "")
-                val prevUsedMs = if (usedDate == today) pkgUsed.optLong("usedMs", 0L) else 0L
+                var prevUsedMs = if (usedDate == today) pkgUsed.optLong("usedMs", 0L) else 0L
+                // Add elapsed time since this app came to foreground (if currently foreground)
+                if (currentTimedPkg == pkg && currentTimedOpenAtMs > 0L) {
+                    val elapsed = (now - currentTimedOpenAtMs).coerceAtMost(entry.budgetMs)
+                    prevUsedMs += elapsed
+                    currentTimedOpenAtMs = now  // Reset baseline to now
+                }
                 val remainingMs = (entry.budgetMs - prevUsedMs).coerceAtLeast(0L)
-                sessionEndMs = now + remainingMs
+                sessionEndMs = if (remainingMs <= 0L) now else now + remainingMs
                 pkgUsed.put("mode", "time_budget")
                 pkgUsed.put("date", today)
-                pkgUsed.put("usedMs", prevUsedMs) // updated when session ends via accumulateTimedUsage
+                pkgUsed.put("usedMs", prevUsedMs)
             }
             "interval" -> {
                 val windowStartMs = pkgUsed.optLong("windowStartMs", 0L)
                 val windowExpired = now > windowStartMs + entry.windowMs
-                val effectiveWindowStart = if (windowExpired) now else windowStartMs
-                val prevUsedMs = if (windowExpired) 0L else pkgUsed.optLong("usedMs", 0L)
+                var prevUsedMs = if (windowExpired) 0L else pkgUsed.optLong("usedMs", 0L)
+                // Add elapsed time since this app came to foreground (if currently foreground)
+                if (currentTimedPkg == pkg && currentTimedOpenAtMs > 0L) {
+                    val elapsed = (now - currentTimedOpenAtMs).coerceAtMost(entry.intervalMs)
+                    prevUsedMs += elapsed
+                    currentTimedOpenAtMs = now  // Reset baseline to now
+                }
                 val remainingMs = (entry.intervalMs - prevUsedMs).coerceAtLeast(0L)
-                sessionEndMs = now + remainingMs
+                sessionEndMs = if (remainingMs <= 0L) now else now + remainingMs
+                val effectiveWindowStart = if (windowExpired) now else windowStartMs
                 pkgUsed.put("mode", "interval")
                 pkgUsed.put("windowStartMs", effectiveWindowStart)
-                pkgUsed.put("usedMs", prevUsedMs) // updated when session ends
+                pkgUsed.put("usedMs", prevUsedMs)
             }
             else -> sessionEndMs = 0L
         }
@@ -2289,6 +2334,13 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             putExtra(FocusDayBridgeModule.EXTRA_BLOCKED_PKG, blockedPackage)
         }
         sendBroadcast(broadcast)
+
+        // Also emit FOCUS_VIOLATION for the JS layer to update focusViolationApp state
+        val violationBroadcast = Intent(ACTION_FOCUS_VIOLATION).apply {
+            `package` = packageName
+            putExtra(EXTRA_VIOLATION_APP, blockedPackage)
+        }
+        sendBroadcast(violationBroadcast)
 
         // 1. Kill the network first — before the overlay even appears, the blocked
         //    app's pending requests are already cut. On a slow phone the user may
