@@ -132,106 +132,113 @@
     <!-- Typography - FocusFlow Material 3 Type Scale -->
     <style name="TextAppearance.FocusFlow.DisplayLarge" parent="TextAppearance.Material3.DisplayLarge">
         <item name="android:textSize">57sp</item>
-        <item name="android:fontFamily">@font/inter_bold</item>
-        <item name="android:letterSpacing">-0.016em</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">-0.016</item>
         <item name="android:textColor">?attr/colorOnSurface</item>
     </style>
 
     <style name="TextAppearance.FocusFlow.DisplayMedium" parent="TextAppearance.Material3.DisplayMedium">
         <item name="android:textSize">45sp</item>
-        <item name="android:fontFamily">@font/inter_bold</item>
-        <item name="android:letterSpacing">-0.008em</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">-0.008</item>
         <item name="android:textColor">?attr/colorOnSurface</item>
     </style>
 
     <style name="TextAppearance.FocusFlow.DisplaySmall" parent="TextAppearance.Material3.DisplaySmall">
         <item name="android:textSize">36sp</item>
-        <item name="android:fontFamily">@font/inter_bold</item>
-        <item name="android:letterSpacing">0em</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0</item>
         <item name="android:textColor">?attr/colorOnSurface</item>
     </style>
 
     <style name="TextAppearance.FocusFlow.HeadlineLarge" parent="TextAppearance.Material3.HeadlineLarge">
         <item name="android:textSize">32sp</item>
-        <item name="android:fontFamily">@font/inter_bold</item>
-        <item name="android:letterSpacing">0em</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0</item>
         <item name="android:textColor">?attr/colorOnSurface</item>
     </style>
 
     <style name="TextAppearance.FocusFlow.HeadlineMedium" parent="TextAppearance.Material3.HeadlineMedium">
         <item name="android:textSize">28sp</item>
-        <item name="android:fontFamily">@font/inter_semibold</item>
-        <item name="android:letterSpacing">0em</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0</item>
         <item name="android:textColor">?attr/colorOnSurface</item>
     </style>
 
     <style name="TextAppearance.FocusFlow.HeadlineSmall" parent="TextAppearance.Material3.HeadlineSmall">
         <item name="android:textSize">24sp</item>
-        <item name="android:fontFamily">@font/inter_semibold</item>
-        <item name="android:letterSpacing">0em</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0</item>
         <item name="android:textColor">?attr/colorOnSurface</item>
     </style>
 
     <style name="TextAppearance.FocusFlow.TitleLarge" parent="TextAppearance.Material3.TitleLarge">
         <item name="android:textSize">22sp</item>
-        <item name="android:fontFamily">@font/inter_semibold</item>
-        <item name="android:letterSpacing">0em</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0</item>
         <item name="android:textColor">?attr/colorOnSurface</item>
     </style>
 
     <style name="TextAppearance.FocusFlow.TitleMedium" parent="TextAppearance.Material3.TitleMedium">
         <item name="android:textSize">16sp</item>
-        <item name="android:fontFamily">@font/inter_medium</item>
-        <item name="android:letterSpacing">0.009em</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">0.009</item>
         <item name="android:textColor">?attr/colorOnSurface</item>
     </style>
 
     <style name="TextAppearance.FocusFlow.TitleSmall" parent="TextAppearance.Material3.TitleSmall">
         <item name="android:textSize">14sp</item>
-        <item name="android:fontFamily">@font/inter_medium</item>
-        <item name="android:letterSpacing">0.007em</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">0.007</item>
         <item name="android:textColor">?attr/colorOnSurface</item>
     </style>
 
     <style name="TextAppearance.FocusFlow.BodyLarge" parent="TextAppearance.Material3.BodyLarge">
         <item name="android:textSize">16sp</item>
-        <item name="android:fontFamily">@font/inter_regular</item>
-        <item name="android:letterSpacing">0.009em</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:letterSpacing">0.009</item>
         <item name="android:textColor">?attr/colorOnSurface</item>
     </style>
 
     <style name="TextAppearance.FocusFlow.BodyMedium" parent="TextAppearance.Material3.BodyMedium">
         <item name="android:textSize">14sp</item>
-        <item name="android:fontFamily">@font/inter_regular</item>
-        <item name="android:letterSpacing">0.013em</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:letterSpacing">0.013</item>
         <item name="android:textColor">?attr/colorOnSurface</item>
     </style>
 
     <style name="TextAppearance.FocusFlow.BodySmall" parent="TextAppearance.Material3.BodySmall">
         <item name="android:textSize">12sp</item>
-        <item name="android:fontFamily">@font/inter_regular</item>
-        <item name="android:letterSpacing">0.027em</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:letterSpacing">0.027</item>
         <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
     </style>
 
     <style name="TextAppearance.FocusFlow.LabelLarge" parent="TextAppearance.Material3.LabelLarge">
         <item name="android:textSize">14sp</item>
-        <item name="android:fontFamily">@font/inter_medium</item>
-        <item name="android:letterSpacing">0.007em</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">0.007</item>
         <item name="android:textColor">?attr/colorOnSurface</item>
     </style>
 
     <style name="TextAppearance.FocusFlow.LabelMedium" parent="TextAppearance.Material3.LabelMedium">
         <item name="android:textSize">12sp</item>
-        <item name="android:fontFamily">@font/inter_medium</item>
-        <item name="android:letterSpacing">0.034em</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">0.034</item>
         <item name="android:textColor">?attr/colorOnSurface</item>
     </style>
 
     <style name="TextAppearance.FocusFlow.LabelSmall" parent="TextAppearance.Material3.LabelSmall">
         <item name="android:textSize">11sp</item>
-        <item name="android:fontFamily">@font/inter_medium</item>
-        <item name="android:letterSpacing">0.034em</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">0.034</item>
         <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
     </style>
 
