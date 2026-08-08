@@ -49,10 +49,6 @@
         android:maxLines="1"
         android:ellipsize="end"
         android:textColor="@android:color/white"
-        android:textSize="11sp"
-        android:textShadowColor="#CC000000"
-        android:textShadowDx="0"
-        android:textShadowDy="1"
-        android:textShadowRadius="3" />
+        android:textSize="11sp" />
 
 </LinearLayout>

@@ -18,8 +18,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:orientation="vertical"
-        android:background="@drawable/drawer_background"
-        android:translationY="100%">
+        android:background="@drawable/drawer_background">
 
         <!-- Drag Handle -->
         <View
@@ -49,7 +48,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Search apps…"
-            android:hintTextColor="#556688AA"
+            android:textColorHint="#556688AA"
             android:textColor="@android:color/white"
             android:textSize="15sp"
             android:background="@drawable/drawer_search_bg"
@@ -64,7 +63,7 @@
             android:layout_height="0dp"
             android:layout_weight="1"
             android:fillViewport="true"
-            android:isVerticalScrollBarEnabled="false">
+            android:scrollbars="none">
 
             <LinearLayout
                 android:id="@+id/drawer_grid_container"

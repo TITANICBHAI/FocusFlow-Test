@@ -243,23 +243,23 @@
     </style>
 
     <!-- Shapes - Material 3 Shape Scale -->
-    <style name="ShapeAppearance.FocusFlow.CornerExtraSmall" parent="ShapeAppearance.Material3.CornerExtraSmall">
+    <style name="ShapeAppearance.FocusFlow.CornerExtraSmall" parent="ShapeAppearance.Material3.Corner.ExtraSmall">
         <item name="cornerSize">4dp</item>
     </style>
 
-    <style name="ShapeAppearance.FocusFlow.CornerSmall" parent="ShapeAppearance.Material3.CornerSmall">
+    <style name="ShapeAppearance.FocusFlow.CornerSmall" parent="ShapeAppearance.Material3.Corner.Small">
         <item name="cornerSize">8dp</item>
     </style>
 
-    <style name="ShapeAppearance.FocusFlow.CornerMedium" parent="ShapeAppearance.Material3.CornerMedium">
+    <style name="ShapeAppearance.FocusFlow.CornerMedium" parent="ShapeAppearance.Material3.Corner.Medium">
         <item name="cornerSize">16dp</item>
     </style>
 
-    <style name="ShapeAppearance.FocusFlow.CornerLarge" parent="ShapeAppearance.Material3.CornerLarge">
+    <style name="ShapeAppearance.FocusFlow.CornerLarge" parent="ShapeAppearance.Material3.Corner.Large">
         <item name="cornerSize">28dp</item>
     </style>
 
-    <style name="ShapeAppearance.FocusFlow.CornerExtraLarge" parent="ShapeAppearance.Material3.CornerExtraLarge">
+    <style name="ShapeAppearance.FocusFlow.CornerExtraLarge" parent="ShapeAppearance.Material3.Corner.ExtraLarge">
         <item name="cornerSize">32dp</item>
     </style>
 </resources>

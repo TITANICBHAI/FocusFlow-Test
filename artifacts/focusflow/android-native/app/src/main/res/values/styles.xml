@@ -16,8 +16,8 @@
     </style>
 
     <!-- Bottom Sheet Dialog Animation -->
-    <style name="Animation.FocusFlow.BottomSheetDialog" parent="Animation.Design.BottomSheetDialog">
-        <item name="bottomSheetEnter">@anim/focus_bottom_sheet_enter</item>
-        <item name="bottomSheetExit">@anim/focus_bottom_sheet_exit</item>
+    <style name="Animation.FocusFlow.BottomSheetDialog" parent="Animation.Material3.BottomSheetDialog">
+        <item name="android:windowEnterAnimation">@anim/focus_bottom_sheet_enter</item>
+        <item name="android:windowExitAnimation">@anim/focus_bottom_sheet_exit</item>
     </style>
 </resources>
