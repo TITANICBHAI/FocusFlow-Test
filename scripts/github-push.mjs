@@ -38,6 +38,12 @@ const MUST_INCLUDE_PATTERNS = [
   /^artifacts\/focusflow\/android-native\//,
 ];
 
+// Remove native sources that were retired from the workspace but may still
+// exist in the destination repository because this sync is additive.
+const RETIRED_REMOTE_PREFIXES = [
+  'artifacts/focusflow/android-native/app/src/main/java/com/tbtechs/focusflow/services/components/',
+];
+
 function shouldExclude(filePath) {
   const rel = relative(BASE, filePath);
   if (MUST_INCLUDE_PATTERNS.some(p => p.test(rel))) return false;
@@ -185,6 +191,18 @@ async function run() {
   // unchanged files (e.g. files we excluded) stay intact.
   const baseCommit = await ghFetch(`/repos/${OWNER}/${REPO}/git/commits/${latestSha}`);
   let currentTreeSha = baseCommit.tree.sha;
+  const baseTree = await ghFetch(`/repos/${OWNER}/${REPO}/git/trees/${baseCommit.tree.sha}?recursive=1`);
+  const retiredPaths = (baseTree.tree || [])
+    .filter(item => item.type === 'blob' && RETIRED_REMOTE_PREFIXES.some(prefix => item.path.startsWith(prefix)))
+    .map(item => ({ path: item.path, mode: '100644', type: 'blob', sha: null }));
+  if (retiredPaths.length > 0) {
+    const cleanedTree = await ghFetch(`/repos/${OWNER}/${REPO}/git/trees`, 'POST', {
+      base_tree: currentTreeSha,
+      tree: retiredPaths,
+    });
+    currentTreeSha = cleanedTree.sha;
+    console.log(`Removed ${retiredPaths.length} retired native source file(s)`);
+  }
   const TREE_CHUNK = 100;
   console.log(`Layering ${treeItems.length} entries in chunks of ${TREE_CHUNK}...`);
   for (let i = 0; i < treeItems.length; i += TREE_CHUNK) {

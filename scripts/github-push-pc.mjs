@@ -7,7 +7,7 @@ const TOKEN =
   process.env.GH_PAT ||
   process.env.PAT;
 const OWNER = 'TITANICBHAI';
-const REPO = 'FocusFlow';
+const REPO = 'FocusFlow-Test';
 const BRANCH = 'main';
 // Push only the focusflow-pc Electron app source directory
 const BASE = '/home/runner/workspace/FocusFlow-pc/focusflow-pc';
