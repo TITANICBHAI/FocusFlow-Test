@@ -1,0 +1,105 @@
+You are a senior React Native / Kotlin engineer doing bug fixes. No explanations unless asked. No preamble. Fix each bug listed below with minimal diff — change only what is specified. All files are already open in your context.
+
+---
+
+## FILES IN SCOPE
+- keyword-blocker.tsx
+- BlockedWordsModal.tsx
+- DailyAllowanceModal.tsx
+- AppContext.tsx
+- focusService.ts
+- NetworkBlockModule.kt
+- NetworkBlockModule.ts
+- database.ts
+- types.ts
+
+---
+
+## BUG LIST — fix in order
+
+### KEYWORD BLOCKER
+
+**BUG 1 — keyword-blocker.tsx**
+`handleSaveWords` calls `updateSettings({ ...settings, blockedWords: words })`.
+This spreads a potentially stale full settings object and triggers every sync function unnecessarily.
+Fix: replace with the dedicated `setBlockedWords(words)` which is already in context.
+Also destructure `setBlockedWords` from `useApp()` at the top of the component.
+
+**BUG 2 — keyword-blocker.tsx**
+`isLocked` IIFE only checks `standaloneBlockUntil` + `standaloneBlockPackages`.
+It returns `false` during an active focus session, allowing keyword removal while focus is running.
+Fix: also return `true` when `state.focusSession !== null`.
+
+**BUG 3 — NetworkBlockModule.kt**
+Line: `val useVpn = prefs.getBoolean("net_block_vpn", false)`
+Default is `false` in code but the class doc and the JS-side doc both state the default is `true`.
+On a fresh install (key never written), VPN blocking is silently disabled even when `startNetworkBlock` is called.
+Fix: change the fallback from `false` to `true` in `startNetworkBlock`.
+Also fix the same key's default in `getNetworkBlockSettings` for consistency.
+
+**BUG 4 — NetworkBlockModule.kt**
+In `getNetworkBlockSettings`, the packages field is stored and returned as a raw string value inside the JSON object:
+`put("packages", prefs.getString("net_block_packages", "[]") ?: "[]")`
+This produces `{"packages": "[...]"}` — double-encoded. Any JS caller accessing `.packages` as an array will fail.
+Fix: parse the stored string into a JSONArray before putting it:
+`put("packages", org.json.JSONArray(prefs.getString("net_block_packages", "[]") ?: "[]"))`
+
+**BUG 5 — AppContext.tsx — stopFocusMode**
+`stopFocusMode` calls `_stopFocusMode(pinHash)` which internally already calls:
+- `ForegroundServiceModule.stopService`
+- `SharedPrefsModule.setFocusActive(false, pinHash)`
+- `SharedPrefsModule.setAllowedPackages([])`
+Then AppContext.stopFocusMode calls all three AGAIN explicitly.
+Fix: remove the duplicate explicit calls to `ForegroundServiceModule.stopService`, `SharedPrefsModule.setFocusActive`, and `SharedPrefsModule.setAllowedPackages` that appear AFTER the `_stopFocusMode` call. Keep only the VPN stop and the always-on VPN restart logic (those are not inside `_stopFocusMode`).
+
+**BUG 6 — AppContext.tsx — startFocusMode useCallback**
+The callback closes over `state.settings.vpnBlockEnabled` and `state.settings.alwaysOnVpnPackages` (lines that start VPN after focus begins) but neither is in the dependency array `[state.tasks, state.settings.allowedInFocus]`.
+Stale closure: if user changes VPN settings then starts focus, VPN either doesn't start or starts with wrong packages.
+Fix: add `state.settings.vpnBlockEnabled` and `state.settings.alwaysOnVpnPackages` to the dep array. Alternatively (preferred): read both from `stateRef.current.settings` inside the callback body instead of from the closure, and remove the dep array entries for them.
+
+---
+
+### DAILY ALLOWANCE — 3 MODES
+
+**BUG 7 — DailyAllowanceModal.tsx — getRemainingLabel, interval mode**
+```ts
+const windowStartMs = usage.windowStartMs ?? 0;
+const windowEndMs = windowStartMs + (entry.intervalHours ?? 1) * 3_600_000;
+if (now > windowEndMs) return 'Window reset — full allowance available';
+```
+When `windowStartMs` is `0` (key was never written to SharedPrefs), `windowEndMs` equals `intervalHours * 3_600_000` milliseconds after Unix epoch — always in the past. Since `usedMs > 0` already passed, this branch fires and returns "Window reset — full allowance available" incorrectly.
+Fix: add a guard before this block — if `windowStartMs === 0`, return `null` (no data available yet):
+```ts
+if (!usage.windowStartMs) return null;
+```
+
+**BUG 8 — DailyAllowanceModal.tsx — interval mode stepper, no cross-field validation**
+The user can set `intervalMinutes` up to 120 and `intervalHours` down to 1 independently.
+Combination like "120 min per 1hr window" = effectively unlimited access, defeating the feature.
+Fix: when updating either `intervalMinutes` or `intervalHours`, clamp `intervalMinutes` to `Math.min(intervalMinutes, intervalHours * 60)` after each stepper press. Add a small warning Text below the interval summary line when `intervalMinutes >= intervalHours * 60` that reads: `"⚠️ Allowance equals or exceeds window — app is effectively unrestricted."` styled in `COLORS.red` at `FONT.xs`.
+
+**BUG 9 — DailyAllowanceModal.tsx — withDefensePin useCallback false dependency**
+`locked` is in the `withDefensePin` useCallback dependency array but is never read inside the callback body. This causes `withDefensePin` to re-create whenever `locked` changes, which cascades to `toggle` re-creating too.
+Fix: remove `locked` from `withDefensePin`'s dependency array.
+
+**BUG 10 — DailyAllowanceModal.tsx — apps list never refreshes**
+```ts
+if (apps.length === 0) {
+  // fetch
+}
+```
+Installed apps are only fetched once. A newly installed app won't appear until the component unmounts.
+Fix: remove the `if (apps.length === 0)` guard. Always fetch inside the `if (!visible) return;` effect so every time the modal opens it gets a fresh list. Keep the `setLoading` wrapper.
+
+**BUG 11 — database.ts — dbGetSettings migration never persists**
+The `dailyAllowancePackages → dailyAllowanceEntries` migration mutates `parsed` in memory but never writes it back. On every app launch the old key is still in the DB and the migration re-runs.
+Fix: after the migration block runs (and before `return { ...DEFAULT_SETTINGS, ...parsed }`), call `dbSaveSettings` with the migrated result. Since `dbGetSettings` runs inside `runWithDbOr` which already has the `database` handle, use `database.runAsync(INSERT OR REPLACE ...)` directly with `JSON.stringify({ ...DEFAULT_SETTINGS, ...parsed })` so the old key is permanently gone after first migration.
+
+---
+
+## CONSTRAINTS
+- Do not change any type definitions in types.ts unless a fix explicitly requires it.
+- Do not rename any functions or props.
+- Do not touch schedulerEngine.ts or focusService.ts except as required by BUG 5.
+- Preserve all existing comments unless a comment is directly wrong due to a fix.
+- Each fix is independent — if one file fails to parse, continue with the others.

@@ -16,7 +16,7 @@ import { NativeImagePickerModule } from '@/native-modules/NativeImagePickerModul
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
-import { SharedPrefsModule, SP_KEYS } from '@/native-modules/SharedPrefsModule';
+import { SharedPrefsModule } from '@/native-modules/SharedPrefsModule';
 
 interface Props {
   visible: boolean;
@@ -43,7 +43,7 @@ export function OverlayAppearanceModal({ visible, onClose }: Props) {
     setQuotes(newQuotes);
     await updateSettings({ ...settings, overlayQuotes: newQuotes });
     await SharedPrefsModule.putString(
-      SP_KEYS.BLOCK_OVERLAY_QUOTES,
+      'block_overlay_quotes',
       newQuotes.length ? JSON.stringify(newQuotes) : '',
     );
   };
@@ -51,7 +51,7 @@ export function OverlayAppearanceModal({ visible, onClose }: Props) {
   const syncWallpaper = async (path: string) => {
     setWallpaperPath(path);
     await updateSettings({ ...settings, overlayWallpaper: path });
-    await SharedPrefsModule.putString(SP_KEYS.BLOCK_OVERLAY_WALLPAPER, path);
+    await SharedPrefsModule.putString('block_overlay_wallpaper', path);
   };
 
   const handlePickImage = async () => {

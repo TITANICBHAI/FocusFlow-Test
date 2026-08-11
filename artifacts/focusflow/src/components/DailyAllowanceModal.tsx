@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { InstalledAppsModule, InstalledApp } from '@/native-modules/InstalledAppsModule';
-import { SharedPrefsModule, SP_KEYS } from '@/native-modules/SharedPrefsModule';
+import { SharedPrefsModule } from '@/native-modules/SharedPrefsModule';
 import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
 import { useTheme } from '@/hooks/useTheme';
 import type { DailyAllowanceEntry, AllowanceMode } from '@/data/types';
@@ -98,15 +98,13 @@ export function DailyAllowanceModal({
     setOriginalPkgs(new Set(selectedEntries.map((e) => e.packageName)));
     setExpandedPkg(null);
     setSearch('');
-    if (apps.length === 0) {
-      setLoading(true);
-      InstalledAppsModule.getInstalledApps()
-        .then(setApps)
-        .catch(() => {})
-        .finally(() => setLoading(false));
-    }
+    setLoading(true);
+    InstalledAppsModule.getInstalledApps()
+      .then(setApps)
+      .catch(() => {})
+      .finally(() => setLoading(false));
     // Load live usage data so we can show remaining time/opens per app
-    SharedPrefsModule.getString(SP_KEYS.DAILY_ALLOWANCE_USED)
+    SharedPrefsModule.getString('daily_allowance_used')
       .then((raw) => {
         if (!raw) return;
         try {
@@ -171,7 +169,7 @@ export function DailyAllowanceModal({
         action();
         return;
       }
-      SharedPrefsModule.getString(SP_KEYS.DEFENSE_PIN_HASH)
+      SharedPrefsModule.getString('defense_pin_hash')
         .then((hash) => {
           if (!hash) {
             action();
@@ -182,7 +180,7 @@ export function DailyAllowanceModal({
         })
         .catch(() => action());
     },
-    [requireDefensePin, locked],
+    [requireDefensePin],
   );
 
   const toggle = useCallback(
@@ -207,7 +205,14 @@ export function DailyAllowanceModal({
     setEntriesMap((prev) => {
       const next = new Map(prev);
       const existing = next.get(pkg) ?? makeDefaultEntry(pkg);
-      next.set(pkg, { ...existing, ...patch });
+      const updated = { ...existing, ...patch };
+      if ('intervalMinutes' in patch || 'intervalHours' in patch) {
+        updated.intervalMinutes = Math.min(
+          updated.intervalMinutes ?? 5,
+          (updated.intervalHours ?? 1) * 60,
+        );
+      }
+      next.set(pkg, updated);
       return next;
     });
   }, []);
@@ -270,6 +275,7 @@ export function DailyAllowanceModal({
     if (entry.mode === 'interval') {
       const usedMs = usage.usedMs ?? 0;
       if (usedMs === 0) return null;
+      if (!usage.windowStartMs) return null;
       const windowStartMs = usage.windowStartMs ?? 0;
       const windowEndMs = windowStartMs + (entry.intervalHours ?? 1) * 3_600_000;
       const now = Date.now();
@@ -422,6 +428,11 @@ export function DailyAllowanceModal({
             <Text style={[styles.intervalSummary, { color: theme.muted }]}>
               App is allowed for {entry.intervalMinutes ?? 5} min every {entry.intervalHours ?? 1} hour{(entry.intervalHours ?? 1) !== 1 ? 's' : ''}.
             </Text>
+            {(entry.intervalMinutes ?? 5) >= (entry.intervalHours ?? 1) * 60 && (
+              <Text style={[styles.intervalWarning, { color: COLORS.red }]}>
+                ⚠️ Allowance equals or exceeds window — app is effectively unrestricted.
+              </Text>
+            )}
           </>
         )}
       </View>
@@ -835,6 +846,10 @@ const styles = StyleSheet.create({
   intervalSummary: {
     fontSize: FONT.xs,
     fontStyle: 'italic',
+    marginTop: 2,
+  },
+  intervalWarning: {
+    fontSize: FONT.xs,
     marginTop: 2,
   },
 

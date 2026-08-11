@@ -7,7 +7,6 @@ import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableArray
 import com.tbtechs.focusflow.services.AppBlockerAccessibilityService
 import com.tbtechs.focusflow.widget.FocusFlowWidget
-import com.tbtechs.focusflow.modules.FocusDayBridgeModule
 
 /**
  * SharedPrefsModule
@@ -61,26 +60,8 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
                     return
                 }
             }
-            // Emit FOCUS_ENDED broadcast
-            val intentEnded = Intent(FocusDayBridgeModule.ACTION_FOCUS_ENDED)
-            intentEnded.setPackage(reactContext.packageName)
-            reactContext.sendBroadcast(intentEnded)
-        } else {
-            // Emit FOCUS_STARTED broadcast when focus activates
-            val taskId = prefs().getString(AppBlockerAccessibilityService.PREF_TASK_ID, "")
-            val taskName = prefs().getString(AppBlockerAccessibilityService.PREF_TASK_NAME, "")
-            val allowedPackages = prefs().getString(AppBlockerAccessibilityService.PREF_ALLOWED_PKG, "[]")
-            val startedAt = System.currentTimeMillis().toString()
-            
-            val intentStarted = Intent(FocusDayBridgeModule.ACTION_FOCUS_STARTED)
-            intentStarted.setPackage(reactContext.packageName)
-            intentStarted.putExtra(FocusDayBridgeModule.EXTRA_TASK_ID, taskId)
-            intentStarted.putExtra(FocusDayBridgeModule.EXTRA_TASK_NAME, taskName)
-            intentStarted.putExtra(FocusDayBridgeModule.EXTRA_STARTED_AT, startedAt)
-            intentStarted.putExtra(FocusDayBridgeModule.EXTRA_ALLOWED_PACKAGES, allowedPackages)
-            reactContext.sendBroadcast(intentStarted)
         }
-        prefs().edit().putBoolean(AppBlockerAccessibilityService.PREF_FOCUS_ON, active).apply()
+        prefs().edit().putBoolean("focus_active", active).apply()
         promise.resolve(null)
     }
 
@@ -93,7 +74,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
     fun setAllowedPackages(packages: ReadableArray, promise: Promise) {
         val list = (0 until packages.size()).map { "\"${packages.getString(it)}\"" }
         val json = "[${list.joinToString(",")}]"
-        prefs().edit().putString(AppBlockerAccessibilityService.PREF_ALLOWED_PKG, json).apply()
+        prefs().edit().putString("allowed_packages", json).apply()
         promise.resolve(null)
     }
 
@@ -116,14 +97,14 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
         // setActiveTaskStartMs call writes the new task's real start time
         // (instead of inheriting the previous task's start, which would make
         // the widget progress bar jump to ~100% on back-to-back tasks).
-        val prevId = prefs().getString(AppBlockerAccessibilityService.PREF_TASK_ID, "") ?: ""
+        val prevId = prefs().getString("task_id", "") ?: ""
         val editor = prefs().edit()
-            .putString(AppBlockerAccessibilityService.PREF_TASK_ID, taskId)
-            .putString(AppBlockerAccessibilityService.PREF_TASK_NAME, name)
-            .putLong(AppBlockerAccessibilityService.PREF_TASK_END_MS, endEpoch)
-            .putString(AppBlockerAccessibilityService.PREF_NEXT_TASK_NAME, nextName?.takeIf { it.isNotBlank() })
+            .putString("task_id", taskId)
+            .putString("task_name", name)
+            .putLong("task_end_ms", endEpoch)
+            .putString("next_task_name", nextName?.takeIf { it.isNotBlank() })
         if (prevId != taskId) {
-            editor.remove(AppBlockerAccessibilityService.PREF_TASK_START_MS)
+            editor.remove("task_start_ms")
         }
         editor
             // Extra fields used by BootReceiver for clock-tamper detection:
@@ -147,9 +128,9 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
     fun setActiveTaskColor(colorHex: String, promise: Promise) {
         val editor = prefs().edit()
         if (colorHex.isBlank()) {
-            editor.remove(AppBlockerAccessibilityService.PREF_TASK_COLOR)
+            editor.remove("task_color")
         } else {
-            editor.putString(AppBlockerAccessibilityService.PREF_TASK_COLOR, colorHex)
+            editor.putString("task_color", colorHex)
         }
         editor.apply()
         FocusFlowWidget.pushWidgetUpdate(reactContext)
@@ -168,8 +149,8 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
      */
     @ReactMethod
     fun setActiveTaskStartMs(taskId: String, startMs: Double, promise: Promise) {
-        val current   = prefs().getString(AppBlockerAccessibilityService.PREF_TASK_ID, "") ?: ""
-        val currStart = prefs().getLong(AppBlockerAccessibilityService.PREF_TASK_START_MS, 0L)
+        val current   = prefs().getString("task_id", "") ?: ""
+        val currStart = prefs().getLong("task_start_ms", 0L)
         val newStart  = startMs.toLong()
         // Only write when the task identity changed OR no start time exists yet.
         // This prevents the widget's progress bar from jumping back to 0 when
@@ -177,9 +158,9 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
         if (taskId != current || currStart <= 0L || newStart <= 0L) {
             val editor = prefs().edit()
             if (newStart <= 0L) {
-                editor.remove(AppBlockerAccessibilityService.PREF_TASK_START_MS)
+                editor.remove("task_start_ms")
             } else {
-                editor.putLong(AppBlockerAccessibilityService.PREF_TASK_START_MS, newStart)
+                editor.putLong("task_start_ms", newStart)
             }
             editor.apply()
             FocusFlowWidget.pushWidgetUpdate(reactContext)
@@ -194,12 +175,12 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
     @ReactMethod
     fun clearActiveTask(promise: Promise) {
         prefs().edit()
-            .remove(AppBlockerAccessibilityService.PREF_TASK_ID)
-            .remove(AppBlockerAccessibilityService.PREF_TASK_NAME)
-            .remove(AppBlockerAccessibilityService.PREF_TASK_END_MS)
-            .remove(AppBlockerAccessibilityService.PREF_TASK_START_MS)
-            .remove(AppBlockerAccessibilityService.PREF_TASK_COLOR)
-            .remove(AppBlockerAccessibilityService.PREF_NEXT_TASK_NAME)
+            .remove("task_id")
+            .remove("task_name")
+            .remove("task_end_ms")
+            .remove("task_start_ms")
+            .remove("task_color")
+            .remove("next_task_name")
             .apply()
         FocusFlowWidget.pushWidgetUpdate(reactContext)
         promise.resolve(null)
@@ -238,7 +219,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
     @ReactMethod
     fun setStandaloneBlock(active: Boolean, packages: ReadableArray, untilMs: Double, pinHash: String?, promise: Promise) {
         if (!active) {
-            val currentUntil = prefs().getLong(AppBlockerAccessibilityService.PREF_SA_UNTIL, 0L)
+            val currentUntil = prefs().getLong("standalone_block_until_ms", 0L)
             if (currentUntil > System.currentTimeMillis()) {
                 // User is cancelling an active (not-yet-expired) standalone session — require PIN.
                 val storedHash = prefs().getString(
@@ -256,9 +237,9 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
         val list = (0 until packages.size()).map { "\"${packages.getString(it)}\"" }
         val json = "[${list.joinToString(",")}]"
         prefs().edit()
-            .putBoolean(AppBlockerAccessibilityService.PREF_SA_ACTIVE, active)
-            .putString(AppBlockerAccessibilityService.PREF_SA_PKGS, json)
-            .putLong(AppBlockerAccessibilityService.PREF_SA_UNTIL, untilMs.toLong())
+            .putBoolean("standalone_block_active", active)
+            .putString("standalone_blocked_packages", json)
+            .putLong("standalone_block_until_ms", untilMs.toLong())
             .apply()
         // Standalone block changes are independent of focus mode, so the widget
         // needs an explicit nudge to re-read prefs and switch render mode.
@@ -335,7 +316,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
     @ReactMethod
     fun setLauncherDockPackages(packagesJson: String, promise: Promise) {
         prefs().edit()
-            .putString(AppBlockerAccessibilityService.PREF_LAUNCHER_DOCK_PACKAGES, packagesJson)
+            .putString("launcher_dock_packages", packagesJson)
             .apply()
         promise.resolve(null)
     }
@@ -382,7 +363,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
     @ReactMethod
     fun setNetworkBlockEnabled(enabled: Boolean, promise: Promise) {
         prefs().edit()
-            .putBoolean(AppBlockerAccessibilityService.PREF_NET_BLOCK_ENABLED, enabled)
+            .putBoolean("net_block_enabled", enabled)
             .apply()
         promise.resolve(null)
     }
@@ -398,7 +379,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
     @ReactMethod
     fun setVpnSelectedPackages(packagesJson: String, promise: Promise) {
         prefs().edit()
-            .putString(AppBlockerAccessibilityService.PREF_VPN_SELECTED_PACKAGES, packagesJson)
+            .putString("vpn_selected_packages", packagesJson)
             .apply()
         promise.resolve(null)
     }
@@ -417,7 +398,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
     @ReactMethod
     fun setDailyAllowanceConfig(configJson: String, promise: Promise) {
         prefs().edit()
-            .putString(AppBlockerAccessibilityService.PREF_DAILY_ALLOWANCE_CONFIG, configJson)
+            .putString("daily_allowance_config", configJson)
             .apply()
         promise.resolve(null)
     }
@@ -510,7 +491,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
      */
     @ReactMethod
     fun setLauncherHiddenPackages(packagesJson: String, promise: Promise) {
-        prefs().edit().putString(AppBlockerAccessibilityService.PREF_LAUNCHER_HIDDEN_PKGS, packagesJson).apply()
+        prefs().edit().putString("launcher_hidden_packages", packagesJson).apply()
         promise.resolve(null)
     }
 
@@ -522,7 +503,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
      */
     @ReactMethod
     fun setLauncherLockDuringStandalone(enabled: Boolean, promise: Promise) {
-        prefs().edit().putBoolean(AppBlockerAccessibilityService.PREF_LAUNCHER_LOCK_DURING_SA, enabled).apply()
+        prefs().edit().putBoolean("launcher_lock_during_standalone", enabled).apply()
         promise.resolve(null)
     }
 
@@ -534,7 +515,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
      */
     @ReactMethod
     fun setLauncherBlockUninstall(enabled: Boolean, promise: Promise) {
-        prefs().edit().putBoolean(AppBlockerAccessibilityService.PREF_LAUNCHER_BLOCK_UNINSTALL, enabled).apply()
+        prefs().edit().putBoolean("launcher_block_uninstall", enabled).apply()
         promise.resolve(null)
     }
 
@@ -563,7 +544,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
      */
     @ReactMethod
     fun setLauncherClockStyle(style: String, promise: Promise) {
-        prefs().edit().putString(AppBlockerAccessibilityService.PREF_LAUNCHER_CLOCK_STYLE, style).apply()
+        prefs().edit().putString("launcher_clock_style", style).apply()
         promise.resolve(null)
     }
 
@@ -587,9 +568,9 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
 
             // Standalone block
             obj.put("standaloneBlockPackages",
-                p.getString(AppBlockerAccessibilityService.PREF_SA_PKGS, "[]") ?: "[]")
+                p.getString("standalone_blocked_packages", "[]") ?: "[]")
             obj.put("standaloneBlockUntilMs",
-                p.getLong(AppBlockerAccessibilityService.PREF_SA_UNTIL, 0L))
+                p.getLong("standalone_block_until_ms", 0L))
 
             // Always-on enforcement
             obj.put("alwaysOnEnforcementEnabled",
@@ -599,7 +580,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
 
             // Daily allowance
             obj.put("dailyAllowanceEntries",
-                p.getString(AppBlockerAccessibilityService.PREF_DAILY_ALLOWANCE_CONFIG, "[]") ?: "[]")
+                p.getString("daily_allowance_config", "[]") ?: "[]")
 
             // Blocked words
             obj.put("blockedWords",
@@ -617,21 +598,21 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
 
             // VPN / network block
             obj.put("vpnBlockEnabled",
-                p.getBoolean(AppBlockerAccessibilityService.PREF_NET_BLOCK_ENABLED, false))
+                p.getBoolean("net_block_enabled", false))
             obj.put("standaloneVpnPackages",
-                p.getString(AppBlockerAccessibilityService.PREF_VPN_SELECTED_PACKAGES, "[]") ?: "[]")
+                p.getString("vpn_selected_packages", "[]") ?: "[]")
 
             // Launcher settings
             obj.put("launcherBlockUninstall",
-                p.getBoolean(AppBlockerAccessibilityService.PREF_LAUNCHER_BLOCK_UNINSTALL, false))
+                p.getBoolean("launcher_block_uninstall", false))
             obj.put("launcherLockDuringStandalone",
-                p.getBoolean(AppBlockerAccessibilityService.PREF_LAUNCHER_LOCK_DURING_SA, true))
+                p.getBoolean("launcher_lock_during_standalone", true))
             obj.put("launcherHiddenPackages",
-                p.getString(AppBlockerAccessibilityService.PREF_LAUNCHER_HIDDEN_PKGS, "[]") ?: "[]")
+                p.getString("launcher_hidden_packages", "[]") ?: "[]")
             obj.put("launcherDockPackages",
-                p.getString(AppBlockerAccessibilityService.PREF_LAUNCHER_DOCK_PACKAGES, "[]") ?: "[]")
+                p.getString("launcher_dock_packages", "[]") ?: "[]")
             obj.put("launcherClockStyle",
-                p.getString(AppBlockerAccessibilityService.PREF_LAUNCHER_CLOCK_STYLE, "digital") ?: "digital")
+                p.getString("launcher_clock_style", "digital") ?: "digital")
 
             promise.resolve(obj.toString())
         } catch (e: Exception) {

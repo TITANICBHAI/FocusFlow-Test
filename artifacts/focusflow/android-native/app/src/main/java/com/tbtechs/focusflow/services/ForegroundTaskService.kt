@@ -377,25 +377,25 @@ class ForegroundTaskService : Service() {
 
             // ── 2. Only act when at least one blocking mode is active ──────
             val now = System.currentTimeMillis()
-            val focusActive = blockPrefs.getBoolean(AppBlockerAccessibilityService.PREF_FOCUS_ON, false).let { on ->
+            val focusActive = blockPrefs.getBoolean("focus_active", false).let { on ->
                 if (on) {
-                    val endMs = blockPrefs.getLong(AppBlockerAccessibilityService.PREF_TASK_END_MS, 0L)
+                    val endMs = blockPrefs.getLong("task_end_ms", 0L)
                     if (endMs > 0L && now > endMs) {
-                        blockPrefs.edit().putBoolean(AppBlockerAccessibilityService.PREF_FOCUS_ON, false).apply()
+                        blockPrefs.edit().putBoolean("focus_active", false).apply()
                         false
                     } else on
                 } else false
             }
-            val saActive = blockPrefs.getBoolean(AppBlockerAccessibilityService.PREF_SA_ACTIVE, false).let { on ->
+            val saActive = blockPrefs.getBoolean("standalone_block_active", false).let { on ->
                 if (on) {
-                    val untilMs = blockPrefs.getLong(AppBlockerAccessibilityService.PREF_SA_UNTIL, 0L)
+                    val untilMs = blockPrefs.getLong("standalone_block_until_ms", 0L)
                     if (untilMs > 0L && now > untilMs) {
-                        blockPrefs.edit().putBoolean(AppBlockerAccessibilityService.PREF_SA_ACTIVE, false).apply()
+                        blockPrefs.edit().putBoolean("standalone_block_active", false).apply()
                         false
                     } else on
                 } else false
             }
-            val greyoutJson = blockPrefs.getString(AppBlockerAccessibilityService.PREF_GREYOUT_SCHEDULE, "[]") ?: "[]"
+            val greyoutJson = blockPrefs.getString("greyout_schedule", "[]") ?: "[]"
             val hasGreyout = greyoutJson != "[]" && greyoutJson.isNotEmpty()
 
             if (!focusActive && !saActive && !hasGreyout) {
@@ -502,7 +502,7 @@ class ForegroundTaskService : Service() {
                         // Persist start time so the widget can compute progress correctly
                         getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                             .edit()
-                            .putLong(AppBlockerAccessibilityService.PREF_TASK_START_MS, startTimeMs)
+                            .putLong("task_start_ms", startTimeMs)
                             .apply()
                     } else {
                         // Update persisted end time so the widget reflects the extension
@@ -526,17 +526,17 @@ class ForegroundTaskService : Service() {
                     // Android OS restarted this service after it was killed (START_STICKY).
                     // All member variables are reset — restore session state from SharedPreferences.
                     val prefs        = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    val focusActive  = prefs.getBoolean(AppBlockerAccessibilityService.PREF_FOCUS_ON, false)
+                    val focusActive  = prefs.getBoolean("focus_active", false)
                     if (focusActive) {
-                        val restoredName  = prefs.getString(AppBlockerAccessibilityService.PREF_TASK_NAME, null)
-                        val restoredEndMs = prefs.getLong(AppBlockerAccessibilityService.PREF_TASK_END_MS, 0L)
+                        val restoredName  = prefs.getString("task_name", null)
+                        val restoredEndMs = prefs.getLong("task_end_ms", 0L)
                         if (restoredName != null && restoredEndMs > System.currentTimeMillis()) {
                             // Session still running — restore it fully
-                            taskId      = prefs.getString(AppBlockerAccessibilityService.PREF_TASK_ID, "") ?: ""
+                            taskId      = prefs.getString("task_id", "") ?: ""
                             taskName    = restoredName
                             endTimeMs   = restoredEndMs
-                            nextName    = prefs.getString(AppBlockerAccessibilityService.PREF_NEXT_TASK_NAME, null)
-                            startTimeMs = prefs.getLong(AppBlockerAccessibilityService.PREF_TASK_START_MS, System.currentTimeMillis())
+                            nextName    = prefs.getString("next_task_name", null)
+                            startTimeMs = prefs.getLong("task_start_ms", System.currentTimeMillis())
                             isActiveMode = true
 
                             val notification = buildActiveNotification(restoredEndMs - System.currentTimeMillis())
@@ -607,11 +607,11 @@ class ForegroundTaskService : Service() {
      */
     private fun stopNetworkBlock() {
         val prefs = getSharedPreferences(AppBlockerAccessibilityService.PREFS_NAME, Context.MODE_PRIVATE)
-        if (!prefs.getBoolean(AppBlockerAccessibilityService.PREF_NET_BLOCK_ENABLED, false)) return
+        if (!prefs.getBoolean("net_block_enabled", false)) return
         // Guard: if a standalone block is still active, leave the VPN running.
-        val saActive = prefs.getBoolean(AppBlockerAccessibilityService.PREF_SA_ACTIVE, false)
+        val saActive = prefs.getBoolean("standalone_block_active", false)
         if (saActive) {
-            val untilMs = prefs.getLong(AppBlockerAccessibilityService.PREF_SA_UNTIL, 0L)
+            val untilMs = prefs.getLong("standalone_block_until_ms", 0L)
             if (untilMs <= 0L || System.currentTimeMillis() < untilMs) return
         }
         try {
@@ -638,22 +638,22 @@ class ForegroundTaskService : Service() {
      */
     private fun checkAndHealVpn() {
         val prefs = blockPrefs
-        if (!prefs.getBoolean(AppBlockerAccessibilityService.PREF_NET_BLOCK_SELF_HEAL, false)) return
-        if (!prefs.getBoolean(AppBlockerAccessibilityService.PREF_NET_BLOCK_VPN, false)) return
+        if (!prefs.getBoolean("net_block_self_heal", false)) return
+        if (!prefs.getBoolean("net_block_vpn", false)) return
         if (NetworkBlockerVpnService.isRunning) return
 
         val now = System.currentTimeMillis()
-        val focusActive = prefs.getBoolean(AppBlockerAccessibilityService.PREF_FOCUS_ON, false).let { on ->
+        val focusActive = prefs.getBoolean("focus_active", false).let { on ->
             if (!on) false
             else {
-                val endMs = prefs.getLong(AppBlockerAccessibilityService.PREF_TASK_END_MS, 0L)
+                val endMs = prefs.getLong("task_end_ms", 0L)
                 endMs <= 0L || now < endMs
             }
         }
-        val saActive = prefs.getBoolean(AppBlockerAccessibilityService.PREF_SA_ACTIVE, false).let { on ->
+        val saActive = prefs.getBoolean("standalone_block_active", false).let { on ->
             if (!on) false
             else {
-                val untilMs = prefs.getLong(AppBlockerAccessibilityService.PREF_SA_UNTIL, 0L)
+                val untilMs = prefs.getLong("standalone_block_until_ms", 0L)
                 untilMs <= 0L || now < untilMs
             }
         }
@@ -663,13 +663,13 @@ class ForegroundTaskService : Service() {
         // Write the permission-lost flag so the JS layer can surface a re-grant prompt.
         try {
             if (android.net.VpnService.prepare(this) != null) {
-                prefs.edit().putBoolean(AppBlockerAccessibilityService.PREF_VPN_PERMISSION_LOST, true).apply()
+                prefs.edit().putBoolean("vpn_permission_lost", true).apply()
                 return
             }
         } catch (_: Exception) { return }
 
-        val pkgs   = prefs.getString(AppBlockerAccessibilityService.PREF_NET_BLOCK_PACKAGES, "[]") ?: "[]"
-        val global = prefs.getBoolean(AppBlockerAccessibilityService.PREF_NET_BLOCK_GLOBAL, false)
+        val pkgs   = prefs.getString("net_block_packages", "[]") ?: "[]"
+        val global = prefs.getBoolean("net_block_global", false)
         val mode   = if (global) NetworkBlockerVpnService.MODE_GLOBAL
                      else        NetworkBlockerVpnService.MODE_PER_APP
         try {
@@ -881,7 +881,7 @@ class ForegroundTaskService : Service() {
     private fun clearFocusActive() {
         getSharedPreferences(AppBlockerAccessibilityService.PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
-            .putBoolean(AppBlockerAccessibilityService.PREF_FOCUS_ON, false)
+            .putBoolean("focus_active", false)
             .apply()
     }
 
@@ -999,7 +999,7 @@ class ForegroundTaskService : Service() {
      */
     private fun handleFallbackBlock(blockedPackage: String) {
         // Signal overlay to await the blocked package leaving foreground
-        blockPrefs.edit().putString(AppBlockerAccessibilityService.PREF_OVERLAY_AWAITING_PKG, blockedPackage).apply()
+        blockPrefs.edit().putString("overlay_awaiting_pkg", blockedPackage).apply()
 
         // Resolve display name
         val appName = try {
@@ -1053,7 +1053,7 @@ class ForegroundTaskService : Service() {
             nm?.cancel(BLOCK_ALERT_NOTIF_ID)
             blockPrefs.edit()
                 .putBoolean(BlockOverlayActivity.PREF_OVERLAY_X_READY, true)
-                .putString(AppBlockerAccessibilityService.PREF_OVERLAY_AWAITING_PKG, "")
+                .putString("overlay_awaiting_pkg", "")
                 .apply()
         }, 2_000L)
     }

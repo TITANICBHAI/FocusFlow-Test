@@ -131,9 +131,6 @@ function withFocusDayManifest(config) {
       'android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
       'android.permission.WAKE_LOCK',
       'android.permission.BIND_ACCESSIBILITY_SERVICE',
-      // Required for FocusDayDeviceAdminReceiver — allows the app to be a device admin.
-      // Without this, the receiver cannot bind and device admin features will fail.
-      'android.permission.BIND_DEVICE_ADMIN',
       // Required on Android 11+ (API 30+) for PackageManager.getInstalledApplications()
       // to return all installed apps including user-installed ones. Without this, only
       // packages with matching <queries> entries are visible. This is how Stay Focused,

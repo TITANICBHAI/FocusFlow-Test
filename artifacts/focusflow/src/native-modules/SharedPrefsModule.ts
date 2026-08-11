@@ -7,9 +7,6 @@
  *
  * Kotlin: android-native/app/.../modules/SharedPrefsModule.kt
  * Registered via: FocusDayPackage → createNativeModules()
- * 
- * SP_KEYS is auto-generated from scripts/sp-keys/generate-sp-keys.kt
- * DO NOT EDIT MANUALLY - run the generator instead
  */
 
 import { NativeModules, Platform } from 'react-native';
@@ -36,150 +33,6 @@ async function callNative<T>(methodName: string, fn: () => Promise<T>): Promise<
 }
 
 export const isSharedPrefsAvailable = Platform.OS === 'android' && SharedPrefs != null;
-
-/**
- * Typed constants for every raw SharedPreferences key used from JS.
- * Import this instead of writing string literals so a key rename is
- * caught by the compiler rather than silently broken at runtime.
- * 
- * AUTO-GENERATED from scripts/sp-keys/generate-sp-keys.kt
- * DO NOT EDIT MANUALLY - run the generator instead
- */
-export const SP_KEYS = {
-  // Core prefs file
-  PREFS_NAME: 'focusday_prefs',
-  
-  // One-time flags (backed up from SQLite)
-  PRIVACY_ACCEPTED: 'privacy_accepted',
-  ONBOARDING_COMPLETE: 'onboarding_complete',
-  // Defense PIN (JS-only verification; distinct from focus-session PIN)
-  DEFENSE_PIN_HASH: 'defense_pin_hash',
-  
-  // Widget / task state
-  TASK_AWAITING_DECISION: 'task_awaiting_decision',
-  NEXT_UPCOMING_NAME: 'next_upcoming_name',
-  NEXT_UPCOMING_START_MS: 'next_upcoming_start_ms',
-  
-  // Daily allowance runtime usage
-  DAILY_ALLOWANCE_USED: 'daily_allowance_used',
-  
-  // Block overlay appearance
-  BLOCK_OVERLAY_QUOTES: 'block_overlay_quotes',
-  BLOCK_OVERLAY_WALLPAPER: 'block_overlay_wallpaper',
-  
-  // Focus mode
-  FOCUS_ON: 'focus_active',
-  ALLOWED_PKG: 'allowed_packages',
-  TASK_END_MS: 'task_end_ms',
-  
-  // Standalone block
-  SA_ACTIVE: 'standalone_block_active',
-  SA_PKGS: 'standalone_blocked_packages',
-  SA_UNTIL: 'standalone_block_until_ms',
-  
-  // Daily allowance
-  DAILY_ALLOWANCE_CONFIG: 'daily_allowance_config',
-  DAILY_ALLOWANCE_PKGS: 'daily_allowance_packages',
-  
-  // Always-on enforcement
-  ALWAYS_BLOCK: 'always_block_active',
-  ALWAYS_BLOCK_PKGS: 'always_block_packages',
-  
-  // Blocked words
-  BLOCKED_WORDS: 'blocked_words',
-  
-  // System guard
-  SYSTEM_GUARD_ENABLED: 'system_guard_enabled',
-  BLOCK_INSTALL_ACTIONS: 'block_install_actions',
-  BLOCK_YT_SHORTS: 'block_yt_shorts',
-  BLOCK_IG_REELS: 'block_ig_reels',
-  
-  // Launcher
-  LAUNCHER_LOCK_DURING_SA: 'launcher_lock_during_standalone',
-  LAUNCHER_BLOCK_UNINSTALL: 'launcher_block_uninstall',
-  LAUNCHER_HIDDEN_PKGS: 'launcher_hidden_packages',
-  LAUNCHER_DOCK_PKGS: 'launcher_dock_packages',
-  LAUNCHER_CLOCK_STYLE: 'launcher_clock_style',
-  
-  // Task / focus-session state
-  TASK_ID: 'task_id',
-  TASK_NAME: 'task_name',
-  TASK_END_MS: 'task_end_ms',
-  TASK_START_MS: 'task_start_ms',
-  NEXT_TASK_NAME: 'next_task_name',
-  TASK_COLOR: 'task_color',
-  TASK_DURATION_MS: 'task_duration_ms',
-  TASK_LAST_WRITTEN_MS: 'task_last_written_ms',
-  
-  // Block overlay / cooldown
-  BLOCK_COOLDOWN_RESET: 'block_cooldown_reset',
-  OVERLAY_AWAITING_PKG: 'overlay_awaiting_pkg',
-  CURRENT_FG_PKG: 'current_foreground_pkg',
-  CURRENT_FG_CLS: 'current_foreground_cls',
-  
-  // Network / VPN block
-  NET_BLOCK_ENABLED: 'net_block_enabled',
-  NET_BLOCK_VPN: 'net_block_vpn',
-  NET_BLOCK_SELF_HEAL: 'net_block_self_heal',
-  NET_BLOCK_PACKAGES: 'net_block_packages',
-  NET_BLOCK_GLOBAL: 'net_block_global',
-  VPN_SELECTED_PACKAGES: 'vpn_selected_packages',
-  VPN_PERMISSION_LOST: 'vpn_permission_lost',
-  
-  // Greyout schedule
-  GREYOUT_SCHEDULE: 'greyout_schedule',
-  
-  // Aversions
-  AVERSION_DIMMER: 'aversion_dimmer_enabled',
-  AVERSION_VIBRATE: 'aversion_vibrate_enabled',
-  AVERSION_SOUND: 'aversion_sound_enabled',
-  
-  // Temptation log
-  TEMPTATION_LOG: 'temptation_log',
-  WEEKLY_REPORT: 'aversion_weekly_report',
-  
-  // Block overlay appearance
-  BLOCK_OVERLAY_QUOTE: 'block_overlay_quote',
-  BLOCK_OVERLAY_WALLPAPER: 'block_overlay_wallpaper',
-  
-  // Session PIN
-  PIN_HASH: 'session_pin_hash',
-  
-  // Widget / upcoming task
-  TASK_AWAITING_DECISION: 'task_awaiting_decision',
-  NEXT_UPCOMING_NAME: 'next_upcoming_name',
-  NEXT_UPCOMING_START_MS: 'next_upcoming_start_ms',
-  
-  // Daily stats (widget)
-  DAILY_TASKS_DONE: 'daily_tasks_done',
-  DAILY_TASKS_TOTAL: 'daily_tasks_total',
-  DAILY_FOCUS_MINS: 'daily_focus_mins',
-  STREAK_DAYS: 'streak_days',
-  
-  // Pin reuse tracker
-  PIN_REUSE_COUNT_FOCUS: 'pin_reuse_count_focus',
-  PIN_REUSE_DATE_FOCUS: 'pin_reuse_date_focus',
-  PIN_REUSE_COUNT_ALWAYSON: 'pin_reuse_count_alwayson',
-  PIN_REUSE_DATE_ALWAYSON: 'pin_reuse_date_alwayson',
-  
-  // Defence PIN
-  DEFENSE_PIN_HASH: 'defense_pin_hash',
-} as const;
-
-/**
- * Union of all valid SharedPreferences string keys used from JS.
- *
- * `SPKey`       — values from the SP_KEYS constant above.
- * `PinReuseKey` — dynamic keys written by pinReuseTracker (template literal,
- *                 fully enumerable: 4 possible strings).
- *
- * `putString` and `getString` accept only `ValidSPKey` so that typos or
- * untracked keys produce a compile-time error. To add a new key: add it to
- * SP_KEYS above (preferred) or extend PinReuseKey if it must stay dynamic.
- */
-export type SPKey = typeof SP_KEYS[keyof typeof SP_KEYS];
-export type PinReuseKey = `pin_reuse_${'count' | 'date'}_${'focus' | 'alwayson'}`;
-export type ValidSPKey = SPKey | PinReuseKey;
 
 function hasSharedPrefsMethod(name: string): boolean {
   return !!SharedPrefs && typeof SharedPrefs[name] === 'function';
@@ -386,12 +239,7 @@ export const SharedPrefsModule = {
     return Boolean(result ?? false);
   },
 
-  /**
-   * Writes a string value to SharedPreferences.
-   * Only keys in `ValidSPKey` are accepted — add new keys to SP_KEYS (or
-   * PinReuseKey for dynamic pin-reuse keys) before calling this.
-   */
-  async putString(key: ValidSPKey, value: string): Promise<void> {
+  async putString(key: string, value: string): Promise<void> {
     if (!hasSharedPrefsMethod('putString')) return;
     await callNative('putString', () => SharedPrefs.putString(key, value));
   },
@@ -402,7 +250,7 @@ export const SharedPrefsModule = {
    * Used by AppContext to cross-check critical flags (e.g. privacy_accepted)
    * that are backed up in SharedPreferences in case the SQLite DB is wiped.
    */
-  async getString(key: ValidSPKey): Promise<string | null> {
+  async getString(key: string): Promise<string | null> {
     if (!hasSharedPrefsMethod('getString')) return null;
     const result = await callNative('getString', () => SharedPrefs.getString(key) as Promise<string | null>);
     return result ?? null;
@@ -483,10 +331,7 @@ export const SharedPrefsModule = {
         standaloneVpnPackages: parseArr(raw.standaloneVpnPackages),
         // Launcher settings
         launcherBlockUninstall: Boolean(raw.launcherBlockUninstall),
-        // Native defaults to true — mirror that default when key is absent
-        launcherLockDuringStandalone: raw.launcherLockDuringStandalone !== undefined
-          ? Boolean(raw.launcherLockDuringStandalone)
-          : true,
+        launcherLockDuringStandalone: Boolean(raw.launcherLockDuringStandalone),
         launcherHiddenPackages: parseArr(raw.launcherHiddenPackages),
         launcherDockPackages: parseArr(raw.launcherDockPackages),
         launcherClockStyle: raw.launcherClockStyle === 'analog' ? 'analog' : 'digital',

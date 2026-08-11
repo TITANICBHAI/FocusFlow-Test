@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { PinVerifyModal } from '@/components/PinVerifyModal';
-import { SharedPrefsModule, SP_KEYS } from '@/native-modules/SharedPrefsModule';
+import { SharedPrefsModule } from '@/native-modules/SharedPrefsModule';
 
 interface Props {
   visible: boolean;
@@ -86,7 +86,7 @@ export function BlockedWordsModal({
       action();
       return;
     }
-    SharedPrefsModule.getString(SP_KEYS.DEFENSE_PIN_HASH)
+    SharedPrefsModule.getString('defense_pin_hash')
       .then((hash) => {
         if (!hash) {
           action();

@@ -332,10 +332,14 @@ function FocusScreen() {
     // ── State 2: Nothing active — prompt to create a task ─────────────────────
     const alwaysOnPkgs = settings.alwaysOnPackages ?? [];
     const alwaysOnHasList = alwaysOnPkgs.length > 0;
+    const allowanceCount = (settings.dailyAllowanceEntries ?? []).length;
+    const keywordCount   = (settings.blockedWords ?? []).length;
     // Master enforcement switch — defaults to ON when undefined.
     const enforcementOn = settings.alwaysOnEnforcementEnabled !== false;
-    // "Active" = list has packages AND enforcement is on (drives icon colour).
-    const alwaysOnActive = alwaysOnHasList && enforcementOn;
+    // "Active" = configured always-on rules AND enforcement is on (drives icon colour).
+    const alwaysOnActive = enforcementOn && (
+      alwaysOnHasList || allowanceCount > 0 || keywordCount > 0
+    );
     const autoCopyOn = settings.autoCopyToAlwaysOn ?? false;
     const withDefensePin = (action: () => void) => {
       if (!settings.pinProtectionEnabled) {
@@ -361,10 +365,7 @@ function FocusScreen() {
       void updateSettings({ ...settings, alwaysOnEnforcementEnabled: true });
     };
     // Slim hint counts shown below the card — quick at-a-glance status.
-    const allowanceCount = (settings.dailyAllowanceEntries ?? []).length;
     const scheduleCount  = (settings.recurringBlockSchedules ?? []).filter((s) => s.enabled).length;
-    const blockedWords   = settings.blockedWords ?? [];
-    const keywordCount   = blockedWords.length;
     const handleClearAlwaysOn = () => {
       withDefensePin(() => {
         Alert.alert(
@@ -420,7 +421,11 @@ function FocusScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={[styles.enforcementTitle, { color: theme.text }]}>Always-On Enforcement</Text>
                 <Text style={[styles.enforcementSubtitle, { color: theme.muted }]}>
-                  {enforcementOn ? 'Active — blocking 24/7 regardless of sessions' : 'Paused — list kept, nothing enforced'}
+                  {!enforcementOn
+                    ? 'Paused — rules kept, nothing enforced'
+                    : alwaysOnActive
+                      ? 'Active — blocking 24/7 regardless of sessions'
+                      : 'Enabled — add a rule to start blocking'}
                 </Text>
               </View>
               <Switch

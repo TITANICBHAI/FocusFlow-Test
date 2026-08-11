@@ -81,7 +81,11 @@
     "dateModified": "2025-05-10",
     "url": "https://focusflowapp.pages.dev/",
     "softwareVersion": "1.0",
-    "installUrl": "https://appgallery.huawei.com/app/C117698039",
+    "installUrl": [
+      "https://apps.gov.in/app-info/2691",
+      "https://appgallery.huawei.com/app/C117698039",
+      "https://github.com/TITANICBHAI/FocusFlow/releases"
+    ],
     "featureList": [
       "Hard app blocking via Android Accessibility Service",
       "Local null-routing VPN (no external server, entirely on-device)",
@@ -329,6 +333,22 @@
       transition: border-color 0.2s, transform 0.15s;
     }
     .btn-ghost:hover { border-color: var(--accent); transform: translateY(-2px); color: var(--text); }
+    .store-note {
+      margin: 1rem auto 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+      text-align: center;
+    }
+    .store-link {
+      min-height: 52px;
+      box-sizing: border-box;
+      white-space: nowrap;
+    }
+    .india-store {
+      border-color: rgba(255, 153, 51, 0.55);
+      background: linear-gradient(135deg, rgba(255, 153, 51, 0.08), rgba(19, 136, 8, 0.08));
+    }
+    .india-store:hover { border-color: #ff9933; }
 
     /* stat strip */
     .stat-strip {
@@ -581,7 +601,7 @@
       <a href="how-it-works/">How it works</a>
       <a href="faq/">FAQ</a>
       <a href="blog/">Blog</a>
-      <a class="nav-cta" href="https://github.com/TITANICBHAI/FocusFlow/releases"><span class="en">Download APK</span><span class="zh">下载 APK</span></a>
+      <a class="nav-cta" href="https://apps.gov.in/app-info/2691" target="_blank" rel="noopener noreferrer"><span class="en">Get the app</span><span class="zh">获取应用</span></a>
       <select class="lang-select" onchange="localStorage.setItem('ff-lang-chosen','1');if(this.value!=='#')location.href=this.value">
         <option value="#" selected>🌐 EN</option>
         <option value="/zh/">🇨🇳 中文</option>
@@ -612,9 +632,14 @@
       <a href="https://appgallery.huawei.com/app/C117698039" style="display:inline-block;flex-shrink:0;vertical-align:middle;">
         <img src="huawei-appgallery-badge.svg" alt="Explore it on AppGallery" style="height:52px;width:auto;display:block;" />
       </a>
+      <a class="btn-ghost store-link india-store" href="https://apps.gov.in/app-info/2691" target="_blank" rel="noopener noreferrer" aria-label="Get FocusFlow from India's Government App Store">
+        <span class="en">🇮🇳 Gov.in App Store</span><span class="zh">🇮🇳 Gov.in 应用商店</span>
+      </a>
       <a class="btn-ghost" href="https://github.com/TITANICBHAI/FocusFlow/releases"><span class="en">⬇ GitHub APK</span><span class="zh">⬇ GitHub APK</span></a>
       <a class="btn-ghost" href="https://github.com/TITANICBHAI/FocusFlow"><span class="en">View Source →</span><span class="zh">在 GitHub 上查看 →</span></a>
     </div>
+    <p class="store-note en">Now available through India’s Government App Store.</p>
+    <p class="store-note zh">现已在印度政府应用商店上线。</p>
 
     <div class="stat-strip">
       <div class="stat">
@@ -981,11 +1006,14 @@
     <div class="section-inner">
       <h2 class="en">Ready to actually focus?</h2>
       <h2 class="zh">准备好真正专注了吗？</h2>
-      <p class="en">Download from Huawei AppGallery or grab the APK directly from GitHub. Completely free, forever.</p>
-      <p class="zh">从华为应用市场下载或直接从 GitHub 获取 APK。完全免费，永久如此。</p>
+      <p class="en">Download from India’s Government App Store, Huawei AppGallery, or grab the APK directly from GitHub. Completely free, forever.</p>
+      <p class="zh">可从印度政府应用商店、华为应用市场下载，或直接从 GitHub 获取 APK。完全免费，永久如此。</p>
       <div class="cta-group">
         <a href="https://appgallery.huawei.com/app/C117698039" style="display:inline-block;flex-shrink:0;vertical-align:middle;">
           <img src="huawei-appgallery-badge.svg" alt="Explore it on AppGallery" style="height:52px;width:auto;display:block;" />
+        </a>
+        <a class="btn-ghost store-link india-store" href="https://apps.gov.in/app-info/2691" target="_blank" rel="noopener noreferrer" aria-label="Get FocusFlow from India's Government App Store">
+          <span class="en">🇮🇳 Gov.in App Store</span><span class="zh">🇮🇳 Gov.in 应用商店</span>
         </a>
         <a class="btn-ghost" href="https://github.com/TITANICBHAI/FocusFlow/releases"><span class="en">⬇ GitHub APK</span><span class="zh">⬇ GitHub APK</span></a>
         <a class="btn-ghost" href="https://github.com/TITANICBHAI/FocusFlow"><span class="en">View Source →</span><span class="zh">查看源码 →</span></a>

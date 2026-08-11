@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import dayjs from 'dayjs';
-import { useRegisteredTimer, TIMER_IDS } from '@/services/TimerCoordinator';
 
 export interface TimerState {
   elapsed: number;  // seconds elapsed since start
@@ -10,7 +9,7 @@ export interface TimerState {
 }
 
 export function useTaskTimer(startTime: string, endTime: string): TimerState {
-  const calcState = useCallback((): TimerState => {
+  const calcState = (): TimerState => {
     const now = dayjs();
     const start = dayjs(startTime);
     const end = dayjs(endTime);
@@ -29,38 +28,34 @@ export function useTaskTimer(startTime: string, endTime: string): TimerState {
       progress: total > 0 ? Math.min(1, Math.max(0, elapsed / total)) : 0,
       isOverdue: remaining < 0,
     };
-  }, [startTime, endTime]);
+  };
 
   const [timerState, setTimerState] = useState<TimerState>(calcState);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const tick = useCallback(() => {
+  useEffect(() => {
     setTimerState(calcState());
-  }, [calcState]);
-
-  // Use TimerCoordinator for coordinated 1-second tick
-  // Use a unique timer ID based on the task's time range
-  const timerId = `task-timer-${startTime}-${endTime}`;
-  useRegisteredTimer(timerId, 'TICK_1S', tick, {
-    enabled: true,
-    runImmediately: true,
-  });
+    intervalRef.current = setInterval(() => {
+      setTimerState(calcState());
+    }, 1000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [startTime, endTime]);
 
   return timerState;
 }
 
 export function useCountdown(targetTime: string): number {
-  const calc = useCallback(() => Math.max(0, dayjs(targetTime).diff(dayjs(), 'second')), [targetTime]);
+  const calc = () => Math.max(0, dayjs(targetTime).diff(dayjs(), 'second'));
   const [seconds, setSeconds] = useState(calc);
+  const ref = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const tick = useCallback(() => {
+  useEffect(() => {
     setSeconds(calc());
-  }, [calc]);
-
-  // Use TimerCoordinator for coordinated 1-second tick
-  useRegisteredTimer(`countdown-${targetTime}`, 'TICK_1S', tick, {
-    enabled: true,
-    runImmediately: true,
-  });
+    ref.current = setInterval(() => setSeconds(calc()), 1000);
+    return () => { if (ref.current) clearInterval(ref.current); };
+  }, [targetTime]);
 
   return seconds;
 }

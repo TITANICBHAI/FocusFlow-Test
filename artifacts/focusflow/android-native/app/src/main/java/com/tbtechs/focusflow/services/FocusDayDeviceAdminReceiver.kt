@@ -40,7 +40,7 @@ import android.os.UserManager
 class FocusDayDeviceAdminReceiver : DeviceAdminReceiver() {
 
     companion object {
-        private const val PREFS_NAME = AppBlockerAccessibilityService.PREFS_NAME
+        private const val PREFS_NAME = "focusday_prefs"
     }
 
     override fun onEnabled(context: Context, intent: Intent) {
@@ -62,9 +62,9 @@ class FocusDayDeviceAdminReceiver : DeviceAdminReceiver() {
     override fun onDisableRequested(context: Context, intent: Intent): CharSequence {
         val prefs: SharedPreferences =
             context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val focusActive      = prefs.getBoolean(AppBlockerAccessibilityService.PREF_FOCUS_ON, false)
-        val saActive         = prefs.getBoolean(AppBlockerAccessibilityService.PREF_SA_ACTIVE, false)
-        val alwaysBlockActive = prefs.getBoolean(AppBlockerAccessibilityService.PREF_ALWAYS_BLOCK, false)
+        val focusActive      = prefs.getBoolean("focus_active", false)
+        val saActive         = prefs.getBoolean("standalone_block_active", false)
+        val alwaysBlockActive = prefs.getBoolean("always_block_active", false)
         return if (focusActive || saActive || alwaysBlockActive) {
             "⚠ A FocusFlow session is currently active. Removing Device Admin will " +
             "weaken enforcement and allow OEM systems to kill the blocking service. " +
@@ -90,8 +90,8 @@ class FocusDayDeviceAdminReceiver : DeviceAdminReceiver() {
         // adding one more friction step after a bypass attempt.
         if (!enable) {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            val sessionActive = prefs.getBoolean(AppBlockerAccessibilityService.PREF_FOCUS_ON, false) ||
-                                prefs.getBoolean(AppBlockerAccessibilityService.PREF_SA_ACTIVE, false)
+            val sessionActive = prefs.getBoolean("focus_active", false) ||
+                                prefs.getBoolean("standalone_block_active", false)
             if (sessionActive) {
                 try { dpm.lockNow() } catch (_: Exception) { /* lock requires admin still active */ }
             }

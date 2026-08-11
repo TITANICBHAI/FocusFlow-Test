@@ -131,12 +131,12 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
         try {
             val obj = JSONObject().apply {
                 put("enabled",  prefs.getBoolean("net_block_enabled", false))
-                put("vpn",      prefs.getBoolean("net_block_vpn",     false))
+                put("vpn",      prefs.getBoolean("net_block_vpn",     true))
                 put("wifi",     prefs.getBoolean("net_block_wifi",    true))
                 put("mobile",   prefs.getBoolean("net_block_mobile",  false))
                 put("global",   prefs.getBoolean("net_block_global",  false))
                 put("restore",  prefs.getBoolean("net_block_restore", true))
-                put("packages", prefs.getString("net_block_packages", "[]") ?: "[]")
+                put("packages", org.json.JSONArray(prefs.getString("net_block_packages", "[]") ?: "[]"))
             }
             promise.resolve(obj.toString())
         } catch (e: Exception) {
@@ -187,7 +187,7 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
                 return
             }
 
-            val useVpn    = prefs.getBoolean("net_block_vpn",    false)
+            val useVpn    = prefs.getBoolean("net_block_vpn",    true)
             val useWifi   = prefs.getBoolean("net_block_wifi",   true)
             val useMobile = prefs.getBoolean("net_block_mobile", false)
             val global    = prefs.getBoolean("net_block_global", false)

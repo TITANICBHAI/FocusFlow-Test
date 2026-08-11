@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Vibration } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { useRegisteredTimer, TIMER_IDS } from '@/services/TimerCoordinator';
 
 export interface PomodoroState {
   phase: 'work' | 'break';
@@ -49,37 +48,38 @@ export function usePomodoro(
 
   const prevPhaseRef = useRef<'work' | 'break' | null>(null);
 
-  const tick = useCallback(() => {
+  useEffect(() => {
     if (!enabled || !sessionStartedAt) {
       setPomState(idle);
       prevPhaseRef.current = null;
       return;
     }
 
-    const next = calcPomodoro(sessionStartedAt, workSecs, breakSecs);
-    setPomState(next);
+    const tick = () => {
+      const next = calcPomodoro(sessionStartedAt, workSecs, breakSecs);
+      setPomState(next);
 
-    if (prevPhaseRef.current !== null && prevPhaseRef.current !== next.phase) {
-      const toWork = next.phase === 'work';
-      Vibration.vibrate(toWork ? [0, 200, 100, 200] : [0, 400]);
-      void Notifications.scheduleNotificationAsync({
-        content: {
-          title: toWork ? '🎯 Back to Work' : '☕ Break Time',
-          body: toWork
-            ? `Focus up — ${workMinutes} min work session starting now.`
-            : `Great work! Take a ${breakMinutes} min break.`,
-        },
-        trigger: null,
-      }).catch(() => {});
-    }
-    prevPhaseRef.current = next.phase;
-  }, [enabled, sessionStartedAt, workSecs, breakSecs, workMinutes, breakMinutes]);
+      if (prevPhaseRef.current !== null && prevPhaseRef.current !== next.phase) {
+        const toWork = next.phase === 'work';
+        Vibration.vibrate(toWork ? [0, 200, 100, 200] : [0, 400]);
+        void Notifications.scheduleNotificationAsync({
+          content: {
+            title: toWork ? '🎯 Back to Work' : '☕ Break Time',
+            body: toWork
+              ? `Focus up — ${workMinutes} min work session starting now.`
+              : `Great work! Take a ${breakMinutes} min break.`,
+          },
+          trigger: null,
+        }).catch(() => {});
+      }
+      prevPhaseRef.current = next.phase;
+    };
 
-  // Use TimerCoordinator for coordinated 1-second tick
-  useRegisteredTimer(TIMER_IDS.POMODORO_TICK, 'TICK_1S', tick, {
-    enabled: enabled && !!sessionStartedAt,
-    runImmediately: true,
-  });
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, sessionStartedAt, workSecs, breakSecs]);
 
   return pomState;
 }

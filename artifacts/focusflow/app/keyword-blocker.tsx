@@ -89,7 +89,7 @@ const QUICK_PRESETS: QuickPreset[] = [
 export default function KeywordBlockerScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
-  const { state, updateSettings } = useApp();
+  const { state, updateSettings, setBlockedWords } = useApp();
   const { settings } = state;
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -100,13 +100,14 @@ export default function KeywordBlockerScreen() {
   const isOn = blockedWords.length > 0;
 
   const isLocked = (() => {
+    if (state.focusSession !== null) return true;
     if (!settings.standaloneBlockUntil) return false;
     if ((settings.standaloneBlockPackages ?? []).length === 0) return false;
     return new Date(settings.standaloneBlockUntil).getTime() > Date.now();
   })();
 
   const handleSaveWords = async (words: string[]) => {
-    await updateSettings({ ...settings, blockedWords: words });
+    await setBlockedWords(words);
   };
 
   const handleAddPreset = (preset: QuickPreset) => {

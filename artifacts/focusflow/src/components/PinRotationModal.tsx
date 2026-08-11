@@ -43,7 +43,7 @@ import {
   type ReuseTrackerKey,
 } from '@/utils/pinReuseTracker';
 import { SessionPinModule } from '@/native-modules/SessionPinModule';
-import { SharedPrefsModule, SP_KEYS } from '@/native-modules/SharedPrefsModule';
+import { SharedPrefsModule } from '@/native-modules/SharedPrefsModule';
 import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -116,7 +116,7 @@ export function PinRotationModal({
       if (pinType === 'focus') {
         await SessionPinModule.setPinHash(hash);
       } else {
-        await SharedPrefsModule.putString(SP_KEYS.DEFENSE_PIN_HASH, hash);
+        await SharedPrefsModule.putString('defense_pin_hash', hash);
       }
       onComplete();
     } catch {

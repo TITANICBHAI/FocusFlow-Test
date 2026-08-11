@@ -18,11 +18,11 @@ import android.os.Build
  *      notification is always present and the process is kept alive by Android.
  *
  * SharedPreferences keys:
- *   PREF_FOCUS_ON            Boolean — true if a task focus was running at shutdown
- *   PREF_TASK_NAME           String  — last task name
- *   PREF_TASK_END_MS         Long    — last task end epoch ms
- *   PREF_NEXT_TASK_NAME      String? — next task name (may be null)
- *   PREF_SA_ACTIVE           Boolean — standalone (no-task) blocking active
+ *   "focus_active"          Boolean — true if a task focus was running at shutdown
+ *   "task_name"             String  — last task name
+ *   "task_end_ms"           Long    — last task end epoch ms
+ *   "next_task_name"        String? — next task name (may be null)
+ *   "standalone_block_active" Boolean — standalone (no-task) blocking active
  */
 class BootReceiver : BroadcastReceiver() {
 
@@ -44,11 +44,11 @@ class BootReceiver : BroadcastReceiver() {
             AppBlockerAccessibilityService.PREFS_NAME, Context.MODE_PRIVATE
         )
 
-        val focusActive   = prefs.getBoolean(AppBlockerAccessibilityService.PREF_FOCUS_ON, false)
-        val endTimeMs     = prefs.getLong(AppBlockerAccessibilityService.PREF_TASK_END_MS, 0L)
-        val startTimeMs   = prefs.getLong(AppBlockerAccessibilityService.PREF_TASK_START_MS, 0L)
-        val durationMs    = prefs.getLong(AppBlockerAccessibilityService.PREF_TASK_DURATION_MS, 0L)
-        val lastWrittenMs = prefs.getLong(AppBlockerAccessibilityService.PREF_TASK_LAST_WRITTEN_MS, 0L)
+        val focusActive   = prefs.getBoolean("focus_active", false)
+        val endTimeMs     = prefs.getLong("task_end_ms", 0L)
+        val startTimeMs   = prefs.getLong("task_start_ms", 0L)
+        val durationMs    = prefs.getLong("task_duration_ms", 0L)
+        val lastWrittenMs = prefs.getLong("task_last_written_ms", 0L)
 
         val now = System.currentTimeMillis()
 
@@ -66,9 +66,9 @@ class BootReceiver : BroadcastReceiver() {
 
         if (sessionValid && endTimeMs > 0L) {
             // ── Restart in ACTIVE focus mode ──────────────────────────────────
-            val taskId   = prefs.getString(AppBlockerAccessibilityService.PREF_TASK_ID, "") ?: ""
-            val taskName = prefs.getString(AppBlockerAccessibilityService.PREF_TASK_NAME, "Focus Task") ?: "Focus Task"
-            val nextName = prefs.getString(AppBlockerAccessibilityService.PREF_NEXT_TASK_NAME, null)
+            val taskId   = prefs.getString("task_id", "") ?: ""
+            val taskName = prefs.getString("task_name", "Focus Task") ?: "Focus Task"
+            val nextName = prefs.getString("next_task_name", null)
 
             val serviceIntent = Intent(context, ForegroundTaskService::class.java).apply {
                 putExtra(ForegroundTaskService.EXTRA_TASK_ID,   taskId)
@@ -81,15 +81,15 @@ class BootReceiver : BroadcastReceiver() {
             // Rearm the VPN watchdog alarm — it was cancelled when the process
             // was killed. If network blocking was active it will restart the VPN
             // within one watchdog interval without the user noticing.
-            val netBlockEnabled = prefs.getBoolean(AppBlockerAccessibilityService.PREF_NET_BLOCK_ENABLED, false)
-            val selfHeal        = prefs.getBoolean(AppBlockerAccessibilityService.PREF_NET_BLOCK_SELF_HEAL, false)
+            val netBlockEnabled = prefs.getBoolean("net_block_enabled", false)
+            val selfHeal        = prefs.getBoolean("net_block_self_heal", false)
             if (netBlockEnabled && selfHeal) {
                 VpnWatchdogReceiver.schedule(context)
             }
         } else {
             // ── Clear any stale focus flag, then start IDLE to keep process alive ──
             if (focusActive) {
-                prefs.edit().putBoolean(AppBlockerAccessibilityService.PREF_FOCUS_ON, false).apply()
+                prefs.edit().putBoolean("focus_active", false).apply()
             }
             // Huawei AppGallery rule 2.19: only auto-start the idle foreground
             // service if the user has completed onboarding and explicitly

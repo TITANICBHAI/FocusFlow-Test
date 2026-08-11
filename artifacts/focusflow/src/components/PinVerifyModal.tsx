@@ -26,7 +26,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { hashPassword } from '@/utils/pinCrypto';
 import { SessionPinModule } from '@/native-modules/SessionPinModule';
-import { SharedPrefsModule, SP_KEYS } from '@/native-modules/SharedPrefsModule';
+import { SharedPrefsModule } from '@/native-modules/SharedPrefsModule';
 import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -92,7 +92,7 @@ export function PinVerifyModal({
       if (pinType === 'focus') {
         correct = await SessionPinModule.verifyPin(hash);
       } else {
-        const stored = await SharedPrefsModule.getString(SP_KEYS.DEFENSE_PIN_HASH);
+        const stored = await SharedPrefsModule.getString('defense_pin_hash');
         correct = !!stored && stored === hash;
       }
 
