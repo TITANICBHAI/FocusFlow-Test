@@ -1,11 +1,15 @@
-const tintColorLight = "#2f95dc";
+/**
+ * Legacy color export kept for screens that still import constants/colors.
+ * New UI should use src/styles/theme.ts directly.
+ */
+const tintColorLight = '#4F8EF7';
 
 export default {
   light: {
-    text: "#000",
-    background: "#fff",
+    text: '#111318',
+    background: '#F7F8FC',
     tint: tintColorLight,
-    tabIconDefault: "#ccc",
+    tabIconDefault: '#7F879C',
     tabIconSelected: tintColorLight,
   },
 };

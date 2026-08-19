@@ -19,6 +19,7 @@
 
 ## Running Workflows
 - **Start application** — Mockup sandbox on port 5000 (main webview). Routes: `/` (landing), `/gallery`, `/preview/Screenshot1Home`, `/preview/Screenshot2Focus`, `/preview/Screenshot3Blocked`, `/preview/Screenshot4Stats`, `/preview/Screenshot5Permissions`.
+- **FocusFlow Expo** — Mobile Expo workflow from `artifacts/focusflow`; start with `pnpm --filter @workspace/focusflow run dev` (the configured workflow supplies the Replit Expo environment).
 - **Start FocusFlow Ad** — Ad/video animation sandbox on port 3002.
 - **Push to GitHub** — Syncs workspace to `TITANICBHAI/FocusFlow` on GitHub main branch. Requires `GITHUB_PERSONAL_ACCESS_TOKEN`.
 - **Push FocusFlow-pc to GitHub** — Syncs `FocusFlow-pc/focusflow-pc` dir to `TITANICBHAI/FocusFlow-pc`. Requires `GITHUB_PERSONAL_ACCESS_TOKEN`.

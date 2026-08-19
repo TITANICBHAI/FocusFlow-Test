@@ -18,14 +18,16 @@ import { NativeImagePickerModule } from '@/native-modules/NativeImagePickerModul
 import { UsageStatsModule, isUsageStatsAvailable } from '@/native-modules/UsageStatsModule';
 import { SharedPrefsModule, isSharedPrefsAvailable } from '@/native-modules/SharedPrefsModule';
 import { ForegroundLaunchModule } from '@/native-modules/ForegroundLaunchModule';
+import { NetworkBlockModule } from '@/native-modules/NetworkBlockModule';
 import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
 import { TroubleshootModal } from '@/components/TroubleshootModal';
+import FocusFlowLogo from '@/components/FocusFlowLogo';
 import { RestrictedSettingsBanner } from '@/components/RestrictedSettingsBanner';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 
 type PermStatus = 'granted' | 'denied' | 'unknown';
-type PermissionId = 'accessibility' | 'usage' | 'battery' | 'notifications' | 'device_admin' | 'overlay' | 'media_files' | 'launcher';
+type PermissionId = 'accessibility' | 'usage' | 'battery' | 'notifications' | 'device_admin' | 'overlay' | 'media_files' | 'launcher' | 'vpn';
 
 interface PermissionItem {
   id: PermissionId;
@@ -189,15 +191,43 @@ const PERMISSIONS: PermissionItem[] = [
     },
   },
   {
+    id: 'vpn',
+    title: 'VPN Network Blocking',
+    description:
+      'Cuts internet access for selected distracting apps while a network block is active.',
+    whyNeeded:
+      'Iron Mode can combine app blocking with a local VPN layer. For example, you can prepare downloaded work videos before a session and restrict network access for distracting apps while you focus.',
+    brokenWithout: [
+      'Selected apps keep their internet access during network blocking',
+      'Network Blocking will not start until Android VPN consent is granted',
+    ],
+    icon: 'shield-half-outline',
+    deepLinkLabel: 'Allow VPN',
+    optional: true,
+    check: async (): Promise<PermStatus> => {
+      try {
+        const granted = await NetworkBlockModule.isVpnPermissionGranted();
+        return granted ? 'granted' : 'denied';
+      } catch {
+        return 'unknown';
+      }
+    },
+    open: () => {
+      NetworkBlockModule.requestVpnPermission().catch(() =>
+        Linking.openSettings()
+      );
+    },
+  },
+  {
     id: 'device_admin',
     title: 'Device Admin',
     description:
-      'Prevents Samsung One UI, MIUI, and ColorOS from force-stopping FocusFlow.',
+      'Makes it harder for Samsung One UI, MIUI, and ColorOS to force-stop FocusFlow during a focus session.',
     whyNeeded:
-      'Some OEM phones let users force-stop apps from recent apps — this blocks that action.',
+      'Some OEM phones expose force-stop paths from recents or system controls. Device Admin adds resistance to those paths, but it is not an absolute uninstall or force-stop guarantee.',
     brokenWithout: [
-      'On Samsung & Xiaomi phones, you can swipe away FocusFlow from recents to stop all blocking',
-      'Advanced users can easily bypass focus sessions',
+      'On Samsung & Xiaomi phones, stopping FocusFlow may be easier',
+      'Some device or advanced system paths may end a focus session sooner',
     ],
     icon: 'shield-outline',
     deepLinkLabel: 'Activate Device Admin',
@@ -345,7 +375,10 @@ export default function PermissionsScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.text }]}>Permissions</Text>
+        <View style={styles.headerBrand}>
+          <FocusFlowLogo size={30} />
+          <Text style={[styles.title, { color: theme.text }]}>Permissions</Text>
+        </View>
         {!isLocked && (
           <TouchableOpacity onPress={checkAll} style={styles.refreshBtn} disabled={checking}>
             {checking ? (
@@ -589,6 +622,7 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   backBtn: { padding: 4 },
+  headerBrand: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   title: { flex: 1, fontSize: FONT.xl, fontWeight: '800', color: COLORS.text },
   refreshBtn: { padding: 4 },
   scroll: { flex: 1 },

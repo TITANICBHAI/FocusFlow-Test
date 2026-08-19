@@ -89,7 +89,7 @@ const QUICK_PRESETS: QuickPreset[] = [
 export default function KeywordBlockerScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
-  const { state, updateSettings, setBlockedWords } = useApp();
+  const { state, updateSettings } = useApp();
   const { settings } = state;
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -100,14 +100,13 @@ export default function KeywordBlockerScreen() {
   const isOn = blockedWords.length > 0;
 
   const isLocked = (() => {
-    if (state.focusSession !== null) return true;
     if (!settings.standaloneBlockUntil) return false;
     if ((settings.standaloneBlockPackages ?? []).length === 0) return false;
     return new Date(settings.standaloneBlockUntil).getTime() > Date.now();
   })();
 
   const handleSaveWords = async (words: string[]) => {
-    await setBlockedWords(words);
+    await updateSettings({ ...settings, blockedWords: words });
   };
 
   const handleAddPreset = (preset: QuickPreset) => {
@@ -189,7 +188,7 @@ export default function KeywordBlockerScreen() {
             <Text style={[styles.introTitle, { color: theme.text }]}>Block by keyword</Text>
             <Text style={[styles.introDesc, { color: theme.muted }]}>
               The moment any of your blocked words appear on screen — in URLs, search bars, or visible text —
-              the app is sent home. Active during Focus Mode and whenever the always-on list is enforcing.
+              the app is sent home whenever the Accessibility Service is enabled — no app list, VPN, or session required.
             </Text>
           </View>
         </View>

@@ -1,0 +1,94 @@
+If we think like a first-time user, I would not put profile setup directly after the how-to as another mandatory screen. That still creates a long tunnel:
+
+Privacy → permissions → optional permissions → how-to → profile → finally home
+
+The user may feel:
+
+“I already did all this. Why can’t I use the app yet?”
+
+What most users would probably prefer
+Privacy policy
+   ↓
+Core setup
+   ↓
+Optional protection + PIN
+   ↓
+How-to guide
+   ↓
+Home
+
+Then show profile setup inside the app as an optional personalization prompt, either:
+
+after the user reaches the home screen,
+when they first create a task,
+or as a small dismissible card: “Personalize your FocusFlow”.
+That lets the user experience the product before asking for personal information.
+
+Why this is probably better
+1. Permissions already feel like a lot
+Even with two pages, Android settings screens are demanding. The user may have to leave FocusFlow multiple times and navigate unfamiliar system menus.
+
+After that, the user needs a reward: seeing the actual app.
+
+2. Profile details are not needed to prove the core value
+Name, occupation, daily goal, and chronotype help personalize FocusFlow, but they do not determine whether the user can:
+
+select blocked apps,
+start a focus session,
+create a task,
+or see the dashboard.
+So they should not delay the first useful action.
+
+3. The how-to guide is the natural final onboarding moment
+The guide explains what the user can do. After reading it, the most satisfying action is:
+
+Got it — let’s start
+
+That should take them directly into the product, not to another form.
+
+4. Users are more willing to personalize after seeing value
+Once someone has seen the dashboard or is creating their first task, “What should we call you?” feels useful. At the beginning, it can feel like unnecessary data collection.
+
+My recommendation
+Use this as the primary flow:
+
+Privacy policy
+   ↓
+Core setup
+   ↓
+Optional protection + PIN
+   ↓
+How to use FocusFlow
+   ↓
+Home
+
+Then make the profile card something like:
+
+Make FocusFlow yours
+Add a name and daily focus goal to personalize your experience.
+Set up profile Maybe later
+
+It should be dismissible and never block access.
+
+One subtle wording point
+Since the Continue buttons work without permissions, I would avoid “Necessary permissions” as the page title. That creates a contradiction: the page says they are necessary, but the app allows the user to skip them.
+
+Better labels:
+
+Page 1
+Set up core access
+These permissions help FocusFlow recognize distractions and keep blocking active.
+
+Page 2
+Add optional protection
+These features strengthen blocking or add customization. You can skip them and return later.
+
+Also, I would use neutral statuses:
+
+Ready
+Not set up
+Skipped
+Check later
+rather than red Missing, especially on the optional page.
+
+My strongest recommendation is therefore: move profile personalization out of the blocking onboarding path entirely, let the how-to finish directly into Home, and introduce the profile after the user has experienced the app.

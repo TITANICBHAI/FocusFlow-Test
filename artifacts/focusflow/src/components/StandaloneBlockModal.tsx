@@ -20,10 +20,12 @@ import dayjs from 'dayjs';
 import { InstalledAppsModule, InstalledApp } from '@/native-modules/InstalledAppsModule';
 import { UsageStatsModule } from '@/native-modules/UsageStatsModule';
 import { SessionPinModule } from '@/native-modules/SessionPinModule';
+import { NetworkBlockModule } from '@/native-modules/NetworkBlockModule';
 import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { PinVerifyModal } from '@/components/PinVerifyModal';
 import type { DailyAllowanceEntry, AllowanceMode, BlockPreset, RecurringBlockSchedule } from '@/data/types';
+import { SYSTEM_NEVER_BLOCK } from '@/services/protectedApps';
 
 // ─── App Categories ───────────────────────────────────────────────────────────
 // Known Android package names for common app categories.
@@ -51,34 +53,12 @@ interface AppCategory {
 // has explicitly asked to be able to block it.  AppPickerSheet still surfaces
 // it as a sensitive category with a warning before adding it to the list.
 
-const SYSTEM_NEVER_BLOCK = new Set([
-  'com.android.launcher', 'com.android.launcher2', 'com.android.launcher3',
-  'com.sec.android.app.launcher', 'com.google.android.apps.nexuslauncher',
-  'com.miui.launcher', 'com.huawei.android.launcher', 'com.coloros.launcher',
-  'com.oneplus.launcher', 'com.oppo.launcher', 'com.motorola.launcher3',
-  'com.nothing.launcher', 'com.realme.launcher', 'com.iqoo.launcher',
-  'com.vivo.launcher', 'com.asus.launcher', 'com.ZenUI.launcher',
-  'com.lge.launcher3', 'com.htc.launcher', 'com.sonyericsson.home',
-  'com.tcl.launcher', 'com.nokia.launcher', 'com.infinix.launcher',
-  'com.transsion.launcher', 'com.hihonor.launcher',
-  'com.android.systemui',
-  'com.android.phone', 'com.android.server.telecom',
-  'com.samsung.android.incallui', 'com.google.android.dialer',
-  'com.google.android.apps.googledialer',
-  'com.google.android.gms',
-  'com.android.packageinstaller', 'com.google.android.packageinstaller',
-  'com.samsung.android.packageinstaller',
-  'com.samsung.android.wallet', 'com.samsung.android.samsungpay',
-  'com.google.android.apps.walletnfcrel',
-  'com.tbtechs.focusflow',
-]);
-
 const APP_CATEGORIES: AppCategory[] = [
   {
     id: 'social',
     label: 'Social',
     icon: 'people-outline',
-    color: '#3b82f6',
+    color: COLORS.primary,
     packages: [
       'com.facebook.katana',
       'com.instagram.android',
@@ -138,7 +118,7 @@ const APP_CATEGORIES: AppCategory[] = [
     id: 'news',
     label: 'News',
     icon: 'newspaper-outline',
-    color: '#8b5cf6',
+    color: COLORS.purple,
     packages: [
       'com.google.android.apps.magazines',
       'com.nytimes.android',
@@ -156,7 +136,7 @@ const APP_CATEGORIES: AppCategory[] = [
     id: 'games',
     label: 'Games',
     icon: 'game-controller-outline',
-    color: '#10b981',
+    color: COLORS.green,
     packages: [
       'com.king.candycrushsaga',
       'com.supercell.clashofclans',
@@ -469,6 +449,21 @@ export function StandaloneBlockModal({
       );
       return;
     }
+
+    // VPN consent can be revoked outside FocusFlow after this picker was
+    // opened. Re-check before committing any selected VPN packages and keep
+    // the sheet open if the user declines the Android consent dialog.
+    if (vpnPkgsSet.size > 0) {
+      const vpnGranted = await NetworkBlockModule.ensureVpnPermission();
+      if (!vpnGranted) {
+        Alert.alert(
+          'VPN permission required',
+          'Network blocking is selected, but Android VPN permission is not available. Grant it and tap Save again.',
+        );
+        return;
+      }
+    }
+
     if (untilDate.getTime() <= Date.now()) {
       Alert.alert(
         'Expiry in the Past',
@@ -569,17 +564,12 @@ export function StandaloneBlockModal({
   const onTimeChange = (_: DateTimePickerEvent, date?: Date) => {
     setShowTimePicker(false);
     if (date) {
-      let merged = dayjs(untilDate)
+      const merged = dayjs(untilDate)
         .hour(date.getHours())
         .minute(date.getMinutes())
-        .second(0);
-      // If the resulting datetime is in the past (user picked an earlier time
-      // on today's date), auto-advance to the next day so the block always
-      // starts in the future and handleSave never rejects it silently.
-      if (merged.isBefore(dayjs())) {
-        merged = merged.add(1, 'day');
-      }
-      setUntilDate(merged.toDate());
+        .second(0)
+        .toDate();
+      setUntilDate(merged);
     }
   };
 

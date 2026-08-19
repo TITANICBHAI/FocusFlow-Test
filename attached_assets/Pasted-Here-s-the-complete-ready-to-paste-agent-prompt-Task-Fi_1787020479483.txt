@@ -1,0 +1,161 @@
+Here's the complete ready-to-paste agent prompt:
+
+---
+
+**Task: Fix inflated usage stats in FocusFlow Android app**
+
+**Background (read, don't act on):**
+FocusFlow's usage stats screen shows ~2–4× more screen time than Android's Digital Wellbeing. Root cause is confirmed: `getUsageSummary` in `UsageStatsModule.kt` calls `queryUsageStats(INTERVAL_DAILY, start, end)` which returns pre-aggregated UTC daily buckets. Since the user is in IST (UTC+5:30), every IST calendar-day query spans two UTC buckets, and the code sums both buckets' full `totalTimeInForeground` — effectively returning two days of data for one day's query.
+
+---
+
+**Step 1 — Find the file**
+
+The file is `UsageStatsModule.kt`. It lives somewhere under `android-native/app/src/main/.../modules/`. Search for it — the exact middle path is unknown. There is only one file with this name.
+
+---
+
+**Step 2 — Find the method to replace**
+
+Inside `UsageStatsModule.kt`, find the method:
+```kotlin
+fun getUsageSummary(startMs: Double, endMs: Double, promise: Promise)
+```
+
+The method body currently has:
+- A `start >= end` guard at the top → **keep this exactly as-is**
+- A `queryUsageStats(INTERVAL_DAILY, ...)` block → **delete this**
+- A separate `queryEvents(...)` loop for launch counts → **delete this too**
+- A `promise.resolve(result)` at the end → **this gets replaced**
+
+Do not touch anything outside this method. Do not touch `getForegroundApp`. Do not touch any `.tsx` files.
+
+---
+
+**Step 3 — Replace the body**
+
+Keep the method signature, the outer `try/catch`, and the `start >= end` early-return guard. Replace everything after that guard (up to but not including the `} catch`) with this:
+
+```kotlin
+val usageManager = reactContext.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+val packageManager = reactContext.packageManager
+val ownPackage = reactContext.packageName
+
+val foregroundType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+    UsageEvents.Event.ACTIVITY_RESUMED else UsageEvents.Event.MOVE_TO_FOREGROUND
+val backgroundType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+    UsageEvents.Event.ACTIVITY_PAUSED  else UsageEvents.Event.MOVE_TO_BACKGROUND
+
+// Per-package accumulators
+val fgStartMs    = mutableMapOf<String, Long>()   // foreground session start timestamp
+val foregroundMs = mutableMapOf<String, Long>()   // clipped foreground duration
+val launchCounts = mutableMapOf<String, Int>()
+val lastUsedAt   = mutableMapOf<String, Long>()
+var lastFgPkg: String? = null
+
+// Query 24h before `start` so sessions already in progress at the boundary
+// (e.g. an app open at midnight) are captured. The maxOf(fgStart, start)
+// clamp below clips their pre-boundary portion correctly.
+val queryStart = start - 24L * 60 * 60 * 1000L
+val events = usageManager.queryEvents(queryStart, end)
+val event  = UsageEvents.Event()
+
+while (events.hasNextEvent()) {
+    events.getNextEvent(event)
+    val pkg = event.packageName
+    if (pkg == ownPackage) continue
+
+    lastUsedAt[pkg] = maxOf(lastUsedAt[pkg] ?: 0L, event.timeStamp)
+
+    when (event.eventType) {
+        foregroundType -> {
+            fgStartMs[pkg] = event.timeStamp  // may be before `start` — intentional
+            if (pkg != lastFgPkg) {
+                // Only count as a launch if the foreground event is inside the window
+                if (event.timeStamp >= start) {
+                    launchCounts[pkg] = (launchCounts[pkg] ?: 0) + 1
+                }
+                lastFgPkg = pkg
+            }
+        }
+        backgroundType -> {
+            val fgStart = fgStartMs.remove(pkg) ?: continue
+            val clippedStart = maxOf(fgStart, start)   // clips pre-start portion
+            val clippedEnd   = minOf(event.timeStamp, end)
+            if (clippedEnd > clippedStart) {
+                foregroundMs[pkg] = (foregroundMs[pkg] ?: 0L) + (clippedEnd - clippedStart)
+            }
+        }
+    }
+}
+
+// Handle sessions still in foreground at the end of the query window
+// (app was foregrounded but no BACKGROUND event arrived before `end`)
+val now = System.currentTimeMillis()
+for ((pkg, fgStart) in fgStartMs) {
+    val clippedStart = maxOf(fgStart, start)
+    val clippedEnd   = minOf(now, end)
+    if (clippedEnd > clippedStart) {
+        foregroundMs[pkg] = (foregroundMs[pkg] ?: 0L) + (clippedEnd - clippedStart)
+    }
+}
+
+// Build the app list sorted by foreground time descending
+val apps = foregroundMs.entries
+    .filter { it.value > 0L }
+    .map { (pkg, ms) ->
+        val appName = try {
+            packageManager.getApplicationLabel(
+                packageManager.getApplicationInfo(pkg, 0)
+            ).toString()
+        } catch (_: Exception) { pkg }
+
+        WritableNativeMap().apply {
+            putString("packageName",    pkg)
+            putString("appName",        appName)
+            putInt("foregroundMinutes", (ms / 60_000L).toInt())
+            putInt("launchCount",       launchCounts[pkg] ?: 0)
+            putDouble("lastUsedAt",     (lastUsedAt[pkg] ?: 0L).toDouble())
+        }
+    }
+    .sortedByDescending { it.getInt("foregroundMinutes") }
+
+val totalMs      = foregroundMs.values.sumOf { it }
+val totalMinutes = (totalMs / 60_000L).toInt()
+
+val appArray = com.facebook.react.bridge.Arguments.createArray()
+apps.forEach { appArray.pushMap(it) }
+
+promise.resolve(WritableNativeMap().apply {
+    putInt("totalMinutes", totalMinutes)
+    putArray("apps", appArray)
+})
+```
+
+---
+
+**Step 4 — Check imports**
+
+Verify these are already imported at the top of `UsageStatsModule.kt` (they almost certainly are, since the old code used them too):
+- `android.app.usage.UsageEvents`
+- `android.app.usage.UsageStatsManager`
+- `android.os.Build`
+- `com.facebook.react.bridge.WritableNativeMap`
+- `com.facebook.react.bridge.Arguments`
+
+Add any that are missing. Do not add duplicates.
+
+---
+
+**Step 5 — Do NOT change any of these**
+
+- `getForegroundApp` method — leave it exactly as-is
+- `hasPermission`, `openUsageAccessSettings`, and all other methods — untouched
+- Any `.tsx` file — not part of this fix
+- The `start >= end` guard at the top of `getUsageSummary` — keep it
+
+---
+
+**How to verify it worked:**
+
+Build and run. Open the Stats screen, check Yesterday and Today. The totals should now be within ~5% of Digital Wellbeing's numbers. Per-app values should also closely match. If FocusFlow still shows 2× or more relative to Digital Wellbeing, the old `queryUsageStats` block was not fully removed.

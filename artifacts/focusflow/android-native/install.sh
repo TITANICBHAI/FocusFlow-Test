@@ -17,6 +17,7 @@ ANDROID_DIR="$ROOT_DIR/android"
 PKG_DIR="$ANDROID_DIR/app/src/main/java/com/tbtechs/focusflow"
 RES_DIR="$ANDROID_DIR/app/src/main/res"
 MANIFEST="$ANDROID_DIR/app/src/main/AndroidManifest.xml"
+APP_GRADLE="$ANDROID_DIR/app/build.gradle"
 
 # ── Cross-platform sed -i ─────────────────────────────────────────────────────
 # macOS BSD sed requires a backup extension with -i; GNU sed (Linux) does not.
@@ -119,6 +120,15 @@ fi
 
 echo "📋  Patching AndroidManifest.xml..."
 
+# RecyclerView is used by LauncherActivity for a recycled, searchable app
+# drawer. Expo/RN projects do not all include it as a direct dependency, so
+# ensure generated Android projects compile the launcher after installation.
+if [ -f "$APP_GRADLE" ] && ! grep -q "androidx.recyclerview:recyclerview" "$APP_GRADLE"; then
+  sedi '/dependencies[[:space:]]*{/a\
+    implementation "androidx.recyclerview:recyclerview:1.3.2"' "$APP_GRADLE"
+  echo "   ✓ AndroidX RecyclerView dependency added"
+fi
+
 # ── Ensure xmlns:tools namespace is declared in <manifest> ───────────────────
 # NOTE: manifest existence is confirmed above — safe to patch here.
 if ! grep -q 'xmlns:tools' "$MANIFEST"; then
@@ -145,11 +155,16 @@ patch_permission "android.permission.PACKAGE_USAGE_STATS"        ' tools:ignore=
 patch_permission "android.permission.SYSTEM_ALERT_WINDOW"
 patch_permission "android.permission.FOREGROUND_SERVICE"
 patch_permission "android.permission.FOREGROUND_SERVICE_SPECIAL_USE"
+patch_permission "android.permission.INTERNET"
+patch_permission "android.permission.CHANGE_NETWORK_STATE"
+patch_permission "android.permission.ACCESS_WIFI_STATE"
+patch_permission "android.permission.CHANGE_WIFI_STATE"
 patch_permission "android.permission.RECEIVE_BOOT_COMPLETED"
 patch_permission "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
 patch_permission "android.permission.BIND_ACCESSIBILITY_SERVICE"  ' tools:ignore="ProtectedPermissions"'
 patch_permission "android.permission.KILL_BACKGROUND_PROCESSES"
 patch_permission "android.permission.USE_FULL_SCREEN_INTENT"
+patch_permission "android.permission.POST_NOTIFICATIONS"
 patch_permission "android.permission.EXPAND_STATUS_BAR"
 # Required on Android 11+ for InstalledAppsModule.queryIntentActivities() to return
 # a full app list. Without this the app drawer and installed-apps settings screen
@@ -183,7 +198,7 @@ fi
 # this as the active VPN tunnel when VpnService.prepare() is called.
 
 if ! grep -q "NetworkBlockerVpnService" "$MANIFEST"; then
-  sedi 's|</application>|        <service\n            android:name="com.tbtechs.focusflow.services.NetworkBlockerVpnService"\n            android:enabled="true"\n            android:exported="false"\n            android:permission="android.permission.BIND_VPN_SERVICE">\n            <intent-filter>\n                <action android:name="android.net.VpnService" />\n            </intent-filter>\n        </service>\n    </application>|' "$MANIFEST"
+  sedi 's|</application>|        <service\n            android:name="com.tbtechs.focusflow.services.NetworkBlockerVpnService"\n            android:enabled="true"\n            android:exported="false"\n            android:foregroundServiceType="specialUse"\n            android:permission="android.permission.BIND_VPN_SERVICE">\n            <property\n                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"\n                android:value="network_blocking" />\n            <intent-filter>\n                <action android:name="android.net.VpnService" />\n            </intent-filter>\n        </service>\n    </application>|' "$MANIFEST"
   echo "   ✓ NetworkBlockerVpnService registered"
 else
   echo "   ✓ NetworkBlockerVpnService already registered"

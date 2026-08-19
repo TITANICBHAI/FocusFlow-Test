@@ -40,32 +40,11 @@ type Props = {
   forceVisible?: boolean;
 };
 
-/** Maps Build.MANUFACTURER to a short OEM label used for step-1 wording. */
-function oemAppInfoPath(mfr: string): string {
-  const m = mfr.toLowerCase();
-  if (m.includes('samsung'))
-    return 'Settings → General management → App info → FocusFlow';
-  if (m.includes('xiaomi') || m.includes('redmi') || m.includes('poco'))
-    return 'Settings → Apps → Manage apps → FocusFlow';
-  if (m.includes('oneplus'))
-    return 'Settings → Apps → App info → FocusFlow';
-  if (m.includes('realme') || m.includes('oppo'))
-    return 'Settings → Apps → App Management → FocusFlow';
-  if (m.includes('huawei') || m.includes('honor'))
-    return 'Settings → Apps → Apps → FocusFlow';
-  if (m.includes('vivo') || m.includes('iqoo'))
-    return 'Settings → Apps → FocusFlow';
-  if (m.includes('motorola') || m.includes('moto'))
-    return 'Settings → Apps → See all apps → FocusFlow';
-  return 'Settings → Apps → FocusFlow';
-}
-
 export function RestrictedSettingsBanner({ forceVisible }: Props) {
   const { theme } = useTheme();
   const [restricted, setRestricted] = useState(false);
   const [installer, setInstaller] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
-  const [manufacturer, setManufacturer] = useState('');
 
   const recheck = useCallback(async () => {
     if (Platform.OS !== 'android') {
@@ -73,14 +52,12 @@ export function RestrictedSettingsBanner({ forceVisible }: Props) {
       return;
     }
     try {
-      const [r, inst, mfr] = await Promise.all([
+      const [r, inst] = await Promise.all([
         UsageStatsModule.isRestrictedSettingsBlocked(),
         UsageStatsModule.getInstallerPackage(),
-        UsageStatsModule.getDeviceManufacturer(),
       ]);
       setRestricted(r);
       setInstaller(inst);
-      setManufacturer(mfr);
     } catch {
       setRestricted(false);
     }
@@ -135,11 +112,7 @@ export function RestrictedSettingsBanner({ forceVisible }: Props) {
         <Text style={[styles.stepsTitle, { color: theme.text }]}>
           Quick fix — takes 10 seconds:
         </Text>
-        <Step
-          n={1}
-          text={`Tap “Open App Info” below—or navigate manually: ${oemAppInfoPath(manufacturer)}.`}
-          theme={theme}
-        />
+        <Step n={1} text="Tap “Open App Info” below." theme={theme} />
         <Step
           n={2}
           text="Tap the ⋮ (three dots) in the top-right corner."

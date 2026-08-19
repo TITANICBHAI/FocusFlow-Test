@@ -32,6 +32,7 @@ import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
 import { InstalledAppsModule, InstalledApp } from '@/native-modules/InstalledAppsModule';
 import { SharedPrefsModule } from '@/native-modules/SharedPrefsModule';
 import { PinVerifyModal } from '@/components/PinVerifyModal';
+import { NetworkBlockModule } from '@/native-modules/NetworkBlockModule';
 
 const SYSTEM_NEVER_BLOCK = new Set([
   'com.android.dialer',
@@ -56,20 +57,13 @@ export default function VpnBlockListScreen() {
   const [pinVerifyVisible, setPinVerifyVisible] = useState(false);
 
   const originalPkgsRef = useRef<Set<string>>(new Set(settings.alwaysOnVpnPackages ?? []));
-  const pendingPinAction = useRef<(() => void) | null>(null);
-
-  const withDefensePin = useCallback((action: () => void) => {
-    SharedPrefsModule.getString('defense_pin_hash')
-      .then((hash) => {
-        if (hash) {
-          pendingPinAction.current = action;
-          setPinVerifyVisible(true);
-        } else {
-          action();
-        }
-      })
-      .catch(() => action());
-  }, []);
+  const blockProtectionActive =
+    state.focusSession?.isActive === true ||
+    (
+      !!settings.standaloneBlockUntil &&
+      (settings.standaloneBlockPackages ?? []).length > 0 &&
+      new Date(settings.standaloneBlockUntil).getTime() > Date.now()
+    );
 
   useEffect(() => {
     InstalledAppsModule.getInstalledApps()
@@ -97,14 +91,36 @@ export default function VpnBlockListScreen() {
     });
   }, []);
 
-  const doSave = useCallback(async () => {
+  const doSave = useCallback(async (defensePinHash: string | null = null) => {
     setSaving(true);
     try {
       const vpnPkgs = Array.from(selected);
+
+      // The Android VPN grant can be revoked while this picker is open. Ask
+      // for it before persisting any non-empty network block list.
+      if (vpnPkgs.length > 0) {
+        const vpnGranted = await NetworkBlockModule.ensureVpnPermission();
+        if (!vpnGranted) {
+          Alert.alert(
+            'VPN permission required',
+            'Network blocking is selected, but Android VPN permission is not available. Grant it and tap Save again.',
+          );
+          return;
+        }
+      }
+
+      const hasVpnPackages =
+        vpnPkgs.length > 0 || (settings.standaloneVpnPackages ?? []).length > 0;
+
       await updateSettings({
         ...settings,
         alwaysOnVpnPackages: vpnPkgs,
-      });
+        // A saved VPN list is an explicit opt-in to both parts of the
+        // network-protection layer. Keep the switches in System Protection
+        // aligned with the actual package configuration.
+        vpnBlockEnabled: hasVpnPackages,
+        vpnSelfHealEnabled: hasVpnPackages,
+      }, { defensePinHash });
       router.back();
     } catch {
       Alert.alert('Save failed', 'Could not save the VPN block list. Please try again.');
@@ -113,32 +129,45 @@ export default function VpnBlockListScreen() {
     }
   }, [selected, settings, updateSettings]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const originalPkgs = originalPkgsRef.current;
     const isRemoving = [...originalPkgs].some((pkg) => !selected.has(pkg));
-    if (isRemoving) {
-      withDefensePin(() => void doSave());
+
+    if (isRemoving && blockProtectionActive) {
+      Alert.alert(
+        'Network block is locked',
+        'VPN-blocked apps cannot be removed while Focus Mode or a Standalone Block is active.',
+      );
       return;
     }
-    void doSave();
+
+    if (isRemoving) {
+      try {
+        const hash = await SharedPrefsModule.getString('defense_pin_hash');
+        if (hash) {
+          setPinVerifyVisible(true);
+          return;
+        }
+      } catch {}
+    }
+
+    await doSave();
   };
 
   const handleClearAll = () => {
     if (selected.size === 0) return;
-    withDefensePin(() => {
-      Alert.alert(
-        'Clear VPN block list?',
-        'This removes all apps from network blocking. Their internet access will no longer be restricted.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Clear all',
-            style: 'destructive',
-            onPress: () => setSelected(new Set()),
-          },
-        ]
-      );
-    });
+    Alert.alert(
+      'Clear VPN block list?',
+      'This removes all apps from network blocking. Their internet access will no longer be restricted.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear all',
+          style: 'destructive',
+          onPress: () => setSelected(new Set()),
+        },
+      ]
+    );
   };
 
   const renderItem = ({ item }: { item: InstalledApp }) => {
@@ -150,7 +179,7 @@ export default function VpnBlockListScreen() {
         style={[
           styles.appRow,
           { borderBottomColor: theme.border },
-          checked && { backgroundColor: COLORS.primary + '0D' },
+          checked && { backgroundColor: COLORS.primary + '14' },
         ]}
         onPress={() => toggle(item.packageName)}
         activeOpacity={0.7}
@@ -219,7 +248,7 @@ export default function VpnBlockListScreen() {
       </View>
 
       {/* Info banner */}
-      <View style={[styles.banner, { backgroundColor: COLORS.primary + '12', borderColor: COLORS.primary + '33' }]}>
+      <View style={[styles.banner, { backgroundColor: COLORS.primary + '14', borderColor: COLORS.primary + '2E' }]}>
         <Ionicons name="shield-checkmark-outline" size={16} color={COLORS.primary} />
         <Text style={[styles.bannerText, { color: theme.text }]}>
           Ticked apps have their internet access cut via a local VPN — 24/7, no session needed.
@@ -229,6 +258,21 @@ export default function VpnBlockListScreen() {
           </Text>
         </Text>
       </View>
+
+      {settings.protectionMode === 'iron' && (
+        <TouchableOpacity
+          style={[styles.ironGuide, { backgroundColor: COLORS.orange + '12', borderColor: COLORS.orange + '33' }]}
+          onPress={() => router.push('/block-defense?tab=system')}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="flame-outline" size={16} color={COLORS.orange} />
+          <Text style={[styles.ironGuideText, { color: theme.text }]}>
+            <Text style={{ color: COLORS.orange, fontWeight: '800' }}>Iron Mode:</Text>{' '}
+            saving a VPN app turns on Network blocking and VPN self-healing automatically.
+            <Text style={{ color: COLORS.orange, fontWeight: '700' }}> Review System Protection →</Text>
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {/* Search */}
       <View style={[styles.searchWrap, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -289,10 +333,9 @@ export default function VpnBlockListScreen() {
         pinType="defense"
         title="Defense Password Required"
         description="You are removing apps from the VPN block list. Enter your defense password to confirm."
-        onVerified={() => {
+         onVerified={(hash) => {
           setPinVerifyVisible(false);
-          pendingPinAction.current?.();
-          pendingPinAction.current = null;
+           void doSave(hash);
         }}
         onCancel={() => setPinVerifyVisible(false)}
       />
@@ -323,6 +366,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   bannerText: { flex: 1, fontSize: FONT.xs, lineHeight: 18 },
+  ironGuide: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.sm,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+  },
+  ironGuideText: { flex: 1, fontSize: FONT.xs, lineHeight: 18 },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',

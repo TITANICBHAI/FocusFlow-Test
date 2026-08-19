@@ -17,7 +17,11 @@ import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import type { UserProfile } from '@/data/types';
 import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
-import { scheduleMorningDigest, scheduleWeeklyReport } from '@/services/notificationService';
+import {
+  scheduleMorningDigest,
+  scheduleWeeklyReport,
+  scheduleTaskRemindersBatch,
+} from '@/services/notificationService';
 import { pickAndImportBackup } from '@/services/backupService';
 import {
   dbGetTodayFocusMinutes,
@@ -309,6 +313,7 @@ export default function UserProfileScreen() {
       const result = await pickAndImportBackup({
         updateSettings,
         addTask,
+        scheduleTasks: scheduleTaskRemindersBatch,
         deleteTask,
         refreshTasks,
         replaceTasks: false,
@@ -414,7 +419,7 @@ export default function UserProfileScreen() {
               <View style={styles.statRow}>
                 <StatTile
                   icon="flame"
-                  iconColor="#f97316"
+                  iconColor={COLORS.orange}
                   label="Streak"
                   value={`${stats.streak}d`}
                   hint={stats.bestStreak > stats.streak ? `Best ${stats.bestStreak}d` : 'Keep going'}
@@ -433,7 +438,7 @@ export default function UserProfileScreen() {
               <View style={styles.statRow}>
                 <StatTile
                   icon="hourglass-outline"
-                  iconColor="#10b981"
+                  iconColor={COLORS.green}
                   label="All time"
                   value={formatHm(stats.allTimeMins)}
                   hint={`${stats.sessions} session${stats.sessions === 1 ? '' : 's'}`}
@@ -441,7 +446,7 @@ export default function UserProfileScreen() {
                 />
                 <StatTile
                   icon="ribbon-outline"
-                  iconColor="#8b5cf6"
+                  iconColor={COLORS.purple}
                   label="Best streak"
                   value={`${stats.bestStreak}d`}
                   hint={stats.bestStreak === stats.streak && stats.streak > 0 ? 'Personal best!' : 'Personal record'}

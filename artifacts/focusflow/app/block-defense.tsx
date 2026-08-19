@@ -123,20 +123,26 @@ export default function BlockDefenseScreen() {
           () => {},
         );
       }
-      if (tab === 'greyout') setGreyoutModalVisible(true);
+      if (tab === 'greyout') {
+        requireDefensePin(
+          'Manage Block Schedules',
+          'Enter your defense password to add, edit, or remove schedule batches.',
+          () => setGreyoutModalVisible(true),
+        );
+      }
     }, 400);
     return () => clearTimeout(timeout);
   }, [params.tab]);
 
-  const update = async (partial: Partial<typeof settings>) => {
+  const update = async (partial: Partial<typeof settings>, defensePinHash: string | null = null) => {
     try {
-      await updateSettings({ ...settings, ...partial });
+      await updateSettings({ ...settings, ...partial }, { defensePinHash });
     } catch {
       Alert.alert('Error', 'Failed to save this setting. Please try again.');
     }
   };
 
-  const pendingActionAfterDefenseSetup = useRef<(() => void) | null>(null);
+  const pendingActionAfterDefenseSetup = useRef<((defensePinHash?: string) => void) | null>(null);
 
   /**
    * Requires the defense PIN before running `action`.
@@ -147,7 +153,7 @@ export default function BlockDefenseScreen() {
    *   pinProtectionEnabled=false, no PIN set → run action immediately
    */
   const requireDefensePin = useCallback(
-    (title: string, description: string, action: () => void) => {
+    (title: string, description: string, action: (defensePinHash?: string) => void) => {
       SharedPrefsModule.getString('defense_pin_hash')
         .then((hash) => {
           if (hash) {
@@ -159,7 +165,7 @@ export default function BlockDefenseScreen() {
               pinType: 'defense',
               title,
               description,
-              onVerified: () => action(),
+              onVerified: (verifiedHash) => action(verifiedHash),
             });
           } else if (settings.pinProtectionEnabled ?? false) {
             // PIN protection is on but no PIN has been set yet — offer to set one.
@@ -252,7 +258,7 @@ export default function BlockDefenseScreen() {
       requireDefensePin(
         'Disable Network Blocking (VPN)',
         'Enter your defense password to turn off VPN blocking.',
-        () => void update({ vpnBlockEnabled: false }),
+        (defensePinHash) => void update({ vpnBlockEnabled: false }, defensePinHash ?? null),
       );
       return;
     }
@@ -336,13 +342,14 @@ export default function BlockDefenseScreen() {
     }).catch(() => {});
   };
 
-  const handlePinSaved = () => {
+  const handlePinSaved = async () => {
     setPinModal({ type: 'none' });
     void loadPinStatus();
     const pending = pendingActionAfterDefenseSetup.current;
     if (pending) {
       pendingActionAfterDefenseSetup.current = null;
-      pending();
+      const hash = await SharedPrefsModule.getString('defense_pin_hash').catch(() => null);
+      pending(hash ?? undefined);
     }
   };
 
@@ -742,7 +749,7 @@ export default function BlockDefenseScreen() {
           <SectionHeader
             icon="time-outline"
             title="Block Schedules"
-            description="Create one or more batches — each batch picks a group of apps and the hours/days they should be blocked. Set once, runs forever, no focus session needed. Protected by your defense password."
+            description="Create one or more batches — each batch picks a group of apps and the hours/days they should be blocked. Set once, runs forever, no focus session needed."
             theme={theme}
           />
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -757,21 +764,11 @@ export default function BlockDefenseScreen() {
               }
             >
               <View style={styles.cardButtonContent}>
-                <View style={styles.cardButtonLabelRow}>
-                  <Text style={[styles.cardButtonLabel, { color: theme.text }]}>Manage Schedule Batches</Text>
-                  {defensePinSet && (
-                    <Ionicons name="lock-closed" size={13} color={COLORS.primary} style={{ marginLeft: 4 }} />
-                  )}
-                </View>
+                <Text style={[styles.cardButtonLabel, { color: theme.text }]}>Manage Schedule Batches</Text>
                 <Text style={[styles.cardButtonDesc, { color: theme.muted }]}>
-                  {(() => {
-                    const all = settings.greyoutSchedule ?? [];
-                    if (all.length === 0) return 'No batches set — tap to add your first one';
-                    const active = all.filter((w) => w.enabled !== false).length;
-                    const paused = all.length - active;
-                    if (paused === 0) return `${all.length} batch${all.length !== 1 ? 'es' : ''} active`;
-                    return `${active} active · ${paused} paused`;
-                  })()}
+                  {(settings.greyoutSchedule ?? []).length === 0
+                    ? 'No batches set — tap to add your first one'
+                    : `${(settings.greyoutSchedule ?? []).length} batch${(settings.greyoutSchedule ?? []).length !== 1 ? 'es' : ''} active`}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color={theme.border} />
@@ -1063,7 +1060,6 @@ const styles = StyleSheet.create({
     borderTopColor: 'transparent',
   },
   cardButtonContent: { flex: 1, gap: 2 },
-  cardButtonLabelRow: { flexDirection: 'row', alignItems: 'center' },
   cardButtonLabel: { fontSize: FONT.sm, fontWeight: '600' },
   cardButtonDesc: { fontSize: FONT.xs, lineHeight: 16 },
 

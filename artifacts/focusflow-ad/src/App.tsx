@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Lock, Clock, Calendar, BarChart3 } from 'lucide-react';
+import { Lock, Clock, Calendar, BarChart3, BellRing } from 'lucide-react';
+import RecordingButton from './components/RecordingButton';
 
 const SCENE_DURATIONS = [
   5000, // 0: Opening
@@ -61,6 +62,8 @@ export default function App() {
         </div>
       </div>
 
+      {/* Recording controls — outside the canvas so they don't appear in the recording */}
+      <RecordingButton />
     </div>
   );
 }

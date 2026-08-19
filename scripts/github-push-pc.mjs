@@ -9,8 +9,9 @@ const TOKEN =
 const OWNER = 'TITANICBHAI';
 const REPO = 'FocusFlow-Test';
 const BRANCH = 'main';
-// Push only the focusflow-pc Electron app source directory
-const BASE = '/home/runner/workspace/FocusFlow-pc/focusflow-pc';
+const BASE = '/home/runner/workspace';
+// GitHub's secondary rate limit triggers around ~10 parallel POSTs to /git/blobs.
+// Keep concurrency low and rely on retries to absorb the occasional 403/429.
 const CONCURRENCY = 4;
 const MAX_RETRIES = 6;
 
@@ -21,7 +22,6 @@ const EXCLUDE_PATTERNS = [
   /\.local\//,
   /\.expo/,
   /\/dist\//,
-  /\/out\//,
   /\/tmp\//,
   /\/out-tsc\//,
   /\.git\//,
@@ -34,8 +34,13 @@ const EXCLUDE_PATTERNS = [
   /tbtechs-release\.keystore/,
 ];
 
+const MUST_INCLUDE_PATTERNS = [
+  /^artifacts\/focusflow\/android-native\//,
+];
+
 function shouldExclude(filePath) {
   const rel = relative(BASE, filePath);
+  if (MUST_INCLUDE_PATTERNS.some(p => p.test(rel))) return false;
   return EXCLUDE_PATTERNS.some(p => p.test(rel) || p.test(filePath));
 }
 
@@ -60,12 +65,15 @@ async function ghFetch(path, method = 'GET', body = null) {
     headers: {
       Authorization: `token ${TOKEN}`,
       'Content-Type': 'application/json',
-      'User-Agent': 'focusflow-pc-push-bot',
+      'User-Agent': 'focusflow-push-bot',
       Accept: 'application/vnd.github+json',
     },
   };
   if (body) opts.body = JSON.stringify(body);
 
+  // Retry on secondary rate limit (403) and primary rate limit (429).
+  // GitHub's body for these contains "secondary rate limit" / "abuse" / "rate limit".
+  // We honor Retry-After when present; otherwise exponential backoff.
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const resp = await fetch(`https://api.github.com${path}`, opts);
     const txt = await resp.text();
@@ -107,12 +115,14 @@ async function processInBatches(items, concurrency, fn) {
   return results;
 }
 
-function getPcVersion() {
+function getAppVersion() {
   try {
-    const pkgJson = JSON.parse(readFileSync(`${BASE}/package.json`, 'utf-8'));
-    return pkgJson?.version ?? 'unknown';
+    const appJson = JSON.parse(readFileSync('/home/runner/workspace/artifacts/focusflow/app.json', 'utf-8'));
+    const version = appJson?.expo?.version ?? 'unknown';
+    const versionCode = appJson?.expo?.android?.versionCode ?? '?';
+    return { version, versionCode };
   } catch {
-    return 'unknown';
+    return { version: 'unknown', versionCode: '?' };
   }
 }
 
@@ -121,10 +131,11 @@ async function run() {
     throw new Error('Missing GitHub token secret. Add GITHUB_PERSONAL_ACCESS_TOKEN, GITHUB_PAT, GH_PAT, or PAT in Secrets.');
   }
 
-  const pcVersion = getPcVersion();
-  console.log(`Pushing FocusFlow-pc → https://github.com/${OWNER}/${REPO}`);
-  console.log(`Source:  ${BASE}`);
-  console.log(`Version: v${pcVersion}\n`);
+  const { version, versionCode } = getAppVersion();
+  console.log(`Pushing FocusFlow → https://github.com/${OWNER}/${REPO}`);
+  console.log(`Branch:      ${BRANCH}`);
+  console.log(`Version:     v${version}`);
+  console.log(`versionCode: ${versionCode}\n`);
 
   console.log('Collecting files...');
   const allFiles = collectFiles(BASE);
@@ -157,7 +168,7 @@ async function run() {
   });
 
   if (failures.length > 0) {
-    console.error(`\n${failures.length} file(s) failed to upload after retries — aborting:`);
+    console.error(`\n${failures.length} file(s) failed to upload after retries — aborting to avoid pushing a half-broken tree:`);
     for (const f of failures.slice(0, 20)) console.error(`  - ${f.path}`);
     if (failures.length > 20) console.error(`  ... and ${failures.length - 20} more`);
     process.exit(1);
@@ -168,6 +179,10 @@ async function run() {
   const latestSha = refData.object.sha;
   console.log('Base commit:', latestSha);
 
+  // GitHub's tree API times out on huge replacement trees (~400+ entries).
+  // Build the tree incrementally in chunks, each layered on top of the
+  // previous tree via base_tree. We start from the existing branch tree so
+  // unchanged files (e.g. files we excluded) stay intact.
   const baseCommit = await ghFetch(`/repos/${OWNER}/${REPO}/git/commits/${latestSha}`);
   let currentTreeSha = baseCommit.tree.sha;
   const TREE_CHUNK = 100;
@@ -185,7 +200,7 @@ async function run() {
 
   console.log('Committing...');
   const newCommit = await ghFetch(`/repos/${OWNER}/${REPO}/git/commits`, 'POST', {
-    message: `chore: sync FocusFlow-pc workspace — v${pcVersion} — ${new Date().toISOString()}`,
+    message: `chore: sync Replit workspace — v${version} (versionCode ${versionCode}) — ${new Date().toISOString()}`,
     tree: newTree.sha,
     parents: [latestSha],
   });
@@ -196,9 +211,8 @@ async function run() {
     force: false,
   });
 
-  console.log('\n✓ Success!');
-  console.log(`Repo: https://github.com/${OWNER}/${REPO}`);
-  console.log(`Commit: ${newCommit.sha.slice(0, 7)}`);
+  console.log('\nSuccess!');
+  console.log(`Repo:  https://github.com/${OWNER}/${REPO}`);
 }
 
 run().catch(err => { console.error('FATAL:', err.message); process.exit(1); });

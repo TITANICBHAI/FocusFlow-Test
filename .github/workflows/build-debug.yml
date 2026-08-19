@@ -84,6 +84,10 @@ jobs:
         working-directory: artifacts/focusflow
         run: npx expo prebuild --platform android --clean --no-install
 
+      - name: Install FocusFlow native Android sources
+        working-directory: artifacts/focusflow
+        run: bash android-native/install.sh
+
       # ── 6. Bundle JavaScript ───────────────────────────────────────────────
       - name: Bundle JavaScript into APK assets
         working-directory: artifacts/focusflow

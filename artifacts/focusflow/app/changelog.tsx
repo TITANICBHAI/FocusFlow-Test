@@ -14,6 +14,54 @@ type Entry = {
 
 const CHANGELOG: Entry[] = [
   {
+    version: '1.0.8',
+    date: 'August 2026',
+    sections: [
+      {
+        heading: 'Block Overlay Cleanup',
+        icon: 'ban-outline',
+        items: [
+          'Removed the duplicate React Native in-app blocked-app banner; native Kotlin overlays, app enforcement, dismissal, and all other blocking features remain unchanged',
+        ],
+      },
+      {
+        heading: 'New Two-Mode Onboarding',
+        icon: 'git-branch-outline',
+        items: [
+          'Introduced separate Standard and Iron Mode onboarding paths so new users can choose between essential blocking and stronger system-level protection',
+          'Standard Mode keeps first-run setup focused on the essential access required for app blocking',
+          'Iron Mode adds layered setup for VPN network restriction, Device Admin resistance, and Defense Password protection',
+          'Added a live protection-layer counter and honest permission-based activation feedback',
+          'Added subtle checkmark and activation-state transitions with reduced-motion support',
+        ],
+      },
+    ],
+  },
+  {
+    version: '1.0.7',
+    date: 'August 2026',
+    sections: [
+      {
+        heading: 'Database Reliability',
+        icon: 'server-outline',
+        items: [
+          'Improved SQLite lifecycle handling so database connections are opened, reused, and closed predictably instead of being recreated unnecessarily',
+          'Added safer transaction boundaries for related task and settings updates so a partial write cannot leave the local database in an inconsistent state',
+          'Database failures now preserve the previous in-memory state and surface a clear recovery path rather than silently losing changes',
+          'Added defensive validation around persisted values and backup data to keep malformed records from breaking normal app startup',
+        ],
+      },
+      {
+        heading: 'Maintenance',
+        icon: 'construct-outline',
+        items: [
+          'Hardened local data access with parameterized queries, explicit error handling, and recovery logging that avoids exposing user content',
+          'Updated release metadata to FocusFlow v1.0.7 (build 7)',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.0.6',
     date: 'June 2026',
     sections: [
@@ -125,7 +173,7 @@ const CHANGELOG: Entry[] = [
         heading: 'Analog Clock Launcher',
         icon: 'time-outline',
         items: [
-          'New analog clock option for the launcher home screen — canvas-drawn hour, minute, and second hands with hour tick marks and indigo accent matching the dark launcher aesthetic',
+          'New analog clock option for the launcher home screen — canvas-drawn hour, minute, and second hands with hour tick marks and blue-violet accent matching the dark launcher aesthetic',
           'Clock style preference persisted via SharedPrefs and synced on every settings change — switching between digital and analog survives reboots and session restarts',
         ],
       },
@@ -199,10 +247,9 @@ const CHANGELOG: Entry[] = [
     date: 'April 2026',
     sections: [
       {
-        heading: 'Import from Another Blocker',
+        heading: 'Blocklist Import',
         icon: 'download-outline',
         items: [
-          'New "Import from another blocker" flow — bring your block list across from Stay Focused, AppBlock, StayFree, ActionDash, Digital Wellbeing, Lock Me Out and others without redoing the picking',
           'Two paths in one screen: pick an exported file (JSON / CSV / plain text) OR paste / type the app names yourself for blockers like Stay Focused that don\'t expose an export — names are fuzzy-matched against your installed apps so capitalisation and small typos still resolve',
           'Stay Focused is featured first because it has no public export — paste path is the recommended route for it',
           'One-tap "Switching from another blocker?" entry on the onboarding screen so new users land directly in the import flow',

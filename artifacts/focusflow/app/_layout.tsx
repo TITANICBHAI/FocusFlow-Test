@@ -17,8 +17,6 @@ import '@/polyfills';
 // ─── 1. Register all background tasks with the OS ────────────────────────────
 import '@/tasks/backgroundTasks';
 
-import '@/i18n';
-
 import React, { useEffect, useRef } from 'react';
 import { Stack, router, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -35,7 +33,6 @@ import { useTheme } from '@/hooks/useTheme';
 import { EventBridge } from '@/services/eventBridge';
 import { navigateToTask, consumePendingTaskNavigation } from '@/navigation/navigationRef';
 import { registerBackgroundFetch, registerOverrunCheckTask } from '@/tasks/backgroundTasks';
-import { BlockedAppOverlay } from '@/components/BlockedAppOverlay';
 import { AchievementCelebrationModal } from '@/components/AchievementCelebrationModal';
 import { VpnPermissionLostBanner } from '@/components/VpnPermissionLostBanner';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -303,9 +300,9 @@ function OnboardingGuard() {
       return;
     }
     if (!state.settings.onboardingComplete) {
-      // Allow both the permissions screen and the profile setup screen;
-      // everything else redirects to the start of the onboarding flow.
-      if (pathname !== '/onboarding' && pathname !== '/user-profile') {
+      // Keep the first-run path inside the permissions wizard. Personalization
+      // is available later from Settings and is not part of onboarding.
+      if (pathname !== '/onboarding') {
         router.replace('/onboarding');
       }
     }
@@ -402,14 +399,12 @@ export default function RootLayout() {
           <AppProvider>
             <AppSplashOverlay />
             <OnboardingGuard />
-            <BlockedAppOverlay />
             <AchievementCelebrationHost />
             <VpnPermissionHost />
             <ErrorAlertBanner />
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="privacy-policy" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
-              <Stack.Screen name="terms-of-service" options={{ headerShown: false }} />
               <Stack.Screen name="onboarding" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
               <Stack.Screen name="permissions" options={{ headerShown: false }} />
               <Stack.Screen name="block-defense" options={{ headerShown: false, presentation: 'card' }} />

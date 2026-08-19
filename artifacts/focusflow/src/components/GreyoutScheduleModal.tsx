@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Switch,
   StyleSheet,
   Alert,
   ActivityIndicator,
@@ -20,18 +19,17 @@ import { useTheme } from '@/hooks/useTheme';
 import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
 import type { GreyoutWindow } from '@/data/types';
 import { InstalledAppsModule, type InstalledApp } from '@/native-modules/InstalledAppsModule';
+import { PinVerifyModal } from '@/components/PinVerifyModal';
+import { SharedPrefsModule } from '@/native-modules/SharedPrefsModule';
 
 interface Props {
   visible: boolean;
   windows: GreyoutWindow[];
   onSave: (windows: GreyoutWindow[]) => Promise<void>;
   onClose: () => void;
-  /** Freeze delete and disallow weakening edits while a standalone block is active. */
+  /** Prevent deletion while a standalone block is active. */
   standaloneActive?: boolean;
-  /**
-   * Gate destructive / weakening actions behind the defense password.
-   * If undefined, actions proceed freely (no PIN configured).
-   */
+  /** Gate destructive or weakening schedule changes behind the defense PIN. */
   requireDefensePin?: (title: string, description: string, action: () => void) => void;
 }
 
@@ -49,21 +47,48 @@ const BLANK_WINDOW: GreyoutWindow = {
   endHour: 18,
   endMin: 0,
   days: [2, 3, 4, 5, 6],
-  name: '',
-  enabled: true,
 };
 
 type SelectedApp = { pkg: string; name: string };
 
-export function GreyoutScheduleModal({ visible, windows, onSave, onClose, standaloneActive = false, requireDefensePin }: Props) {
+export function GreyoutScheduleModal({
+  visible,
+  windows,
+  onSave,
+  onClose,
+  standaloneActive = false,
+  requireDefensePin: _requireDefensePin,
+}: Props) {
   const { theme } = useTheme();
+  type InternalPinState =
+    | { visible: false }
+    | { visible: true; title: string; description: string; action: () => void };
+
+  const [internalPin, setInternalPin] = useState<InternalPinState>({ visible: false });
+
+  const handlePin = useCallback(
+    (title: string, description: string, action: () => void) => {
+      SharedPrefsModule.getString('defense_pin_hash')
+        .then((hash: string | null) => {
+          if (hash) {
+            setInternalPin({ visible: true, title, description, action });
+          } else {
+            action();
+          }
+        })
+        .catch(() => {
+          action();
+        });
+    },
+    [],
+  );
+
   const insets = useSafeAreaInsets();
   const [localWindows, setLocalWindows] = useState<GreyoutWindow[]>([]);
   const [mode, setMode] = useState<Mode>('list');
   const [draft, setDraft] = useState<GreyoutWindow>(BLANK_WINDOW);
   const [editIndex, setEditIndex] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
-  // Track the window being edited so we can detect time-decrease at commit time.
   const [originalWindow, setOriginalWindow] = useState<GreyoutWindow | null>(null);
 
   // ── App search state ──────────────────────────────────────────────────────
@@ -79,6 +104,7 @@ export function GreyoutScheduleModal({ visible, windows, onSave, onClose, standa
     setMode('list');
     setDraft(BLANK_WINDOW);
     setEditIndex(null);
+    setOriginalWindow(null);
     setSelectedApps([]);
     setAppSearch('');
     setAppsLoading(true);
@@ -136,7 +162,7 @@ export function GreyoutScheduleModal({ visible, windows, onSave, onClose, standa
     setDraft((d) => ({ ...d, [field]: (d[field] + delta + 60) % 60 }));
   };
 
-  /** Returns the block window's duration in minutes (handles overnight spans). */
+  /** Returns the duration in minutes, including overnight windows. */
   const windowDurationMinutes = (w: GreyoutWindow) => {
     const start = w.startHour * 60 + w.startMin;
     const end = w.endHour * 60 + w.endMin;
@@ -149,16 +175,13 @@ export function GreyoutScheduleModal({ visible, windows, onSave, onClose, standa
   }, []);
 
   const removeSelectedApp = useCallback((pkg: string) => {
-    if (requireDefensePin) {
-      requireDefensePin(
-        'Remove App from Window',
-        'Enter your defense password to remove this app from the block window.',
-        () => setSelectedApps((prev) => prev.filter((a) => a.pkg !== pkg)),
-      );
-    } else {
-      setSelectedApps((prev) => prev.filter((a) => a.pkg !== pkg));
-    }
-  }, [requireDefensePin]);
+    const remove = () => setSelectedApps((prev) => prev.filter((a) => a.pkg !== pkg));
+    handlePin(
+      'Remove App from Window',
+      'Enter your defense password to remove this app from the block window.',
+      remove,
+    );
+  }, [handlePin]);
 
   const openAdd = () => {
     setDraft(BLANK_WINDOW);
@@ -181,40 +204,11 @@ export function GreyoutScheduleModal({ visible, windows, onSave, onClose, standa
   };
 
   const openEdit = (idx: number) => {
-    if (requireDefensePin) {
-      requireDefensePin(
-        'Edit Block Window',
-        'Enter your defense password to edit this block window.',
-        () => doOpenEdit(idx),
-      );
-    } else {
-      doOpenEdit(idx);
-    }
-  };
-
-  const toggleWindowEnabled = (idx: number) => {
-    setLocalWindows((prev) =>
-      prev.map((w, i) => (i === idx ? { ...w, enabled: w.enabled === false ? true : false } : w)),
+    handlePin(
+      'Edit Block Window',
+      'Enter your defense password to edit this block window.',
+      () => doOpenEdit(idx),
     );
-  };
-
-  const doCommitDraft = () => {
-    const pkgs = selectedApps.map((a) => a.pkg);
-    const updated = [...localWindows];
-    const window: GreyoutWindow = {
-      ...draft,
-      pkg: pkgs[0],
-      pkgs,
-      name: draft.name?.trim() || undefined,
-      enabled: draft.enabled !== false,
-    };
-    if (editIndex !== null) {
-      updated[editIndex] = window;
-    } else {
-      updated.push(window);
-    }
-    setLocalWindows(updated);
-    setMode('list');
   };
 
   const commitDraft = () => {
@@ -229,25 +223,35 @@ export function GreyoutScheduleModal({ visible, windows, onSave, onClose, standa
       Alert.alert('Select at least one day');
       return;
     }
-    // When editing: if the user shortened the block window (weakens protection),
-    // require the defense password before committing.
-    if (editIndex !== null && originalWindow && requireDefensePin) {
-      const origDuration = windowDurationMinutes(originalWindow);
-      const newDuration = windowDurationMinutes(draft);
-      if (newDuration < origDuration) {
-        requireDefensePin(
-          'Shorten Block Window',
-          'You\'re decreasing the block duration. Enter your defense password to confirm.',
-          doCommitDraft,
-        );
-        return;
+    const pkgs = selectedApps.map((a) => a.pkg);
+    const doCommit = () => {
+      const updated = [...localWindows];
+      const window: GreyoutWindow = { ...draft, pkg: pkgs[0], pkgs };
+      if (editIndex !== null) {
+        updated[editIndex] = window;
+      } else {
+        updated.push(window);
       }
+      setLocalWindows(updated);
+      setMode('list');
+    };
+
+    if (
+      editIndex !== null &&
+      originalWindow &&
+      windowDurationMinutes(draft) < windowDurationMinutes(originalWindow)
+    ) {
+      handlePin(
+        'Shorten Block Window',
+        'You are decreasing the block duration. Enter your defense password to confirm.',
+        doCommit,
+      );
+      return;
     }
-    doCommitDraft();
+    doCommit();
   };
 
   const deleteWindow = (idx: number) => {
-    // Frozen during standalone — same pattern as System Protection, YT Shorts, etc.
     if (standaloneActive) {
       Alert.alert(
         'Block is Active',
@@ -267,15 +271,11 @@ export function GreyoutScheduleModal({ visible, windows, onSave, onClose, standa
         },
       ]);
     };
-    if (requireDefensePin) {
-      requireDefensePin(
-        'Delete Block Window',
-        'Enter your defense password to delete this block window.',
-        doDelete,
-      );
-    } else {
-      doDelete();
-    }
+    handlePin(
+      'Delete Block Window',
+      'Enter your defense password to delete this block window.',
+      doDelete,
+    );
   };
 
   const handleSave = async () => {
@@ -346,36 +346,18 @@ export function GreyoutScheduleModal({ visible, windows, onSave, onClose, standa
                 )}
                 {localWindows.map((w, idx) => {
                   const count = windowAppCount(w);
-                  const isEnabled = w.enabled !== false;
                   return (
                     <View
                       key={idx}
                       style={[
                         styles.windowCard,
-                        { borderColor: isEnabled ? theme.border : theme.border + '55', backgroundColor: theme.surface },
-                        !isEnabled && { opacity: 0.55 },
+                        { borderColor: theme.border, backgroundColor: theme.surface },
                       ]}
                     >
-                      {/* Enable / disable toggle */}
-                      <Switch
-                        value={isEnabled}
-                        onValueChange={() => toggleWindowEnabled(idx)}
-                        trackColor={{ false: COLORS.border, true: COLORS.primary + '88' }}
-                        thumbColor={isEnabled ? COLORS.primary : COLORS.muted}
-                        style={styles.windowSwitch}
-                      />
                       <TouchableOpacity style={styles.windowMain} onPress={() => openEdit(idx)}>
                         <View style={{ flex: 1 }}>
-                          {w.name ? (
-                            <Text style={[styles.windowName, { color: theme.text }]} numberOfLines={1}>
-                              {w.name}
-                            </Text>
-                          ) : null}
                           <View style={styles.windowLabelRow}>
-                            <Text
-                              style={[styles.windowPkg, { color: w.name ? theme.muted : theme.text }]}
-                              numberOfLines={1}
-                            >
+                            <Text style={[styles.windowPkg, { color: theme.text }]} numberOfLines={1}>
                               {windowDisplayLabel(w)}
                             </Text>
                             {count > 1 && (
@@ -384,7 +366,7 @@ export function GreyoutScheduleModal({ visible, windows, onSave, onClose, standa
                               </View>
                             )}
                           </View>
-                          <Text style={[styles.windowTime, { color: isEnabled ? COLORS.primary : theme.muted }]}>
+                          <Text style={[styles.windowTime, { color: COLORS.primary }]}>
                             {formatTime(w.startHour, w.startMin)} – {formatTime(w.endHour, w.endMin)}
                           </Text>
                           <Text style={[styles.windowDays, { color: theme.muted }]}>
@@ -438,22 +420,6 @@ export function GreyoutScheduleModal({ visible, windows, onSave, onClose, standa
               contentContainerStyle={{ paddingBottom: 24 }}
               keyboardShouldPersistTaps="handled"
             >
-              {/* Schedule name */}
-              <Text style={[styles.formLabel, { color: theme.muted }]}>SCHEDULE NAME (optional)</Text>
-              <View style={[styles.searchBox, { borderColor: theme.border, backgroundColor: theme.surface, marginBottom: SPACING.md }]}>
-                <Ionicons name="bookmark-outline" size={16} color={theme.muted} style={{ marginRight: 6 }} />
-                <TextInput
-                  style={[styles.searchInput, { color: theme.text }]}
-                  value={draft.name ?? ''}
-                  onChangeText={(t) => setDraft((d) => ({ ...d, name: t }))}
-                  placeholder="e.g. Morning Focus, Night Wind-down…"
-                  placeholderTextColor={theme.muted}
-                  autoCapitalize="sentences"
-                  autoCorrect={false}
-                  maxLength={40}
-                />
-              </View>
-
               {/* App search */}
               <Text style={[styles.formLabel, { color: theme.muted }]}>APPS</Text>
 
@@ -585,16 +551,6 @@ export function GreyoutScheduleModal({ visible, windows, onSave, onClose, standa
                 />
               </View>
 
-              {/* Time protection hint — only shown when editing with defense PIN active */}
-              {editIndex !== null && requireDefensePin && (
-                <View style={[styles.hintBanner, { backgroundColor: COLORS.primary + '14', borderColor: COLORS.primary + '40' }]}>
-                  <Ionicons name="information-circle-outline" size={15} color={COLORS.primary} />
-                  <Text style={[styles.hintText, { color: COLORS.primary }]}>
-                    {'Tap ▲ to increase time — no password needed. Decreasing the window will ask for your Defense Password when you tap "Update Window".'}
-                  </Text>
-                </View>
-              )}
-
               {/* Days */}
               <Text style={[styles.formLabel, { color: theme.muted }]}>ACTIVE DAYS</Text>
               <View style={styles.daysRow}>
@@ -639,6 +595,20 @@ export function GreyoutScheduleModal({ visible, windows, onSave, onClose, standa
         </View>
       </View>
       </KeyboardAvoidingView>
+      <PinVerifyModal
+        visible={internalPin.visible}
+        pinType="defense"
+        title={internalPin.visible ? internalPin.title : undefined}
+        description={internalPin.visible ? internalPin.description : undefined}
+        onVerified={() => {
+          if (internalPin.visible) {
+            const action = internalPin.action;
+            setInternalPin({ visible: false });
+            action();
+          }
+        }}
+        onCancel={() => setInternalPin({ visible: false })}
+      />
     </Modal>
   );
 }
@@ -713,17 +683,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'hidden',
   },
-  windowSwitch: {
-    marginLeft: SPACING.sm,
-    flexShrink: 0,
-  },
   windowMain: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     padding: SPACING.md,
   },
-  windowName: { fontSize: FONT.sm, fontWeight: '700', marginBottom: 1 },
   windowLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   windowPkg: { fontSize: FONT.sm, fontWeight: '600' },
   countBadge: {
@@ -891,20 +856,4 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md,
   },
   confirmAddText: { color: '#fff', fontSize: FONT.sm, fontWeight: '700' },
-
-  hintBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: SPACING.xs,
-    padding: SPACING.sm,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    marginTop: SPACING.sm,
-    marginBottom: SPACING.xs,
-  },
-  hintText: {
-    flex: 1,
-    fontSize: FONT.xs,
-    lineHeight: 17,
-  },
 });

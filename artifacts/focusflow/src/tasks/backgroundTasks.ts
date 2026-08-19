@@ -23,12 +23,15 @@
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as Notifications from 'expo-notifications';
+import { AppState } from 'react-native';
+import type { Task } from '@/data/types';
 
-import { dbGetTasksForDate, dbUpdateTask, dbGetSettings } from '@/data/database';
+import { dbGetTasksForDate, dbUpdateTask, dbUpdateTasksBatch, dbGetSettings } from '@/data/database';
 import { rebalanceAfterOverrun } from '@/services/schedulerEngine';
+import { extendTask } from '@/services/taskService';
 import {
   cancelTaskReminders,
-  scheduleTaskReminders,
+  scheduleTaskRemindersBatch,
   fireLateStartWarning,
   dismissPersistentNotification,
   scheduleMorningDigest,
@@ -83,18 +86,22 @@ TaskManager.defineTask(TASK_OVERRUN_CHECK, async ({ data, error }: any) => {
       return;
     }
 
-    // Task ran over — extend by 10 min as a safe default and rebalance
+    // Task ran over — extend by 10 min as a safe default and rebalance.
+    // The scheduler returns subsequent tasks, so persist the extended task
+    // explicitly as part of the same database batch.
     const DEFAULT_EXTENSION_MINUTES = 10;
-    const { updatedSchedule } = rebalanceAfterOverrun(task, DEFAULT_EXTENSION_MINUTES, tasks);
+    const extendedTask = extendTask(task, DEFAULT_EXTENSION_MINUTES);
+    const { updatedSchedule } = rebalanceAfterOverrun(extendedTask, DEFAULT_EXTENSION_MINUTES, tasks);
+    const tasksToPersist = [
+      extendedTask,
+      ...updatedSchedule.filter((t) => t.id !== extendedTask.id),
+    ];
 
-    for (const t of updatedSchedule) {
-      await dbUpdateTask(t);
-      await cancelTaskReminders(t.id);
-      if (t.status !== 'skipped') await scheduleTaskReminders(t);
-    }
+    await dbUpdateTasksBatch(tasksToPersist);
+    await scheduleTaskRemindersBatch(tasksToPersist);
 
-    void logger.debug('bgTask', `OVERRUN_CHECK: rebalanced ${updatedSchedule.length} tasks`);
-    console.log('[BgTask] OVERRUN_CHECK: rebalanced', updatedSchedule.length, 'tasks');
+    void logger.debug('bgTask', `OVERRUN_CHECK: rebalanced ${tasksToPersist.length} tasks`);
+    console.log('[BgTask] OVERRUN_CHECK: rebalanced', tasksToPersist.length, 'tasks');
   } catch (e) {
     void logger.warn('bgTask', `OVERRUN_CHECK: handler threw: ${String(e)}`);
     console.warn('[BgTask] OVERRUN_CHECK handler failed:', e);
@@ -114,7 +121,7 @@ TaskManager.defineTask(TASK_BACKGROUND_FETCH, async () => {
     const tasks  = await dbGetTasksForDate(today);
     const nowMs  = Date.now();
 
-    let rearmedCount = 0;
+    const tasksToRearm: Task[] = [];
 
     for (const task of tasks) {
       if (task.status === 'completed' || task.status === 'skipped') continue;
@@ -131,12 +138,13 @@ TaskManager.defineTask(TASK_BACKGROUND_FETCH, async () => {
       // Skip tasks that have already ended
       if (endMs < nowMs) continue;
 
-      // Re-arm upcoming task reminders (idempotent: cancels first)
-      await cancelTaskReminders(task.id);
-      await scheduleTaskReminders(task);
-      rearmedCount++;
+      // Re-arm upcoming task reminders in one batch. This avoids scanning the
+      // complete scheduled-notification list once per task.
+      tasksToRearm.push(task);
     }
 
+    await scheduleTaskRemindersBatch(tasksToRearm);
+    const rearmedCount = tasksToRearm.length;
     void logger.debug('bgTask', `BACKGROUND_FETCH: re-armed ${rearmedCount} reminders`);
     console.log('[BgFetch] Re-armed', rearmedCount, 'upcoming task reminders');
 
@@ -184,6 +192,17 @@ TaskManager.defineTask(TASK_NOTIFICATION_BG, async ({ data, error }: any) => {
 
   void logger.debug('bgTask', 'NOTIFICATION_BG: handler started');
   try {
+    // When the React app is already in the foreground, the response listener
+    // in app/_layout.tsx owns the action and routes it through AppContext.
+    // Letting this headless task mutate the same task as well can apply
+    // EXTEND twice or make the foreground UI write over a background update
+    // using stale state. This task remains the owner when the app is
+    // backgrounded or killed.
+    if (AppState.currentState === 'active') {
+      void logger.debug('bgTask', 'NOTIFICATION_BG: app is active, foreground listener owns action');
+      return;
+    }
+
     const actionId: string  = data?.actionIdentifier ?? '';
     const notifData = data?.notification?.request?.content?.data as {
       taskId?: string;
@@ -212,12 +231,14 @@ TaskManager.defineTask(TASK_NOTIFICATION_BG, async ({ data, error }: any) => {
     } else if (actionId === 'EXTEND') {
       // Extend by 15 min from the background
       const EXTENSION = 15;
-      const { updatedSchedule } = rebalanceAfterOverrun(task, EXTENSION, tasks);
-      for (const t of updatedSchedule) {
-        await dbUpdateTask(t);
-        await cancelTaskReminders(t.id);
-        if (t.status !== 'skipped') await scheduleTaskReminders(t);
-      }
+      const extendedTask = extendTask(task, EXTENSION);
+      const { updatedSchedule } = rebalanceAfterOverrun(extendedTask, EXTENSION, tasks);
+      const tasksToPersist = [
+        extendedTask,
+        ...updatedSchedule.filter((t) => t.id !== extendedTask.id),
+      ];
+      await dbUpdateTasksBatch(tasksToPersist);
+      await scheduleTaskRemindersBatch(tasksToPersist);
       void logger.debug('bgTask', `NOTIFICATION_BG: task ${taskId} extended by ${EXTENSION}min`);
       console.log('[BgTask] Task extended from notification:', taskId);
     } else if (actionId === 'VIEW') {

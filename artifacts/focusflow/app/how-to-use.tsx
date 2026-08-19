@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { useTheme } from '@/hooks/useTheme';
+import FocusFlowLogo from '@/components/FocusFlowLogo';
 import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
 
 interface GuideSection {
@@ -34,7 +35,7 @@ const GUIDE: GuideSection[] = [
     color: COLORS.primary,
     steps: [
       { heading: 'Add a task', body: 'Tap the + button on the Schedule tab. Give it a name, pick a start time and duration. Tap Save.' },
-      { heading: 'Set priority', body: 'Tasks are colour-coded by priority — critical (red), high (orange), medium (indigo), low (grey). Higher-priority tasks surface first.' },
+      { heading: 'Set priority', body: 'Tasks are colour-coded by priority — critical (red), high (orange), medium (violet), low (grey). Higher-priority tasks surface first.' },
       { heading: 'Start focusing', body: 'When a task is active, the Focus tab lights up. Tap "Start Focus Mode" to activate app blocking.' },
     ],
   },
@@ -59,17 +60,6 @@ const GUIDE: GuideSection[] = [
       { heading: 'Aversion Deterrents', body: 'Turn on Vibration Harassment, Screen Dimmer, or Sound Alert. Each one applies the instant a blocked app opens — building a negative reflex over time.' },
       { heading: 'System Protection', body: 'Prevents power-menu tricks, install bypasses, and YouTube Shorts / Instagram Reels from sneaking through.' },
       { heading: 'Keep focus running for full duration', body: 'In Block Enforcement → Focus Session Behaviour. Off by default — completing a task ends the focus session right away. Turn it on if you want app-blocking to stay on until the task\'s original end time even when you finish early.' },
-    ],
-  },
-  {
-    icon: 'download-outline',
-    title: 'Coming from Another Blocker?',
-    color: COLORS.purple,
-    steps: [
-      { heading: 'Open the import flow', body: 'Settings → "Import from another blocker", or tap the banner during onboarding. Works with Stay Focused, AppBlock, StayFree, ActionDash, Digital Wellbeing, Lock Me Out and others.' },
-      { heading: 'File path', body: 'If your old blocker has an Export feature, tap "Browse & Import file" and pick the file. JSON, CSV and plain-text exports are auto-detected.' },
-      { heading: 'Paste / type names path', body: 'For Stay Focused (no public export) and similar: tap "Type or paste app names" and enter the names one per line. They\'re fuzzy-matched against your installed apps so capitalisation and small typos are forgiven.' },
-      { heading: 'What import does and doesn\'t do', body: 'Import only adds the apps to your Standalone Block list. It never starts a focus session and never starts a new timed block — it preserves any timer you already have. Your existing tasks, stats, and presets are kept untouched.' },
     ],
   },
   {
@@ -134,13 +124,16 @@ export default function HowToUseScreen() {
             <Ionicons name="chevron-back" size={24} color={theme.text} />
           </TouchableOpacity>
         )}
-        <View style={{ marginLeft: isOnboarding ? 0 : SPACING.sm, flex: 1 }}>
+        <View style={{ marginLeft: isOnboarding ? 0 : SPACING.sm, flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+          <FocusFlowLogo size={30} />
+          <View style={{ marginLeft: SPACING.sm, flex: 1 }}>
           <Text style={[styles.title, { color: theme.text }]}>
             {isOnboarding ? 'Welcome to FocusFlow' : 'How to Use FocusFlow'}
           </Text>
           <Text style={[styles.subtitle, { color: theme.muted }]}>
             {isOnboarding ? 'A quick tour before you get started' : 'Your discipline operating system — explained'}
           </Text>
+          </View>
         </View>
         {isOnboarding && (
           <TouchableOpacity

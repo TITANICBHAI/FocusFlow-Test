@@ -39,20 +39,12 @@ if (Platform.OS === 'android' && !NuclearMode) {
 }
 
 export const NuclearModeModule = {
-  /** True when the native bridge is available (i.e. an EAS/custom build, not Expo Go). */
-  get isAvailable(): boolean {
-    return !!NuclearMode?.requestUninstallApp;
-  },
-
   /**
    * Opens the system "Uninstall <App>?" dialog for a single package.
    * Resolves immediately after the dialog appears — the user still has to confirm.
-   * Throws if the native module is unavailable (not an EAS build).
    */
   async requestUninstallApp(packageName: string): Promise<void> {
-    if (!NuclearMode?.requestUninstallApp) {
-      throw new Error('NuclearMode native module is not available. An EAS build is required.');
-    }
+    if (!NuclearMode?.requestUninstallApp) return;
     return NuclearMode.requestUninstallApp(packageName);
   },
 

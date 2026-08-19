@@ -9,6 +9,7 @@
  *
  * Methods exposed to JS:
  *   - getForegroundApp()                  → string | null
+ *   - getUsageSummary(startMs, endMs)     → UsageSummary | null
  *   - hasPermission()                     → boolean  (Usage Access granted)
  *   - openUsageAccessSettings()
  *   - hasAccessibilityPermission()        → boolean
@@ -20,7 +21,6 @@
  *   - isRestrictedSettingsBlocked()       → boolean   (Android 13+ sideload wall)
  *   - openAppInfoSettings()                          (App info page → ⋮ menu)
  *   - getInstallerPackage()               → string | null
- *   - getDeviceManufacturer()             → string   (e.g. "samsung", "xiaomi")
  */
 
 import { NativeModules, Platform } from 'react-native';
@@ -33,10 +33,31 @@ if (Platform.OS === 'android' && !UsageStats) {
 
 export const isUsageStatsAvailable = Platform.OS === 'android' && UsageStats != null;
 
+export interface UsageApp {
+  packageName: string;
+  appName?: string;
+  foregroundMinutes: number;
+  launchCount: number;
+  lastUsedAt: number;
+}
+
+export interface UsageSummary {
+  totalMinutes: number;
+  apps: UsageApp[];
+}
+
+export const isUsageSummaryAvailable =
+  Platform.OS === 'android' && typeof UsageStats?.getUsageSummary === 'function';
+
 export const UsageStatsModule = {
   async getForegroundApp(): Promise<string | null> {
     if (!UsageStats) return null;
     return UsageStats.getForegroundApp();
+  },
+
+  async getUsageSummary(startMs: number, endMs: number): Promise<UsageSummary | null> {
+    if (!UsageStats?.getUsageSummary) return null;
+    return UsageStats.getUsageSummary(startMs, endMs) as Promise<UsageSummary>;
   },
 
   async hasPermission(): Promise<boolean> {
@@ -125,20 +146,6 @@ export const UsageStatsModule = {
       return await UsageStats.getInstallerPackage();
     } catch {
       return null;
-    }
-  },
-
-  /**
-   * Returns the device manufacturer in lower-case (e.g. "samsung", "xiaomi",
-   * "oneplus", "realme", "oppo", "google"). Used to pre-select the correct
-   * brand in the Troubleshoot modal automatically.
-   */
-  async getDeviceManufacturer(): Promise<string> {
-    if (!UsageStats) return 'unknown';
-    try {
-      return await UsageStats.getDeviceManufacturer();
-    } catch {
-      return 'unknown';
     }
   },
 };

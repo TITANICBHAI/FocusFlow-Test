@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,12 @@ import {
   ScrollView,
   StyleSheet,
   Pressable,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
 import { useTheme } from '@/hooks/useTheme';
-import { UsageStatsModule } from '@/native-modules/UsageStatsModule';
 
-type PermissionId = 'accessibility' | 'usage' | 'battery' | 'notifications' | 'device_admin' | 'overlay' | 'media_files' | 'launcher';
+type PermissionId = 'accessibility' | 'usage' | 'battery' | 'notifications' | 'device_admin' | 'overlay' | 'media_files' | 'launcher' | 'vpn';
 
 type Brand = {
   id: string;
@@ -229,6 +227,7 @@ const PERM_LABELS: Record<PermissionId, { label: string; icon: keyof typeof Ioni
   overlay:       { label: 'Appear on Top',         icon: 'layers-outline'       },
   media_files:   { label: 'Media Files Access',    icon: 'images-outline'       },
   launcher:      { label: 'Home Launcher',         icon: 'home-outline'         },
+  vpn:           { label: 'Network Blocking (VPN)', icon: 'shield-checkmark-outline' },
 };
 
 interface Props {
@@ -237,25 +236,9 @@ interface Props {
   onClose: () => void;
 }
 
-function mapManufacturerToBrand(mfr: string): string {
-  const m = mfr.toLowerCase();
-  if (m.includes('samsung')) return 'samsung';
-  if (m.includes('xiaomi') || m.includes('redmi') || m.includes('poco')) return 'xiaomi';
-  if (m.includes('oneplus')) return 'oneplus';
-  if (m.includes('realme') || m.includes('oppo') || m.includes('coloros')) return 'realme';
-  return 'stock';
-}
-
 export function TroubleshootModal({ visible, permissionId, onClose }: Props) {
   const { theme } = useTheme();
   const [selectedBrand, setSelectedBrand] = useState('stock');
-
-  useEffect(() => {
-    if (Platform.OS !== 'android') return;
-    UsageStatsModule.getDeviceManufacturer()
-      .then((mfr) => setSelectedBrand(mapManufacturerToBrand(mfr)))
-      .catch(() => {});
-  }, []);
 
   const tips = TIPS[selectedBrand]?.[permissionId] ?? [
     'Open Settings → search for FocusFlow',

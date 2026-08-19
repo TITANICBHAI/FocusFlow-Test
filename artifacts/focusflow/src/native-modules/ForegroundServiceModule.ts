@@ -50,6 +50,16 @@ export const ForegroundServiceModule = {
     return ForegroundService.updateNotification(taskId, taskName, endTimeMs, nextTaskName);
   },
 
+  async setBreak(untilMs: number): Promise<void> {
+    if (!ForegroundService || typeof ForegroundService.setBreak !== 'function') return;
+    return ForegroundService.setBreak(untilMs);
+  },
+
+  async clearBreak(): Promise<void> {
+    if (!ForegroundService || typeof ForegroundService.clearBreak !== 'function') return;
+    return ForegroundService.clearBreak();
+  },
+
   async requestBatteryOptimizationExemption(): Promise<void> {
     if (!ForegroundService) return;
     try {

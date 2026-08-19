@@ -1,0 +1,34 @@
+Right, so I couldn't find a screen-by-screen recording of Stay Focused's onboarding anywhere — that level of detail isn't public. Here's what I can actually confirm vs what's inferred:
+
+---
+
+**What's confirmed from reviews, Play Store, and app description:**
+
+Stay Focused's first-run experience is deliberately minimal. For new users, setting up the app for the first time can feel a bit complex since it operates at the system level and needs several permissions — but that's the only friction point. Reviewers specifically call out that the app selection feature makes it very easy to choose all the apps you want to block — pick the app, set the method of blocking, and you're done, with no cumbersome workflow.
+
+The permissions it asks for are only two: Device Administrator (to prevent uninstalling) and Accessibility API, which is listed as optional and used to view websites for blocking and statistics. Usage Access is required but asked just-in-time, not upfront.
+
+The blocking approach is functional-first: three blocking modes — schedule-based (block during office hours), daily usage limit (block after 30 minutes), and goal-based (block social media until you've spent 2 hours on educational apps). You pick one and configure it — that's "onboarding."
+
+Its design philosophy is explicitly passive: some people don't want a companion, rewards, or session feedback — they want a firm set of limits that stays out of the way once configured. Stay Focused behaves more like a rulebook than a coach: clear boundaries, repeated enforcement, fewer choices when the habit tries to negotiate.
+
+---
+
+**What this tells you about FocusFlow's problem:**
+
+Your onboarding is the opposite of that in almost every dimension — not wrong, but the contrast is useful:
+
+| | Stay Focused | FocusFlow now |
+|---|---|---|
+| First question | "Create a profile" | "Choose protection level" |
+| Permission ask | Just-in-time, 2 permissions | All upfront, 5–8 permission cards |
+| Emotional hook | None — utility first | Mode badges, layer animations |
+| Exit state | User has blocked an app | User has granted permissions |
+
+The core issue isn't that FocusFlow explains too much — it's that **the user exits onboarding having set up a system, not having experienced the thing they came for**. They've granted permissions but haven't actually blocked anything yet.
+
+**The most concrete thing Stay Focused does better:** it makes "set up your first block" the first satisfying action. You feel the product working on step 1, not step 8.
+
+**Confidence: 0.75** — the feature/philosophy analysis is well-grounded, but the exact screen sequence of Stay Focused's current onboarding is unverified since no walkthrough video or doc exists publicly. The comparison is based on inferred architecture from reviews and design philosophy, not a live install.
+
+**Caveat:** If you want a precise screen-by-screen breakdown of Stay Focused's current onboarding, the only reliable method is installing the APK on a fresh device or emulator and recording it yourself.

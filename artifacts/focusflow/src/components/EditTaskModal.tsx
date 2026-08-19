@@ -36,8 +36,8 @@ const PRIORITY_COLORS: Record<TaskPriority, string> = {
   critical: COLORS.red,
 };
 const COLORS_OPTIONS = [
-  '#6366f1', '#f59e0b', '#10b981', '#ef4444',
-  '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4',
+  COLORS.primary, COLORS.orange, COLORS.green, COLORS.red,
+  COLORS.purple, '#22D3EE', '#14B8A6', COLORS.blueLight,
 ];
 
 export default function EditTaskModal({ task, visible, onClose, onSave, onDelete }: Props) {

@@ -15,6 +15,8 @@ import {
   View,
   Text,
   ScrollView,
+  Image,
+  TextInput,
   Switch,
   TouchableOpacity,
   StyleSheet,
@@ -32,6 +34,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
 import { SharedPrefsModule } from '@/native-modules/SharedPrefsModule';
 import { InstalledAppsModule, InstalledApp } from '@/native-modules/InstalledAppsModule';
+import { NativeImagePickerModule } from '@/native-modules/NativeImagePickerModule';
 
 export default function HomeLauncherScreen() {
   const insets = useSafeAreaInsets();
@@ -50,6 +53,7 @@ export default function HomeLauncherScreen() {
   const [checkingDefault, setCheckingDefault] = useState(true);
   const [apps, setApps] = useState<InstalledApp[]>([]);
   const [loadingApps, setLoadingApps] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const blockedPackages = useMemo(
     () => new Set([...(settings.standaloneBlockPackages ?? []), ...(settings.alwaysOnPackages ?? [])]),
@@ -158,6 +162,79 @@ export default function HomeLauncherScreen() {
   const pinnedSet = useMemo(() => new Set(settings.launcherPinnedPackages ?? []), [settings.launcherPinnedPackages]);
   const dockSet   = useMemo(() => new Set(settings.launcherDockPackages ?? []),   [settings.launcherDockPackages]);
   const hiddenSet = useMemo(() => new Set(settings.launcherHiddenPackages ?? []), [settings.launcherHiddenPackages]);
+  const appByPackage = useMemo(
+    () => new Map(apps.map((app) => [app.packageName, app])),
+    [apps],
+  );
+  const filteredApps = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return apps;
+    return apps.filter(
+      (app) =>
+        app.appName.toLowerCase().includes(query) ||
+        app.packageName.toLowerCase().includes(query),
+    );
+  }, [apps, searchQuery]);
+  const pinnedApps = useMemo(
+    () => (settings.launcherPinnedPackages ?? [])
+      .map((pkg) => appByPackage.get(pkg))
+      .filter((app): app is InstalledApp => Boolean(app)),
+    [appByPackage, settings.launcherPinnedPackages],
+  );
+  const dockApps = useMemo(
+    () => (settings.launcherDockPackages ?? [])
+      .map((pkg) => appByPackage.get(pkg))
+      .filter((app): app is InstalledApp => Boolean(app)),
+    [appByPackage, settings.launcherDockPackages],
+  );
+
+  const movePinned = useCallback(
+    (pkg: string, delta: -1 | 1) => {
+      const next = [...(settings.launcherPinnedPackages ?? [])];
+      const from = next.indexOf(pkg);
+      const to = from + delta;
+      if (from < 0 || to < 0 || to >= next.length) return;
+      [next[from], next[to]] = [next[to], next[from]];
+      void update({ launcherPinnedPackages: next });
+    },
+    [settings.launcherPinnedPackages, update],
+  );
+
+  const moveDock = useCallback(
+    (pkg: string, delta: -1 | 1) => {
+      const next = [...(settings.launcherDockPackages ?? [])];
+      const from = next.indexOf(pkg);
+      const to = from + delta;
+      if (from < 0 || to < 0 || to >= next.length) return;
+      [next[from], next[to]] = [next[to], next[from]];
+      void update({ launcherDockPackages: next });
+    },
+    [settings.launcherDockPackages, update],
+  );
+
+  const handlePickWallpaper = useCallback(async () => {
+    try {
+      const uri = await NativeImagePickerModule.pickImage();
+      if (!uri) return;
+      const path = uri.startsWith('file://') ? uri.slice('file://'.length) : uri;
+      await update({ launcherWallpaperUri: path });
+      await SharedPrefsModule.putString('launcher_wallpaper', path);
+    } catch {
+      Alert.alert(
+        'Could Not Pick Image',
+        'Please grant photo access in Settings, then try again.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ],
+      );
+    }
+  }, [update]);
+
+  const handleClearWallpaper = useCallback(async () => {
+    await update({ launcherWallpaperUri: null });
+    await SharedPrefsModule.putString('launcher_wallpaper', '');
+  }, [update]);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top']}>
@@ -239,18 +316,13 @@ export default function HomeLauncherScreen() {
             )}
           </View>
 
-          {/* ── How the launcher is laid out ─────────────────────────── */}
-          <View style={[styles.layoutPreview, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.layoutTitle, { color: theme.text }]}>Launcher Layout</Text>
-            <View style={styles.layoutRow}>
-              <LayoutZone icon="time-outline" label="Clock + Date" desc="Always at the top" color={COLORS.primary} />
-              <LayoutZone icon="grid-outline" label="Home Grid" desc="App shortcuts (4 col)" color={COLORS.green} />
-              <LayoutZone icon="ellipse-outline" label="Dock" desc="Up to 5 pinned apps" color={COLORS.orange} />
-            </View>
-            <Text style={[styles.layoutHint, { color: theme.muted }]}>
-              Swipe up from anywhere to open the full app drawer. Long-press any icon to add/remove or move between Home and Dock.
-            </Text>
-          </View>
+          {/* ── Live launcher preview ─────────────────────────────────── */}
+          <LauncherPreview
+            pinnedApps={pinnedApps}
+            dockApps={dockApps}
+            wallpaperUri={settings.launcherWallpaperUri ?? null}
+            theme={theme}
+          />
 
           {/* ── Appearance ───────────────────────────────────────────── */}
           <SectionHeader
@@ -291,24 +363,58 @@ export default function HomeLauncherScreen() {
 
             <TouchableOpacity
               style={styles.settingRow}
-              onPress={() =>
-                Alert.alert(
-                  'Wallpaper',
-                  'The launcher uses your Android system wallpaper by default.\n\nTo change it, use Android\'s built-in wallpaper picker from your previous home screen, or long-press the home screen background.',
-                  [{ text: 'Got it' }],
-                )
-              }
+              onPress={() => void handlePickWallpaper()}
               activeOpacity={0.75}
             >
               <View style={{ flex: 1, gap: 2 }}>
-                <Text style={[styles.settingLabel, { color: theme.text }]}>Wallpaper</Text>
+                <Text style={[styles.settingLabel, { color: theme.text }]}>
+                  {settings.launcherWallpaperUri ? 'Custom wallpaper' : 'Wallpaper'}
+                </Text>
                 <Text style={[styles.settingDesc, { color: theme.muted }]}>
-                  Uses your system wallpaper — change it from Android settings
+                  {settings.launcherWallpaperUri
+                    ? 'Tap to choose a different image'
+                    : 'Uses your system wallpaper by default — tap to choose an image'}
                 </Text>
               </View>
-              <Ionicons name="image-outline" size={18} color={theme.muted} />
+              {settings.launcherWallpaperUri ? (
+                <TouchableOpacity
+                  onPress={() => void handleClearWallpaper()}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close-circle-outline" size={20} color={theme.muted} />
+                </TouchableOpacity>
+              ) : (
+                <Ionicons name="image-outline" size={18} color={theme.muted} />
+              )}
             </TouchableOpacity>
           </View>
+
+          {/* ── App library search ────────────────────────────────────── */}
+          <View style={[styles.searchBox, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Ionicons name="search-outline" size={18} color={theme.muted} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search all installed apps"
+              placeholderTextColor={theme.muted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={[styles.searchInput, { color: theme.text }]}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setSearchQuery('')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close-circle" size={18} color={theme.muted} />
+              </TouchableOpacity>
+            )}
+          </View>
+          <Text style={[styles.searchHint, { color: theme.muted }]}>
+            {searchQuery
+              ? `${filteredApps.length} matching app${filteredApps.length === 1 ? '' : 's'}`
+              : `${apps.length} installed apps · select below to customize your launcher`}
+          </Text>
 
           {/* ── Dock ─────────────────────────────────────────────────── */}
           <SectionHeader
@@ -328,18 +434,39 @@ export default function HomeLauncherScreen() {
                 <Text style={[styles.emptyText, { color: theme.muted }]}>No apps found — EAS build required</Text>
               </View>
             ) : (
-              apps.slice(0, 30).map((app, idx) => (
-                <AppToggleRow
-                  key={app.packageName}
-                  app={app}
-                  checked={dockSet.has(app.packageName)}
-                  onToggle={() => toggleDock(app.packageName)}
-                  theme={theme}
-                  isLast={idx === Math.min(apps.length, 30) - 1}
-                  badge={blockedPackages.has(app.packageName) ? 'blocked' : undefined}
-                  disabled={!dockSet.has(app.packageName) && dockSet.size >= 5}
-                />
-              ))
+              <>
+                {dockApps.length > 0 && (
+                  <View style={[styles.orderSection, { borderBottomColor: theme.border }]}>
+                    <Text style={[styles.orderTitle, { color: theme.text }]}>Dock order</Text>
+                    {dockApps.map((app, index) => (
+                      <OrderedAppRow
+                        key={app.packageName}
+                        app={app}
+                        index={index}
+                        total={dockApps.length}
+                        onMove={moveDock}
+                        theme={theme}
+                      />
+                    ))}
+                  </View>
+                )}
+                {filteredApps.map((app) => (
+                  <AppToggleRow
+                    key={app.packageName}
+                    app={app}
+                    checked={dockSet.has(app.packageName)}
+                    onToggle={() => toggleDock(app.packageName)}
+                    theme={theme}
+                    badge={blockedPackages.has(app.packageName) ? 'blocked' : undefined}
+                    disabled={!dockSet.has(app.packageName) && dockSet.size >= 5}
+                  />
+                ))}
+                {filteredApps.length === 0 && (
+                  <View style={styles.emptyRow}>
+                    <Text style={[styles.emptyText, { color: theme.muted }]}>No installed apps match this search.</Text>
+                  </View>
+                )}
+              </>
             )}
           </View>
           {(settings.launcherDockPackages ?? []).length >= 5 && (
@@ -366,24 +493,40 @@ export default function HomeLauncherScreen() {
                 <Text style={[styles.emptyText, { color: theme.muted }]}>No apps found — EAS build required</Text>
               </View>
             ) : (
-              apps.slice(0, 30).map((app, idx) => (
-                <AppToggleRow
-                  key={app.packageName}
-                  app={app}
-                  checked={pinnedSet.has(app.packageName)}
-                  onToggle={() => togglePinned(app.packageName)}
-                  theme={theme}
-                  isLast={idx === Math.min(apps.length, 30) - 1}
-                  badge={blockedPackages.has(app.packageName) ? 'blocked' : undefined}
-                />
-              ))
+              <>
+                {pinnedApps.length > 0 && (
+                  <View style={[styles.orderSection, { borderBottomColor: theme.border }]}>
+                    <Text style={[styles.orderTitle, { color: theme.text }]}>Home grid order</Text>
+                    {pinnedApps.map((app, index) => (
+                      <OrderedAppRow
+                        key={app.packageName}
+                        app={app}
+                        index={index}
+                        total={pinnedApps.length}
+                        onMove={movePinned}
+                        theme={theme}
+                      />
+                    ))}
+                  </View>
+                )}
+                {filteredApps.map((app) => (
+                  <AppToggleRow
+                    key={app.packageName}
+                    app={app}
+                    checked={pinnedSet.has(app.packageName)}
+                    onToggle={() => togglePinned(app.packageName)}
+                    theme={theme}
+                    badge={blockedPackages.has(app.packageName) ? 'blocked' : undefined}
+                  />
+                ))}
+                {filteredApps.length === 0 && (
+                  <View style={styles.emptyRow}>
+                    <Text style={[styles.emptyText, { color: theme.muted }]}>No installed apps match this search.</Text>
+                  </View>
+                )}
+              </>
             )}
           </View>
-          {apps.length > 30 && (
-            <Text style={[styles.moreAppsHint, { color: theme.muted }]}>
-              Showing first 30 apps. Search the full list in the launcher drawer, or long-press any icon there to add it.
-            </Text>
-          )}
 
           {/* ── App Drawer Visibility ────────────────────────────────── */}
           <SectionHeader
@@ -403,11 +546,10 @@ export default function HomeLauncherScreen() {
             ) : (
               Array.from(blockedPackages).map((pkg, idx) => {
                 const app = apps.find((a) => a.packageName === pkg);
-                const name = app?.appName ?? pkg;
                 return (
                   <AppToggleRow
                     key={pkg}
-                    app={{ packageName: pkg, appName: name, isIme: false }}
+                    app={app ?? { packageName: pkg, appName: pkg, isIme: false }}
                     checked={hiddenSet.has(pkg)}
                     onToggle={() => toggleHidden(pkg)}
                     theme={theme}
@@ -450,14 +592,108 @@ export default function HomeLauncherScreen() {
   );
 }
 
-function LayoutZone({ icon, label, desc, color }: { icon: keyof typeof Ionicons.glyphMap; label: string; desc: string; color: string }) {
+function LauncherPreview({
+  pinnedApps,
+  dockApps,
+  wallpaperUri,
+  theme,
+}: {
+  pinnedApps: InstalledApp[];
+  dockApps: InstalledApp[];
+  wallpaperUri: string | null;
+  theme: ReturnType<typeof useTheme>['theme'];
+}) {
   return (
-    <View style={styles.layoutZone}>
-      <View style={[styles.layoutZoneIcon, { backgroundColor: color + '20' }]}>
-        <Ionicons name={icon} size={20} color={color} />
+    <View style={[styles.previewCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+      <View style={styles.previewHeader}>
+        <View>
+          <Text style={[styles.layoutTitle, { color: theme.text }]}>Live launcher preview</Text>
+          <Text style={[styles.previewSubtitle, { color: theme.muted }]}>Updates as you change the lists below</Text>
+        </View>
+        <Ionicons name="phone-portrait-outline" size={20} color={COLORS.primary} />
       </View>
-      <Text style={styles.layoutZoneLabel}>{label}</Text>
-      <Text style={styles.layoutZoneDesc}>{desc}</Text>
+      <View style={styles.phoneFrame}>
+        {wallpaperUri ? (
+          <Image source={{ uri: wallpaperUri }} style={styles.previewWallpaper} resizeMode="cover" />
+        ) : (
+          <View style={styles.previewWallpaperFallback} />
+        )}
+        <View style={styles.previewScrim} />
+        <View style={styles.previewContent}>
+          <Text style={styles.previewDate}>MONDAY · AUG 17</Text>
+          <Text style={styles.previewClock}>9:41</Text>
+          <View style={styles.previewGrid}>
+            {pinnedApps.slice(0, 8).map((app) => (
+              <PreviewAppIcon key={app.packageName} app={app} />
+            ))}
+            {pinnedApps.length === 0 && (
+              <Text style={styles.previewEmpty}>Choose apps for your home grid below</Text>
+            )}
+          </View>
+          <View style={styles.previewDock}>
+            {dockApps.slice(0, 5).map((app) => (
+              <PreviewAppIcon key={app.packageName} app={app} small />
+            ))}
+            {dockApps.length === 0 && <Ionicons name="ellipse-outline" size={20} color="#B9C2D0" />}
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function PreviewAppIcon({ app, small = false }: { app: InstalledApp; small?: boolean }) {
+  return app.iconBase64 ? (
+    <Image
+      source={{ uri: `data:image/png;base64,${app.iconBase64}` }}
+      style={small ? styles.previewDockIcon : styles.previewAppIcon}
+    />
+  ) : (
+    <View style={[small ? styles.previewDockIcon : styles.previewAppIcon, styles.previewIconFallback]}>
+      <Ionicons name="apps-outline" size={small ? 14 : 18} color="#E7EAF6" />
+    </View>
+  );
+}
+
+function OrderedAppRow({
+  app,
+  index,
+  total,
+  onMove,
+  theme,
+}: {
+  app: InstalledApp;
+  index: number;
+  total: number;
+  onMove: (packageName: string, delta: -1 | 1) => void;
+  theme: ReturnType<typeof useTheme>['theme'];
+}) {
+  return (
+    <View style={styles.orderRow}>
+      {app.iconBase64 ? (
+        <Image source={{ uri: `data:image/png;base64,${app.iconBase64}` }} style={styles.orderIcon} />
+      ) : (
+        <View style={[styles.orderIcon, styles.appIconPlaceholder]}>
+          <Ionicons name="apps-outline" size={16} color={COLORS.primary} />
+        </View>
+      )}
+      <Text style={[styles.orderName, { color: theme.text }]} numberOfLines={1}>{app.appName}</Text>
+      <TouchableOpacity
+        onPress={() => onMove(app.packageName, -1)}
+        disabled={index === 0}
+        style={styles.orderButton}
+        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+      >
+        <Ionicons name="chevron-up" size={18} color={index === 0 ? theme.border : theme.text} />
+      </TouchableOpacity>
+      <TouchableOpacity
+        onPress={() => onMove(app.packageName, 1)}
+        disabled={index === total - 1}
+        style={styles.orderButton}
+        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+      >
+        <Ionicons name="chevron-down" size={18} color={index === total - 1 ? theme.border : theme.text} />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -529,7 +765,7 @@ function AppToggleRow({
   badge,
   disabled = false,
 }: {
-  app: { packageName: string; appName: string; isIme: boolean };
+  app: { packageName: string; appName: string; isIme: boolean; iconBase64?: string };
   checked: boolean;
   onToggle: () => void;
   theme: ReturnType<typeof useTheme>['theme'];
@@ -547,9 +783,13 @@ function AppToggleRow({
       onPress={disabled ? undefined : onToggle}
       activeOpacity={disabled ? 1 : 0.7}
     >
-      <View style={[styles.appIconPlaceholder, { backgroundColor: COLORS.primary + '18' }]}>
-        <Ionicons name="apps-outline" size={18} color={COLORS.primary} />
-      </View>
+      {app.iconBase64 ? (
+        <Image source={{ uri: `data:image/png;base64,${app.iconBase64}` }} style={styles.appIcon} />
+      ) : (
+        <View style={[styles.appIconPlaceholder, { backgroundColor: COLORS.primary + '18' }]}>
+          <Ionicons name="apps-outline" size={18} color={COLORS.primary} />
+        </View>
+      )}
       <View style={{ flex: 1, gap: 1 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
           <Text style={[styles.appName, { color: theme.text }]} numberOfLines={1}>
@@ -637,9 +877,131 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  layoutZoneLabel: { fontSize: FONT.xs, fontWeight: '700', color: '#FFFFFF', textAlign: 'center' },
+  layoutZoneLabel: { fontSize: FONT.xs, fontWeight: '700', color: '#F5F7FF', textAlign: 'center' },
   layoutZoneDesc: { fontSize: 10, color: '#888', textAlign: 'center', lineHeight: 14 },
   layoutHint: { fontSize: FONT.xs, lineHeight: 17 },
+  previewCard: {
+    borderRadius: RADIUS.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: SPACING.md,
+    gap: SPACING.sm,
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  previewSubtitle: { fontSize: FONT.xs, marginTop: 2 },
+  phoneFrame: {
+    width: '72%',
+    aspectRatio: 0.54,
+    maxHeight: 310,
+    alignSelf: 'center',
+    overflow: 'hidden',
+    borderRadius: 24,
+    borderWidth: 5,
+    borderColor: '#242A3A',
+    backgroundColor: '#111421',
+    position: 'relative',
+  },
+  previewWallpaper: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  previewWallpaperFallback: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#172B4D',
+  },
+  previewScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#0A0A14CC',
+  },
+  previewContent: {
+    flex: 1,
+    paddingHorizontal: SPACING.sm,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.sm,
+    justifyContent: 'space-between',
+  },
+  previewDate: {
+    color: '#B3B8CA',
+    fontSize: 8,
+    textAlign: 'center',
+    letterSpacing: 0.8,
+  },
+  previewClock: {
+    color: '#F5F7FF',
+    fontSize: 30,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginTop: -SPACING.md,
+  },
+  previewGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignContent: 'center',
+    gap: SPACING.sm,
+    flex: 1,
+    paddingVertical: SPACING.sm,
+  },
+  previewAppIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+  },
+  previewDock: {
+    minHeight: 42,
+    borderRadius: 16,
+    backgroundColor: '#38FFFFFF',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
+  },
+  previewDockIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+  },
+  previewIconFallback: {
+    backgroundColor: '#242A3A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewEmpty: {
+    color: '#B3B8CA',
+    fontSize: 10,
+    textAlign: 'center',
+    paddingHorizontal: SPACING.md,
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    paddingHorizontal: SPACING.md,
+    minHeight: 48,
+  },
+  searchInput: { flex: 1, fontSize: FONT.sm, paddingVertical: 0 },
+  searchHint: { fontSize: FONT.xs, marginTop: -SPACING.xs },
+  orderSection: {
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.xs,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  orderTitle: { fontSize: FONT.xs, fontWeight: '700', marginBottom: SPACING.xs },
+  orderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 42,
+    gap: SPACING.sm,
+  },
+  orderIcon: { width: 28, height: 28, borderRadius: 6, flexShrink: 0 },
+  orderName: { flex: 1, fontSize: FONT.sm, fontWeight: '600' },
+  orderButton: { width: 28, alignItems: 'center', justifyContent: 'center' },
 
   sectionHeader: { gap: 4, marginBottom: SPACING.xs },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
@@ -708,6 +1070,12 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.sm,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
+  },
+  appIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.sm,
     flexShrink: 0,
   },
   appName: { fontSize: FONT.sm, fontWeight: '600' },

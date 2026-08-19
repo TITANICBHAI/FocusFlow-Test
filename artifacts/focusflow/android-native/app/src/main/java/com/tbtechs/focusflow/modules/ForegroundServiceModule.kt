@@ -147,6 +147,33 @@ class ForegroundServiceModule(private val reactContext: ReactApplicationContext)
         }
     }
 
+    @ReactMethod
+    fun setBreak(untilMs: Double, promise: Promise) {
+        try {
+            val intent = Intent(reactContext, ForegroundTaskService::class.java).apply {
+                action = ForegroundTaskService.ACTION_SET_BREAK
+                putExtra(ForegroundTaskService.EXTRA_BREAK_UNTIL_MS, untilMs.toLong())
+            }
+            reactContext.startService(intent)
+            promise.resolve(null)
+        } catch (e: Exception) {
+            promise.reject("BREAK_START_ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun clearBreak(promise: Promise) {
+        try {
+            val intent = Intent(reactContext, ForegroundTaskService::class.java).apply {
+                action = ForegroundTaskService.ACTION_CLEAR_BREAK
+            }
+            reactContext.startService(intent)
+            promise.resolve(null)
+        } catch (e: Exception) {
+            promise.reject("BREAK_CLEAR_ERROR", e.message, e)
+        }
+    }
+
     /**
      * Opens the battery optimization exemption screen so Android stops killing the service.
      * Critical on MIUI, ColorOS, Realme UI, and other aggressive OEM skins.

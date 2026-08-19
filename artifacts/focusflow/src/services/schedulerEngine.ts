@@ -76,7 +76,6 @@ export function findNextAvailableSlot(
   bufferMinutes = 5,
 ): string {
   let candidate = dayjs(afterTime);
-  const candidateEnd = candidate.add(durationMinutes, 'minute');
 
   const activeTasks = tasks
     .filter((t) => t.status !== 'completed' && t.status !== 'skipped')
@@ -196,7 +195,7 @@ export function insertTaskSafe(
   newTask: Task,
   existingTasks: Task[],
 ): { task: Task; shifted: Task[] } {
-  const { hasConflict, conflicts } = detectConflicts(newTask, existingTasks);
+  const { hasConflict } = detectConflicts(newTask, existingTasks);
 
   if (!hasConflict) {
     return { task: newTask, shifted: [] };
@@ -205,18 +204,47 @@ export function insertTaskSafe(
   const shifted: Task[] = [];
 
   // For each conflicting task that has LOWER priority — shift it after newTask
-  for (const { task: conflictingTask } of conflicts) {
-    if (PRIORITY_RANK[conflictingTask.priority] < PRIORITY_RANK[newTask.priority]) {
-      const newStart = dayjs(newTask.endTime).add(5, 'minute');
-      const durationMs = dayjs(conflictingTask.endTime).diff(dayjs(conflictingTask.startTime), 'minute');
-      shifted.push({
-        ...conflictingTask,
-        startTime: newStart.toISOString(),
-        endTime: newStart.add(durationMs, 'minute').toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
+  // Walk the full active schedule in order. When a lower-priority task is
+  // moved, keep the cursor at its new end so the next task is checked against
+  // the shifted task too; this prevents a one-time shift from creating a new
+  // overlap farther down the schedule.
+  let occupiedUntil = dayjs(newTask.endTime);
+  const newStart = dayjs(newTask.startTime);
+  const activeTasks = existingTasks
+    .filter((task) => task.status !== 'completed' && task.status !== 'skipped')
+    .sort((a, b) => dayjs(a.startTime).valueOf() - dayjs(b.startTime).valueOf());
+
+  for (const task of activeTasks) {
+    if (task.id === newTask.id) continue;
+
+    const taskStart = dayjs(task.startTime);
+    const taskEnd = dayjs(task.endTime);
+    // Tasks that finished before the new task began are not part of this
+    // insertion conflict chain and must never be moved.
+    if (taskEnd.valueOf() <= newStart.valueOf()) continue;
+
+    if (!taskStart.isBefore(occupiedUntil)) {
+      occupiedUntil = taskEnd.isAfter(occupiedUntil) ? taskEnd : occupiedUntil;
+      continue;
     }
-    // If conflicting task has SAME or HIGHER priority, the caller must resolve
+
+    if (PRIORITY_RANK[task.priority] < PRIORITY_RANK[newTask.priority]) {
+      const shiftedStart = occupiedUntil.add(5, 'minute');
+      const durationMinutes = taskEnd.diff(taskStart, 'minute');
+      const shiftedTask = {
+        ...task,
+        startTime: shiftedStart.toISOString(),
+        endTime: shiftedStart.add(durationMinutes, 'minute').toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      shifted.push(shiftedTask);
+      occupiedUntil = dayjs(shiftedTask.endTime);
+      continue;
+    }
+
+    // Same- or higher-priority tasks stay in place for the caller to resolve,
+    // but later lower-priority tasks must still be placed after them.
+    occupiedUntil = taskEnd.isAfter(occupiedUntil) ? taskEnd : occupiedUntil;
   }
 
   return { task: newTask, shifted };
@@ -255,6 +283,39 @@ export function compressSchedule(
   });
 }
 
+/**
+ * Remove the reserved time of a deleted future task from the schedule.
+ * Only later, unresolved tasks move; completed/history rows stay immutable.
+ */
+export function compressDeletedTaskGap(
+  deletedTask: Task,
+  allTasks: Task[],
+): Task[] {
+  const deletedStart = dayjs(deletedTask.startTime);
+  const deletedEnd = dayjs(deletedTask.endTime);
+  const savedMinutes = deletedEnd.diff(deletedStart, 'minute');
+
+  if (savedMinutes <= 0) return allTasks;
+
+  return allTasks.map((task) => {
+    if (
+      task.id === deletedTask.id ||
+      task.status === 'completed' ||
+      task.status === 'skipped' ||
+      !dayjs(task.startTime).isAfter(deletedEnd)
+    ) {
+      return task;
+    }
+
+    return {
+      ...task,
+      startTime: dayjs(task.startTime).subtract(savedMinutes, 'minute').toISOString(),
+      endTime: dayjs(task.endTime).subtract(savedMinutes, 'minute').toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  });
+}
+
 // ─── Detect tasks left unfinished (for app restart recovery) ─────────────────
 
 export function getUnfinishedOverdueTasks(tasks: Task[]): Task[] {
@@ -262,8 +323,7 @@ export function getUnfinishedOverdueTasks(tasks: Task[]): Task[] {
   return tasks.filter(
     (t) =>
       t.status === 'scheduled' &&
-      dayjs(t.endTime).isBefore(now) &&
-      dayjs(t.endTime).isAfter(now.subtract(4, 'hour')), // only last 4 hours
+      dayjs(t.endTime).isBefore(now),
   );
 }
 

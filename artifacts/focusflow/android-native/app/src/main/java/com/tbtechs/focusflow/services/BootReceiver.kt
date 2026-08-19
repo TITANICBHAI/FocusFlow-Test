@@ -49,6 +49,8 @@ class BootReceiver : BroadcastReceiver() {
         val startTimeMs   = prefs.getLong("task_start_ms", 0L)
         val durationMs    = prefs.getLong("task_duration_ms", 0L)
         val lastWrittenMs = prefs.getLong("task_last_written_ms", 0L)
+        val standaloneActive = prefs.getBoolean("standalone_block_active", false)
+        val standaloneUntilMs = prefs.getLong("standalone_block_until_ms", 0L)
 
         val now = System.currentTimeMillis()
 
@@ -63,6 +65,13 @@ class BootReceiver : BroadcastReceiver() {
                              (now - lastWrittenMs) < durationMs + 60_000L
 
         val sessionValid = focusActive && (primaryValid || secondaryValid)
+        val standaloneValid = standaloneActive && (standaloneUntilMs == 0L || standaloneUntilMs > now)
+
+        // Clear an expired timed standalone block, but preserve an indefinite
+        // standalone block (until=0) across reboot.
+        if (standaloneActive && standaloneUntilMs > 0L && standaloneUntilMs <= now) {
+            prefs.edit().putBoolean("standalone_block_active", false).apply()
+        }
 
         if (sessionValid && endTimeMs > 0L) {
             // ── Restart in ACTIVE focus mode ──────────────────────────────────
@@ -88,7 +97,7 @@ class BootReceiver : BroadcastReceiver() {
             }
         } else {
             // ── Clear any stale focus flag, then start IDLE to keep process alive ──
-            if (focusActive) {
+            if (focusActive && !standaloneValid) {
                 prefs.edit().putBoolean("focus_active", false).apply()
             }
             // Huawei AppGallery rule 2.19: only auto-start the idle foreground

@@ -1,0 +1,193 @@
+Existing onboarding becomes the welcome + setup screen
+At the top, replace the current generic header with:
+
+Choose your protection level
+How hard should it be to break your focus?
+[ Standard ]        [ Iron Mode ]
+
+Standard
+Essential app blocking with the minimum permissions required.
+
+Includes:
+
+Notifications
+Usage Access
+Accessibility Service
+Iron Mode
+Multi-layer protection for people who do not want an easy escape route.
+
+Includes:
+
+Everything in Standard
+Battery Optimization
+Appear on Top
+VPN network blocking
+Device Admin
+PIN Protection
+This adds no extra welcome screen. It gives the user an identity-based choice immediately:
+
+“I want normal blocking.”
+“I want serious protection.”
+That is much more appealing than presenting a long list of Android permissions.
+
+Use levels, not a flat permission list
+The current cards can be grouped visually:
+
+Layer 1 — Detect
+Usage Access + Accessibility Service
+
+Lets FocusFlow know when you open a blocked app and redirect you immediately.
+
+Layer 2 — Stay active
+Notifications + Battery Optimization + Appear on Top
+
+Keeps FocusFlow running reliably, especially when the screen is off or your phone aggressively kills background apps.
+
+Layer 3 — Iron Mode
+VPN + Device Admin + PIN Protection
+
+Makes the block harder to bypass by cutting network access for selected apps, making FocusFlow harder to force-stop, and protecting settings behind a PIN.
+
+The user sees the product as a multi-layer defense system, not as a collection of unrelated permission requests.
+
+Make the hardcore path feel powerful
+When the user selects Iron Mode, change the screen’s tone and visuals:
+
+IRON MODE
+Maximum resistance to distraction
+✓ App blocking
+✓ Background survival
+✓ Network blocking
+✓ Force-stop resistance
+✓ PIN protection
+
+Use a darker visual treatment, shield layers, or a lock animation—but keep the copy honest.
+
+Primary CTA:
+
+Activate Iron Mode
+
+Secondary CTA:
+
+Use Standard Protection Instead
+
+The user should always be able to change their mind. But choosing Iron Mode should make completing the extra setup feel like an intentional challenge.
+
+Explain VPN using a real use case
+Your YouTube example is strong because it is concrete and understandable.
+
+Instead of saying:
+
+VPN permission is required for network blocking.
+
+Say:
+
+Keep work videos. Cut the rabbit holes.
+Iron Mode can block internet access for selected apps during a focus session. For example, you can prepare downloaded work or study videos in YouTube, then restrict network access so Shorts, recommendations, comments, and other distractions are harder to reach.
+
+Then show:
+
+Before focus:
+✓ Download your work videos
+✓ Choose apps to restrict
+During focus:
+✓ Downloaded content may remain available offline
+✓ Selected apps lose network access
+✓ FocusFlow keeps enforcing the session
+
+Important: do not promise that every YouTube download will work fully offline. Some YouTube content may need periodic online verification. The app should explain:
+
+Download content before starting. Some videos may still require occasional internet verification.
+
+Also, VPN alone does not block Shorts inside YouTube. The strongest configuration would combine:
+
+VPN network restriction
+YouTube Shorts blocking
+Keyword or screen detection
+Accessibility redirection
+That gives users a compelling “study video but no doom scrolling” mode.
+
+Explain Device Admin accurately
+Device Admin should not be described as magically making the app impossible to remove.
+
+Use:
+
+Make quitting FocusFlow harder
+Some Android phones allow apps to be force-stopped from recent apps or system controls. Device Admin adds another layer of resistance so a focus session is harder to kill impulsively.
+
+Then show:
+
+Without Device Admin:
+Swipe FocusFlow away → blocking may stop
+With Device Admin:
+Additional system protection → harder to force-stop
+
+This is more believable and avoids overpromising.
+
+What happens after selecting Iron Mode
+Do not display every card at full length. Keep the screen compact, but guide the user through the selected layers one at a time.
+
+Example:
+
+IRON MODE SETUP
+Layer 1 of 3 — Detect
+[Usage Access]       Ready
+[Accessibility]      Enable
+Layer 2 — Stay active
+[Notifications]       Ready
+[Battery]             Enable
+[Appear on Top]       Enable
+Layer 3 — Resist bypass
+[VPN]                 Enable
+[Device Admin]        Enable
+[PIN Protection]      Set up
+
+The user still sees the full journey, but only one permission needs attention at a time.
+
+At the bottom:
+
+Continue Iron Mode setup
+
+And a smaller alternative:
+
+Enter with current protection
+
+For Standard mode, the app should only expect the three real core permissions. For Iron Mode, the extra permissions can be strongly recommended, but users should not be trapped if Android refuses one of them.
+
+Make completion feel like activation
+After setup, use a strong completion state:
+
+Iron Mode activated
+5 protection layers active
+✓ App detection
+✓ Instant redirection
+✓ Background survival
+✓ Network restriction
+✓ Bypass resistance
+
+Button:
+
+Enter FocusFlow
+
+This is better than ending with “Got it — let’s start” because it makes the user feel they have activated a system.
+
+My revised recommendation
+Do not add a separate welcome screen.
+
+Modify the current onboarding into:
+
+Choose protection level
+        ↓
+Standard or Iron Mode
+        ↓
+Layered permission setup
+        ↓
+Concrete success feedback
+        ↓
+Enter the app
+
+The key product idea is:
+
+Standard mode is easy to start. Iron Mode is a deliberate commitment for users who want serious enforcement.
+
+That gives casual users a low-friction path while giving hardcore users a powerful reason to grant VPN, Device Admin, battery, overlay, and PIN access.

@@ -1,0 +1,246 @@
+I’ll read both uploaded notes, then inspect the project’s relevant entry points so I can summarize the feature requirements and any implementation constraints before changing code.
+
+
+4 actions
+The notes define two linked feature areas: on-device usage insights and Quick Block actions. I’m checking the current FocusFlow mobile implementation now—especially Stats, Reports, usage access, and the existing block systems—to distinguish what already exists from what needs to be added.
+
+
+6 actions
+The project is an Expo/React Native Android app with local-only SQLite plus Kotlin enforcement services. The notes’ proposed MVP is feasible without a new backend; I’m reading the exact current APIs and screens next so the feature brief reflects the real code, including permission and PIN-protection behavior.
+
+
+14 actions
+I’ve confirmed the core gap: the UI already tracks FocusFlow’s planned focus and blocked-attempt log, but Android usage aggregation is not implemented. Quick Block can reuse existing settings/context mutations, with one important safeguard: temporary Quick Block must bypass the current auto-copy-to-Always-On behavior. I’m checking that exact save path once more before I summarize the implementation plan.
+
+
+6 actions
+I’ve finished the code and product read-through. No feature code has been changed. Here’s the implementation brief I’d use:
+
+1. Product direction from the uploaded notes
+FocusFlow should combine three distinct truths:
+
+Observed device time — what Android reports as foreground usage.
+Focus time — what the user planned and completed in FocusFlow.
+FocusFlow impact — blocked attempts, overrides, and sessions protected.
+The app should not call observed usage “productive time,” and it should not claim that blocked attempts equal time saved.
+
+2. What already exists
+FocusFlow is an Expo/React Native Android app with custom Kotlin native modules.
+Data is local: SQLite for tasks/focus history and SharedPreferences/native storage for enforcement settings.
+Stats already has Yesterday / Today / Week / All Time views with:
+focus minutes
+task completion
+streaks
+blocked-app temptation counts
+Reports already has range filters with:
+focus time
+task breakdown
+distractions blocked by app
+overrides and all-time totals
+Existing block systems are:
+timed Standalone Block: package list plus expiry
+Always-On Block List: package list with no expiry
+Existing protection includes defense-password checks when removing restrictions.
+Installed apps already provide package name, display name, and icon data.
+3. Main missing technical capability
+UsageStatsModule currently only:
+
+checks whether Usage Access is granted
+opens Android Usage Access settings
+detects the current foreground package using a short recent window
+It does not yet return historical daily app usage. The usage feature needs a native Android summary API, likely returning:
+
+{
+  totalMinutes: number;
+  apps: Array<{
+    packageName: string;
+    appName?: string;
+    foregroundMinutes: number;
+    launchCount: number;
+    lastUsedAt: number;
+  }>;
+}
+
+The Android implementation would aggregate UsageStatsManager data for the selected time range and resolve app names through the package manager. It should remain local-only and handle Android permission denial, Android-only availability, empty data, and OEM/delayed usage results.
+
+4. Proposed first MVP
+Add to Stats:
+
+observed Device Time
+Focus Time beside it
+focus time compared with observed device time
+top five apps by actual foreground time
+a weekly Device Time vs Focus Time chart
+blocked-attempt / distraction-pressure metrics
+Add to Reports:
+
+narrative attention summary
+top apps by actual time
+top apps by blocked attempts
+focus sessions protected
+overrides
+strongest focus period
+one practical next action
+5. Quick Block findings
+Quick Block should be a shortcut, not a new storage system:
+
+Block for a while → existing Standalone Block
+1 hour
+until tonight
+until tomorrow morning
+custom duration
+Block always → existing Always-On list
+No third Quick Block list or database table.
+Reports can show Quick Block directly on app rows.
+Stats should keep rows clean and open Quick Block from an app detail/action sheet.
+App status should read as:
+Quick Block
+Blocked until a time
+Always-On blocked
+Always-On + temporary block
+no action for protected system apps or FocusFlow itself
+One important implementation constraint is already visible in the code: the normal Standalone Block flow can automatically copy apps into Always-On when autoCopyToAlwaysOn is enabled. Quick Block’s temporary action must explicitly bypass that behavior, while the “Block always” action is the only one that intentionally adds to Always-On.
+
+There is also a protection-rule consistency issue to account for: the Standalone picker has a broad system-app safety list, while the Always-On screen maintains a separate narrower list. Quick Block should reuse one authoritative protected-app rule rather than silently allowing unsafe system packages.
+
+6. Native-build constraint
+These features depend on custom Android native modules, so they cannot be meaningfully verified in Expo Go. Verification will need an Android development/EAS build with Usage Access and Accessibility permissions available.
+
+Would you like me to proceed with the combined MVP, or should I implement Usage Insights first and then Quick Block as a second step?
+
+Choose an order
+Implement Usage Insights first, then Quick Block
+
+Worked for 1 minute
+
+Checkpoint made
+8 minutes ago
+Refining app usage analysis
+
+Refining app usage analysis
+I’ll implement Usage Insights first, keeping the existing Expo/Kotlin architecture and local-only data flow. I’ll add the Android summary bridge, wire range-aware loading into Stats and Reports, include permission/empty states, then run type checks before moving on to Quick Block.
+
+
+21 actions
+I’m adding the real Android aggregation first, then a shared insights panel so Stats and Reports use the same definitions and states. The panel will show observed time, focus comparison, top apps, and local-permission guidance without introducing a backend or new storage.
+
+
+8 actions
+The native bridge and shared insights panel are in place. One combined patch only missed the Stats screen because its surrounding code differed from the expected context; Reports was updated successfully. I’m applying the Stats integration in smaller, targeted edits now, then I’ll type-check the mobile package.
+
+
+12 actions
+The first verification exposed an environment issue, not a code error: this imported workspace has no installed dependencies, so tsc is unavailable. I’m going to use the workspace’s existing pnpm lockfile to install dependencies, then run the type check and fix any real compile issues before adding Quick Block.
+
+
+4 actions
+Dependency installation is blocked by the package firewall on a transitive tar@7.5.13 download, so the type checker still cannot run. I’m tracing which direct workspace dependency pulls it in and checking whether a newer safe version is available, following the lockfile rather than changing the app architecture.
+
+
+Show less
+
+Searched for "tar@7.5.13|/tar/|tar:"
+
+Ran pnpm view
+
+Found files
+Analyzing package references
+
+Analyzing package references
+
+Opened pnpm-lock.yaml
+
+Opened pnpm-lock.yaml
+
+Opened pnpm-lock.yaml
+
+Ran pnpm why
+Resolving dependency versions
+
+Resolving dependency versions
+
+Opened package.json
+Exploring package updates
+
+Exploring package updates
+
+Running pnpm update
+
+Worked for 3 minutes
+just leave that check and movev on
+
+4 minutes ago
+
+Show less
+
+Searched for "until tonight|tomorrow …"
+
+Opened PinVerifyModal.tsx
+
+Opened SessionPinModule.ts
+
+Opened stats.tsx
+
+Opened reports.tsx
+Refining Method Parameters
+
+Refining Method Parameters
+
+Opened AppContext.tsx
+
+Searched for "async function _syncSta…"
+
+Opened AppContext.tsx
+
+Searched for "<DateTimePicker|mode="d…"
+
+Opened QuickAddModal.tsx
+I’m moving on with Quick Block now. I’ll keep it as a thin action layer over the existing timed and Always-On lists, add the temporary-vs-permanent distinction, and centralize the existing safety exclusions so reports/stats cannot offer blocking for launchers, System UI, phone services, or FocusFlow.
+
+
+Show less
+
+Created protectedApps.ts
+
+Edited StandaloneBlockModal.tsx
+
+Edited always-on.tsx
+Evaluating package settings
+
+Evaluating package settings
+
+Opened AppContext.tsx
+
+Edited types.ts
+
+Edited AppContext.tsx
+
+Searched for "wake|morning|wakeHour|w…"
+
+Opened types.ts
+
+Created QuickBlockSheet.tsx
+
+Opened UsageInsights.tsx
+
+Edited UsageInsights.tsx
+Integrating components
+
+Integrating components
+
+Processed text
+Integrating code elements
+
+Integrating code elements
+
+Processed text
+
+Edited stats.tsx
+
+Edited reports.tsx
+Evaluating potential errors
+
+Evaluating potential errors
+Evaluating potential errors
+
+I need to check for possible compile errors, especially with mode="datetime". It might be accepted, but I'm not entirely sure. I should also look into patch reports, as UsageInsights seems to be within an inner ScrollView and QuickBlockSheet after SafeArea, which could impact things. I’ll update AppContext regarding setStandaloneBlockAndAllowance, but it may not include autoCopied depending on the patch context. Lastly, I need to inspect the snippets and rg.

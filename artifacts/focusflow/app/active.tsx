@@ -202,8 +202,8 @@ export default function ActiveScreen() {
           <Ionicons name="chevron-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <View style={{ flex: 1, marginLeft: SPACING.sm }}>
-          <Text style={[styles.title, { color: theme.text }]}>Active</Text>
-          <Text style={[styles.subtitle, { color: theme.muted }]}>Live status of every block running now</Text>
+          <Text style={[styles.title, { color: theme.text }]}>Shield</Text>
+          <Text style={[styles.subtitle, { color: theme.muted }]}>Live protection status</Text>
         </View>
       </View>
 
@@ -216,7 +216,7 @@ export default function ActiveScreen() {
           <View style={[styles.allClearCard, { backgroundColor: COLORS.green + '12', borderColor: COLORS.green + '44' }]}>
             <Ionicons name="checkmark-circle" size={28} color={COLORS.green} />
             <View style={{ flex: 1, gap: 2 }}>
-              <Text style={[styles.allClearTitle, { color: theme.text }]}>All clear</Text>
+              <Text style={[styles.allClearTitle, { color: theme.text }]}>Shield idle</Text>
               <Text style={[styles.allClearDesc, { color: theme.muted }]}>
                 No focus session, no timed block, no always-on enforcement, no schedules running.
               </Text>
@@ -227,7 +227,7 @@ export default function ActiveScreen() {
         {/* 1. Focus session ────────────────────────────────── */}
         <SectionCard
           icon="hourglass-outline"
-          iconBg={focusActive ? COLORS.primary : theme.muted}
+          iconBg={focusActive ? COLORS.green : theme.muted}
           title="Focus Session"
           theme={theme}
         >
@@ -255,7 +255,7 @@ export default function ActiveScreen() {
         {/* 2. Timed standalone block ───────────────────────── */}
         <SectionCard
           icon="ban-outline"
-          iconBg={standaloneTimerActive ? COLORS.red : theme.muted}
+          iconBg={standaloneTimerActive ? COLORS.green : theme.muted}
           title="Timed Standalone Block"
           theme={theme}
         >
@@ -286,7 +286,7 @@ export default function ActiveScreen() {
           return (
             <SectionCard
               icon="shield-checkmark-outline"
-              iconBg={sectionActive ? COLORS.orange : theme.muted}
+              iconBg={sectionActive ? COLORS.green : theme.muted}
               title="Always-on Enforcement"
               theme={theme}
             >
@@ -326,8 +326,8 @@ export default function ActiveScreen() {
                         style={[styles.linkBtn, { borderColor: theme.border, flex: 1 }]}
                         onPress={() => router.push('/always-on')}
                       >
-                        <Ionicons name="infinite-outline" size={14} color={COLORS.orange} />
-                        <Text style={[styles.linkBtnText, { color: COLORS.orange }]}>Overlay List</Text>
+                        <Ionicons name="infinite-outline" size={14} color={COLORS.green} />
+                        <Text style={[styles.linkBtnText, { color: COLORS.green }]}>Overlay List</Text>
                       </TouchableOpacity>
                     )}
                     <TouchableOpacity

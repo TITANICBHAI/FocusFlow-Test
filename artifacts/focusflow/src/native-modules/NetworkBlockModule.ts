@@ -12,7 +12,7 @@
  * Registered via: FocusDayPackage → createNativeModules()
  */
 
-import { NativeModules, Platform } from 'react-native';
+import { AppState, NativeModules, Platform } from 'react-native';
 
 const NetworkBlock = Platform.OS === 'android' ? NativeModules.NetworkBlock : null;
 
@@ -20,14 +20,40 @@ if (Platform.OS === 'android' && !NetworkBlock) {
   console.warn('[NetworkBlockModule] NativeModules.NetworkBlock not found. Network blocking is unavailable.');
 }
 
-function has(name: string): boolean {
-  return !!NetworkBlock && typeof NetworkBlock[name] === 'function';
+function requireNetworkBlock(): Record<string, (...args: any[]) => Promise<any>> | null {
+  if (Platform.OS !== 'android') return null;
+  if (!NetworkBlock) {
+    throw new Error(
+      'FocusFlow native NetworkBlock module is missing. Build the Android app with the FocusFlow config plugin; Expo Go cannot provide this module.',
+    );
+  }
+  return NetworkBlock as Record<string, (...args: any[]) => Promise<any>>;
 }
 
+export interface NetworkBlockStatus {
+  state: string;
+  running: boolean;
+  error: string | null;
+  failedPackages: string[];
+}
+
+export type NetworkBlockStartState =
+  | 'starting'
+  | 'running'
+  | 'disabled'
+  | 'permission_missing'
+  | 'another_vpn_active'
+  | 'package_registration_failed'
+  | 'startup_failed';
+
 export const NetworkBlockModule = {
-  async startNetworkBlock(packagesJson: string): Promise<void> {
-    if (!has('startNetworkBlock')) return;
-    return NetworkBlock.startNetworkBlock(packagesJson);
+  async startNetworkBlock(packagesJson: string): Promise<NetworkBlockStartState> {
+    const native = requireNetworkBlock();
+    if (!native) return 'disabled';
+    if (typeof native.startNetworkBlock !== 'function') {
+      throw new Error('FocusFlow native NetworkBlock.startNetworkBlock is missing.');
+    }
+    return native.startNetworkBlock(packagesJson) as Promise<NetworkBlockStartState>;
   },
 
   /**
@@ -36,13 +62,21 @@ export const NetworkBlockModule = {
    * the PIN — otherwise native silently rejects the call.
    */
   async stopNetworkBlock(pinHash: string | null = null): Promise<void> {
-    if (!has('stopNetworkBlock')) return;
-    return NetworkBlock.stopNetworkBlock(pinHash);
+    const native = requireNetworkBlock();
+    if (!native) return;
+    if (typeof native.stopNetworkBlock !== 'function') {
+      throw new Error('FocusFlow native NetworkBlock.stopNetworkBlock is missing.');
+    }
+    return native.stopNetworkBlock(pinHash);
   },
 
   async isNetworkBlockActive(): Promise<boolean> {
-    if (!has('isNetworkBlockActive')) return false;
-    return NetworkBlock.isNetworkBlockActive();
+    const native = requireNetworkBlock();
+    if (!native) return false;
+    if (typeof native.isNetworkBlockActive !== 'function') {
+      throw new Error('FocusFlow native NetworkBlock.isNetworkBlockActive is missing.');
+    }
+    return native.isNetworkBlockActive();
   },
 
   /**
@@ -50,8 +84,12 @@ export const NetworkBlockModule = {
    * VpnService.prepare() returns null when permission is held.
    */
   async isVpnPermissionGranted(): Promise<boolean> {
-    if (!has('isVpnPermissionGranted')) return false;
-    return NetworkBlock.isVpnPermissionGranted();
+    const native = requireNetworkBlock();
+    if (!native) return false;
+    if (typeof native.isVpnPermissionGranted !== 'function') {
+      throw new Error('FocusFlow native NetworkBlock.isVpnPermissionGranted is missing.');
+    }
+    return native.isVpnPermissionGranted();
   },
 
   /**
@@ -61,8 +99,70 @@ export const NetworkBlockModule = {
    * the user returns to the app.
    */
   async requestVpnPermission(): Promise<void> {
-    if (!has('requestVpnPermission')) return;
-    return NetworkBlock.requestVpnPermission();
+    const native = requireNetworkBlock();
+    if (!native) return;
+    if (typeof native.requestVpnPermission !== 'function') {
+      throw new Error('FocusFlow native NetworkBlock.requestVpnPermission is missing.');
+    }
+    return native.requestVpnPermission();
+  },
+
+  /**
+   * Makes sure Android VPN consent is still available before a UI commits a
+   * VPN package list. Android's consent request resolves when the system dialog
+   * is launched, not when the user finishes it, so wait for the app to return
+   * to the foreground and then verify the grant again.
+   *
+   * Returns false when the user dismisses/denies the dialog or the grant cannot
+   * be confirmed. Callers should keep their picker open and avoid saving in
+   * that case.
+   */
+  async ensureVpnPermission(): Promise<boolean> {
+    if (Platform.OS !== 'android') return true;
+
+    try {
+      if (await this.isVpnPermissionGranted()) return true;
+      await this.requestVpnPermission();
+    } catch {
+      return false;
+    }
+
+    return new Promise<boolean>((resolve) => {
+      let settled = false;
+      let poll: ReturnType<typeof setInterval> | null = null;
+      let timeout: ReturnType<typeof setTimeout> | null = null;
+
+      const cleanup = () => {
+        subscription.remove();
+        if (poll) clearInterval(poll);
+        if (timeout) clearTimeout(timeout);
+      };
+
+      const finish = (granted: boolean) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(granted);
+      };
+
+      const check = async () => {
+        try {
+          if (await this.isVpnPermissionGranted()) finish(true);
+        } catch {
+          // Keep waiting until the dialog closes or the timeout is reached.
+        }
+      };
+
+      const subscription = AppState.addEventListener('change', (state) => {
+        if (state === 'active') void check();
+      });
+
+      // Some Android versions do not emit a reliable AppState transition for
+      // the VPN consent activity, so poll briefly as a fallback.
+      poll = setInterval(() => void check(), 500);
+      timeout = setTimeout(() => finish(false), 15_000);
+      void check();
+    });
   },
 
   /**
@@ -74,8 +174,63 @@ export const NetworkBlockModule = {
    * would be replaced and warn the user before Android silently kicks it out.
    */
   async isAnotherVpnActive(): Promise<boolean> {
-    if (!has('isAnotherVpnActive')) return false;
-    return NetworkBlock.isAnotherVpnActive();
+    const native = requireNetworkBlock();
+    if (!native) return false;
+    if (typeof native.isAnotherVpnActive !== 'function') {
+      throw new Error('FocusFlow native NetworkBlock.isAnotherVpnActive is missing.');
+    }
+    return native.isAnotherVpnActive();
+  },
+
+  async setNetworkBlockSettings(settings: {
+    enabled: boolean;
+    vpn: boolean;
+    packages: string[];
+    defensePinHash?: string | null;
+  }): Promise<void> {
+    const native = requireNetworkBlock();
+    if (!native) return;
+    if (typeof native.setNetworkBlockSettings !== 'function') {
+      throw new Error('FocusFlow native NetworkBlock.setNetworkBlockSettings is missing.');
+    }
+    await native.setNetworkBlockSettings(JSON.stringify({
+      enabled: settings.enabled,
+      vpn: settings.vpn,
+      packages: JSON.stringify(Array.from(new Set(settings.packages))),
+      ...(settings.defensePinHash ? { defensePinHash: settings.defensePinHash } : {}),
+    }));
+  },
+
+  async getNetworkBlockStatus(): Promise<NetworkBlockStatus> {
+    const native = requireNetworkBlock();
+    if (!native) {
+      return { state: 'disabled', running: false, error: null, failedPackages: [] };
+    }
+    if (typeof native.getNetworkBlockStatus !== 'function') {
+      throw new Error('FocusFlow native NetworkBlock.getNetworkBlockStatus is missing.');
+    }
+    const raw = await native.getNetworkBlockStatus();
+    const parsed = JSON.parse(String(raw)) as {
+      state?: string;
+      running?: boolean;
+      error?: string | null;
+      failedPackages?: string | string[];
+    };
+    let failedPackages: string[] = [];
+    if (Array.isArray(parsed.failedPackages)) {
+      failedPackages = parsed.failedPackages;
+    } else if (typeof parsed.failedPackages === 'string') {
+      try {
+        const value = JSON.parse(parsed.failedPackages);
+        if (Array.isArray(value)) failedPackages = value.filter((p): p is string => typeof p === 'string');
+      } catch { /* native status remains useful without the package detail */ }
+    }
+    return {
+      state: parsed.state ?? 'stopped',
+      running: Boolean(parsed.running),
+      error: parsed.error ?? null,
+      failedPackages,
+    };
   },
 
   /**
@@ -88,44 +243,11 @@ export const NetworkBlockModule = {
    * Both read the "net_block_self_heal" SharedPrefs key set by this call.
    */
   async setVpnSelfHealEnabled(enabled: boolean): Promise<void> {
-    if (!has('setVpnSelfHealEnabled')) return;
-    return NetworkBlock.setVpnSelfHealEnabled(enabled);
-  },
-
-  /**
-   * Returns the full network-block settings as a JSON string.
-   * Keys: enabled, vpn, wifi, mobile, global, restore, packages.
-   */
-  async getNetworkBlockSettings(): Promise<string> {
-    if (!has('getNetworkBlockSettings')) return '{}';
-    return NetworkBlock.getNetworkBlockSettings();
-  },
-
-  /**
-   * Persists network-block settings from a partial JSON object string.
-   * Only keys present in the object are updated; missing keys are left unchanged.
-   * Accepted keys: enabled, vpn, wifi, mobile, global, restore, packages.
-   */
-  async setNetworkBlockSettings(json: string): Promise<void> {
-    if (!has('setNetworkBlockSettings')) return;
-    return NetworkBlock.setNetworkBlockSettings(json);
-  },
-
-  /**
-   * Directly disables Wi-Fi (belt-and-suspenders when VPN is active).
-   * No-op on Android 10+ where apps cannot toggle Wi-Fi programmatically.
-   */
-  async tryDisableWifi(): Promise<void> {
-    if (!has('tryDisableWifi')) return;
-    return NetworkBlock.tryDisableWifi();
-  },
-
-  /**
-   * Re-enables Wi-Fi after a block session ends.
-   * Only acts if FocusFlow was the last one to disable it.
-   */
-  async tryRestoreWifi(): Promise<void> {
-    if (!has('tryRestoreWifi')) return;
-    return NetworkBlock.tryRestoreWifi();
+    const native = requireNetworkBlock();
+    if (!native) return;
+    if (typeof native.setVpnSelfHealEnabled !== 'function') {
+      throw new Error('FocusFlow native NetworkBlock.setVpnSelfHealEnabled is missing.');
+    }
+    return native.setVpnSelfHealEnabled(enabled);
   },
 };

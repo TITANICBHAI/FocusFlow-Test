@@ -18,7 +18,7 @@ export const ALL_VIDEOS: VideoMeta[] = [
   { id: 'keyword-blocker',   title: 'Keyword Blocker',      category: 'feature', duration: '~30s', description: 'Block any app the moment a distracting keyword appears.', accent: '#ec4899' },
   { id: 'network-blocking',  title: 'Network Blocking',     category: 'feature', duration: '~30s', description: 'Cut off the internet at the VPN level. No bypass possible.', accent: '#ef4444' },
   { id: 'stats-analytics',   title: 'Stats & Analytics',    category: 'feature', duration: '~30s', description: 'Track streaks, focus minutes, and weekly productivity scores.', accent: '#10b981' },
-  { id: 'overlay-appearance', title: 'Overlay Appearance',  category: 'feature', duration: '~25s', description: 'Custom themes, quotes, and wallpapers on the block screen.', accent: '#8b5cf6' },
+  { id: 'overlay-appearance','title': 'Overlay Appearance',  category: 'feature', duration: '~25s', description: 'Custom themes, quotes, and wallpapers on the block screen.', accent: '#8b5cf6' },
   { id: 'block-defense',     title: 'Block Defense',        category: 'feature', duration: '~25s', description: 'Prevents uninstall, power menu, and system bypass attempts.', accent: '#f97316' },
   { id: 'combo-focus-day',   title: 'Your Focus Day',       category: 'combo',   duration: '~45s', description: 'Focus Session + App Blocking + Stats working together.', accent: '#6366f1' },
   { id: 'combo-max-lock',    title: 'Maximum Lock Mode',    category: 'combo',   duration: '~40s', description: 'Network Blocking + Keyword Blocker + Block Defense stacked.', accent: '#ef4444' },
@@ -93,6 +93,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Back button overlay */}
       {!loading && VideoComponent && (
         <motion.button
           className="absolute top-6 left-6 z-[100] flex items-center gap-2 px-4 py-2 glass-panel rounded-xl text-white/70 hover:text-white text-sm font-medium transition-colors"

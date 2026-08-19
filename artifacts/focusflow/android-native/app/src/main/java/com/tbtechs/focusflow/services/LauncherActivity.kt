@@ -12,10 +12,12 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
+import android.graphics.BitmapFactory
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.net.Uri
 import android.text.Editable
 import android.text.TextUtils
 import android.text.TextWatcher
@@ -23,6 +25,7 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.VelocityTracker
 import android.view.WindowManager
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
@@ -34,6 +37,8 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import org.json.JSONArray
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -71,14 +76,17 @@ class LauncherActivity : Activity() {
         private const val PREF_LAUNCHER_HIDDEN  = "launcher_hidden_packages"
         private const val PREF_LAUNCHER_PINNED  = "launcher_pinned_packages"
         private const val PREF_LAUNCHER_DOCK    = "launcher_dock_packages"
+        private const val PREF_LAUNCHER_WALLPAPER = "launcher_wallpaper"
         private const val PREF_SA_ACTIVE        = AppBlockerAccessibilityService.PREF_SA_ACTIVE
         private const val PREF_SA_PKGS          = AppBlockerAccessibilityService.PREF_SA_PKGS
         private const val PREF_SA_UNTIL         = AppBlockerAccessibilityService.PREF_SA_UNTIL
         private const val PREF_ALWAYS_BLOCK     = AppBlockerAccessibilityService.PREF_ALWAYS_BLOCK
         private const val PREF_ALWAYS_BLOCK_PKGS = AppBlockerAccessibilityService.PREF_ALWAYS_BLOCK_PKGS
         private const val OWN_PACKAGE           = "com.tbtechs.focusflow"
+        private const val DRAWER_TYPE_HEADER   = 0
+        private const val DRAWER_TYPE_APP      = 1
 
-        private val ACCENT       = Color.parseColor("#6366f1")
+        private val ACCENT       = Color.parseColor("#4F8EF7")
         // Scrim: 20% black — wallpaper shows through naturally.
         // The dock area gets its own darker gradient so icons stay readable.
         private val SCRIM_COLOR  = Color.parseColor("#33000000")
@@ -112,11 +120,143 @@ class LauncherActivity : Activity() {
     private var digitalTimeRow: LinearLayout? = null
     private var allowanceStripContainer: LinearLayout? = null
     private var allowanceTickCount = 0
+    private var customWallpaperView: ImageView? = null
     private var homeGrid: GridLayout? = null
     private var dockRow: LinearLayout? = null
     private var drawerOverlay: FrameLayout? = null
+    private var drawerRecycler: RecyclerView? = null
     private var isDrawerOpen = false
     private var swipeTouchStartY = 0f
+    private var swipeVelocityTracker: VelocityTracker? = null
+
+    private sealed class DrawerItem {
+        data class Header(val letter: String) : DrawerItem()
+        data class App(val packageName: String, val label: String) : DrawerItem()
+    }
+
+    private inner class DrawerAdapter(
+        private val blockedPackages: Set<String>,
+    ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+        private var items: List<DrawerItem> = emptyList()
+
+        fun setItems(next: List<DrawerItem>) {
+            items = next
+            notifyDataSetChanged()
+        }
+
+        override fun getItemCount(): Int = items.size
+
+        override fun getItemViewType(position: Int): Int = when (items[position]) {
+            is DrawerItem.Header -> DRAWER_TYPE_HEADER
+            is DrawerItem.App -> DRAWER_TYPE_APP
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+            if (viewType == DRAWER_TYPE_HEADER) {
+                val header = TextView(parent.context).apply {
+                    textSize = 12f
+                    typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                    setTextColor(ACCENT)
+                    setPadding(dp(12), dp(8), dp(12), dp(4))
+                    layoutParams = RecyclerView.LayoutParams(
+                        RecyclerView.LayoutParams.MATCH_PARENT,
+                        RecyclerView.LayoutParams.WRAP_CONTENT,
+                    )
+                }
+                return HeaderViewHolder(header)
+            }
+
+            val item = LinearLayout(parent.context).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                layoutParams = RecyclerView.LayoutParams(
+                    RecyclerView.LayoutParams.MATCH_PARENT,
+                    RecyclerView.LayoutParams.WRAP_CONTENT,
+                )
+                setPadding(dp(4), dp(8), dp(4), dp(2))
+                isClickable = true
+                isFocusable = true
+            }
+            val iconView = ImageView(parent.context).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(48), dp(48)).also {
+                    it.gravity = Gravity.CENTER_HORIZONTAL
+                }
+            }
+            val labelView = TextView(parent.context).apply {
+                textSize = 10f
+                setTextColor(TEXT_DIM)
+                gravity = Gravity.CENTER
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+                setShadowLayer(2f, 0f, 1f, Color.parseColor("#CC000000"))
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ).also { it.topMargin = dp(3) }
+            }
+            item.addView(iconView)
+            item.addView(labelView)
+            return AppViewHolder(item, iconView, labelView)
+        }
+
+        override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+            when (val item = items[position]) {
+                is DrawerItem.Header -> (holder as HeaderViewHolder).view.text = item.letter
+                is DrawerItem.App -> {
+                    val appHolder = holder as AppViewHolder
+                    val isBlocked = blockedPackages.contains(item.packageName)
+                    appHolder.icon.setImageDrawable(
+                        try {
+                            packageManager.getApplicationIcon(item.packageName)
+                        } catch (_: Exception) {
+                            null
+                        },
+                    )
+                    appHolder.icon.alpha = if (isBlocked) 0.28f else 1f
+                    appHolder.label.text = item.label
+                    appHolder.label.setTextColor(if (isBlocked) TEXT_MUTED else TEXT_DIM)
+                    appHolder.itemView.setOnClickListener {
+                        closeDrawer()
+                        if (isBlocked) launchBlockOverlay(item.packageName)
+                        else launchApp(item.packageName)
+                    }
+                    appHolder.itemView.setOnLongClickListener {
+                        showDrawerIconMenu(item.packageName, item.label)
+                        true
+                    }
+                }
+            }
+        }
+    }
+
+    private class HeaderViewHolder(val view: TextView) : RecyclerView.ViewHolder(view)
+
+    private class AppViewHolder(
+        view: View,
+        val icon: ImageView,
+        val label: TextView,
+    ) : RecyclerView.ViewHolder(view)
+
+    private val preferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == PREF_LAUNCHER_PINNED ||
+            key == PREF_LAUNCHER_DOCK ||
+            key == PREF_LAUNCHER_HIDDEN ||
+            key == PREF_SA_ACTIVE ||
+            key == PREF_SA_PKGS ||
+            key == PREF_SA_UNTIL ||
+            key == PREF_ALWAYS_BLOCK ||
+            key == PREF_ALWAYS_BLOCK_PKGS ||
+            key == PREF_LAUNCHER_WALLPAPER ||
+            key == "launcher_clock_style"
+        ) {
+            runOnUiThread {
+                refreshHomeGrid()
+                refreshDock()
+                updateClockText()
+                loadCustomWallpaper()
+            }
+        }
+    }
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -134,12 +274,20 @@ class LauncherActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        prefs.registerOnSharedPreferenceChangeListener(preferenceListener)
         refreshHomeGrid()
         refreshDock()
         refreshAllowanceStrip()
+        loadCustomWallpaper()
+    }
+
+    override fun onPause() {
+        prefs.unregisterOnSharedPreferenceChangeListener(preferenceListener)
+        super.onPause()
     }
 
     override fun onDestroy() {
+        prefs.unregisterOnSharedPreferenceChangeListener(preferenceListener)
         super.onDestroy()
         clockRunnable?.let { handler.removeCallbacks(it) }
     }
@@ -152,6 +300,20 @@ class LauncherActivity : Activity() {
     // ── Home layout ───────────────────────────────────────────────────────────
 
     private fun buildHomeLayout() {
+        // A selected launcher wallpaper sits above the system wallpaper but
+        // below the scrim and all launcher controls. Empty means use the
+        // device's normal wallpaper via FLAG_SHOW_WALLPAPER.
+        customWallpaperView = ImageView(this).apply {
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            visibility = View.GONE
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        }
+        rootFrame.addView(customWallpaperView)
+        loadCustomWallpaper()
+
         // Wallpaper scrim — light translucent overlay (20% black) so the user's
         // wallpaper stays visible. FLAG_SHOW_WALLPAPER composites it behind the window.
         val scrim = View(this).apply {
@@ -228,15 +390,31 @@ class LauncherActivity : Activity() {
             when (ev.action) {
                 MotionEvent.ACTION_DOWN -> {
                     swipeTouchStartY = ev.rawY
+                    swipeVelocityTracker?.recycle()
+                    swipeVelocityTracker = VelocityTracker.obtain().also { it.addMovement(ev) }
+                    false
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    swipeVelocityTracker?.addMovement(ev)
                     false
                 }
                 MotionEvent.ACTION_UP -> {
+                    swipeVelocityTracker?.addMovement(ev)
+                    swipeVelocityTracker?.computeCurrentVelocity(1000)
+                    val velocityY = swipeVelocityTracker?.yVelocity ?: 0f
+                    swipeVelocityTracker?.recycle()
+                    swipeVelocityTracker = null
                     val dy = swipeTouchStartY - ev.rawY
                     when {
-                        dy > dp(60) && !isDrawerOpen -> { openDrawer(); true }
-                        dy < -dp(80) -> { expandNotificationsPanel(); true }
+                        dy > dp(60) && velocityY < -250f && !isDrawerOpen -> { openDrawer(); true }
+                        dy < -dp(80) && velocityY > 250f -> { expandNotificationsPanel(); true }
                         else -> false
                     }
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    swipeVelocityTracker?.recycle()
+                    swipeVelocityTracker = null
+                    false
                 }
                 else -> false
             }
@@ -422,6 +600,34 @@ class LauncherActivity : Activity() {
 
         for (pkg in pinned) {
             addHomeGridIcon(grid, pkg, blocked.contains(pkg))
+        }
+    }
+
+    private fun loadCustomWallpaper() {
+        val view = customWallpaperView ?: return
+        val path = prefs.getString(PREF_LAUNCHER_WALLPAPER, "")?.trim().orEmpty()
+        if (path.isEmpty()) {
+            view.setImageDrawable(null)
+            view.visibility = View.GONE
+            return
+        }
+
+        val bitmap = try {
+            if (path.startsWith("content://")) {
+                contentResolver.openInputStream(Uri.parse(path))?.use(BitmapFactory::decodeStream)
+            } else {
+                BitmapFactory.decodeFile(path.removePrefix("file://"))
+            }
+        } catch (_: Exception) {
+            null
+        }
+
+        if (bitmap != null) {
+            view.setImageBitmap(bitmap)
+            view.visibility = View.VISIBLE
+        } else {
+            view.setImageDrawable(null)
+            view.visibility = View.GONE
         }
     }
 
@@ -668,115 +874,44 @@ class LauncherActivity : Activity() {
         }
         sheet.addView(searchBar)
 
-        // App grid in scroll view
-        val scroll = ScrollView(this).apply {
+        // One recycled list for the complete drawer. Section headers occupy all
+        // five columns; app cells occupy one. Filtering replaces the adapter's
+        // data instead of walking and hiding already-created child views.
+        val recycler = RecyclerView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
             )
             isVerticalScrollBarEnabled = false
         }
 
-        val gridContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            setPadding(dp(8), 0, dp(8), dp(24))
-        }
-
         val hiddenPkgs = parseJsonArray(prefs.getString(PREF_LAUNCHER_HIDDEN, "[]") ?: "[]").toSet()
         val blocked    = getBlockedPackages()
         val pm         = packageManager
-        val intent     = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-
-        val allApps = pm.queryIntentActivities(intent, 0)
-            .filter { it.activityInfo.packageName != OWN_PACKAGE }
-            .filter { !hiddenPkgs.contains(it.activityInfo.packageName) }
-            .sortedBy { pm.getApplicationLabel(it.activityInfo.applicationInfo).toString().lowercase(Locale.getDefault()) }
-
-        // Group by first letter for section headers
-        val sections = allApps.groupBy { info ->
-            val first = pm.getApplicationLabel(info.activityInfo.applicationInfo).toString()
-                .firstOrNull()?.uppercaseChar() ?: '#'
-            if (first.isLetter()) first else '#'
-        }.toSortedMap(compareBy { if (it == '#') '\uFFFF' else it })
-
-        // Track all grid views for search filtering
-        data class AppEntry(val view: View, val searchKey: String)
-        val allEntries = mutableListOf<AppEntry>()
-
-        for ((letter, apps) in sections) {
-            // Section letter header
-            val sectionHeader = TextView(this).apply {
-                text = letter.toString()
-                textSize = 12f
-                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-                setTextColor(ACCENT)
-                setPadding(dp(12), dp(8), dp(12), dp(4))
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                tag = "header_$letter"
+        val allApps = loadDrawerApps(pm, hiddenPkgs)
+        val adapter = DrawerAdapter(blocked)
+        recycler.layoutManager = GridLayoutManager(this, 5).also { layoutManager ->
+            layoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+                override fun getSpanSize(position: Int): Int {
+                    return if (adapter.getItemViewType(position) == DRAWER_TYPE_HEADER) 5 else 1
+                }
             }
-            gridContainer.addView(sectionHeader)
-            allEntries.add(AppEntry(sectionHeader, "header_$letter"))
-
-            // Grid row for this section
-            val sectionGrid = GridLayout(this).apply {
-                columnCount = 5
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                tag = "grid_$letter"
-            }
-
-            for (info in apps) {
-                addDrawerIcon(sectionGrid, info, pm, blocked)
-            }
-
-            gridContainer.addView(sectionGrid)
-            allEntries.add(AppEntry(sectionGrid, "grid_$letter"))
         }
-
-        scroll.addView(gridContainer)
-        sheet.addView(scroll)
+        recycler.adapter = adapter
+        recycler.setPadding(dp(8), 0, dp(8), dp(24))
+        adapter.setItems(buildDrawerItems(allApps, ""))
+        drawerRecycler = recycler
+        sheet.addView(recycler)
         overlay.addView(sheet)
 
-        // Search filter
+        // Search filters the app data and submits a smaller list to the
+        // RecyclerView. This keeps matching behavior correct even with a large
+        // installed-app library and avoids stale hidden child views.
         searchBar.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
                 val q = s?.toString()?.lowercase(Locale.getDefault())?.trim() ?: ""
-                if (q.isEmpty()) {
-                    // Restore all
-                    for (entry in allEntries) entry.view.visibility = View.VISIBLE
-                } else {
-                    // Hide section headers, show only matching apps in a flat way
-                    for (entry in allEntries) {
-                        if ((entry.view.tag as? String)?.startsWith("header_") == true) {
-                            entry.view.visibility = View.GONE
-                        }
-                    }
-                    for (i in 0 until gridContainer.childCount) {
-                        val child = gridContainer.getChildAt(i)
-                        val tag = child.tag as? String ?: continue
-                        if (!tag.startsWith("grid_")) continue
-                        val grid = child as? GridLayout ?: continue
-                        var hasVisible = false
-                        for (j in 0 until grid.childCount) {
-                            val iconItem = grid.getChildAt(j)
-                            val itemTag = iconItem.tag as? String ?: ""
-                            val visible = q.isEmpty() || itemTag.contains(q)
-                            iconItem.visibility = if (visible) View.VISIBLE else View.GONE
-                            if (visible) hasVisible = true
-                        }
-                        grid.visibility = if (hasVisible) View.VISIBLE else View.GONE
-                    }
-                }
+                adapter.setItems(buildDrawerItems(allApps, q))
             }
         })
 
@@ -800,65 +935,40 @@ class LauncherActivity : Activity() {
         sheet.animate().translationY(0f).setDuration(280).setInterpolator(DecelerateInterpolator(1.5f)).start()
     }
 
-    private fun addDrawerIcon(grid: GridLayout, info: ResolveInfo, pm: PackageManager, blocked: Set<String>) {
-        val pkg       = info.activityInfo.packageName
-        val label     = pm.getApplicationLabel(info.activityInfo.applicationInfo).toString()
-        val icon      = try { pm.getApplicationIcon(pkg) } catch (_: Exception) { return }
-        val isBlocked = blocked.contains(pkg)
+    private fun loadDrawerApps(pm: PackageManager, hiddenPackages: Set<String>): List<DrawerItem.App> {
+        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        return pm.queryIntentActivities(intent, 0)
+            .mapNotNull { info ->
+                val pkg = info.activityInfo.packageName
+                if (pkg == OWN_PACKAGE || hiddenPackages.contains(pkg)) return@mapNotNull null
+                DrawerItem.App(
+                    packageName = pkg,
+                    label = pm.getApplicationLabel(info.activityInfo.applicationInfo).toString(),
+                )
+            }
+            .distinctBy { it.packageName }
+            .sortedBy { it.label.lowercase(Locale.getDefault()) }
+    }
 
-        val colSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
-        val item = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            val lp = GridLayout.LayoutParams(colSpec, colSpec)
-            lp.width = 0
-            lp.height = GridLayout.LayoutParams.WRAP_CONTENT
-            lp.setMargins(dp(4), dp(8), dp(4), dp(2))
-            layoutParams = lp
-            tag = label.lowercase(Locale.getDefault())
+    private fun buildDrawerItems(
+        apps: List<DrawerItem.App>,
+        query: String,
+    ): List<DrawerItem> {
+        val matching = if (query.isBlank()) apps else apps.filter {
+            it.label.lowercase(Locale.getDefault()).contains(query) ||
+                it.packageName.lowercase(Locale.getDefault()).contains(query)
         }
+        val sections = matching.groupBy {
+            val first = it.label.firstOrNull()?.uppercaseChar() ?: '#'
+            if (first.isLetter()) first else '#'
+        }.toSortedMap(compareBy { if (it == '#') '\uFFFF' else it })
 
-        val iconView = ImageView(this).apply {
-            setImageDrawable(icon)
-            alpha = if (isBlocked) 0.28f else 1f
-            layoutParams = LinearLayout.LayoutParams(dp(48), dp(48)).also {
-                it.gravity = Gravity.CENTER_HORIZONTAL
+        return buildList {
+            sections.forEach { (letter, sectionApps) ->
+                add(DrawerItem.Header(letter.toString()))
+                addAll(sectionApps)
             }
         }
-
-        val labelView = TextView(this).apply {
-            text = label
-            textSize = 10f
-            setTextColor(if (isBlocked) TEXT_MUTED else TEXT_DIM)
-            gravity = Gravity.CENTER
-            maxLines = 1
-            ellipsize = TextUtils.TruncateAt.END
-            setShadowLayer(2f, 0f, 1f, Color.parseColor("#CC000000"))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).also { it.topMargin = dp(3) }
-        }
-
-        item.addView(iconView)
-        item.addView(labelView)
-
-        item.setOnClickListener {
-            if (isBlocked) {
-                closeDrawer()
-                launchBlockOverlay(pkg)
-            } else {
-                closeDrawer()
-                launchApp(pkg)
-            }
-        }
-
-        item.setOnLongClickListener {
-            showDrawerIconMenu(pkg, label)
-            true
-        }
-
-        grid.addView(item)
     }
 
     private fun closeDrawer() {
@@ -879,6 +989,7 @@ class LauncherActivity : Activity() {
             .withEndAction {
                 rootFrame.removeView(overlay)
                 drawerOverlay = null
+                drawerRecycler = null
             }
             .start()
     }
@@ -1257,7 +1368,9 @@ class LauncherActivity : Activity() {
 
         val usedJson = prefs.getString(AppBlockerAccessibilityService.PREF_DAILY_ALLOWANCE_USED, "{}") ?: "{}"
         val allUsed  = try { org.json.JSONObject(usedJson) } catch (_: Exception) { org.json.JSONObject() }
-        val today    = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val today    = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).apply {
+            timeZone = java.util.TimeZone.getDefault()
+        }.format(Date())
         val now      = System.currentTimeMillis()
         val result   = mutableListOf<AllowanceCardData>()
 
@@ -1342,7 +1455,7 @@ class AnalogClockView(context: android.content.Context) : android.view.View(cont
         style = android.graphics.Paint.Style.FILL
     }
     private val paintRim = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-        color = android.graphics.Color.parseColor("#6366f1")
+        color = android.graphics.Color.parseColor("#4F8EF7")
         style = android.graphics.Paint.Style.STROKE
         strokeWidth = 3f
     }
@@ -1359,7 +1472,7 @@ class AnalogClockView(context: android.content.Context) : android.view.View(cont
         strokeCap = android.graphics.Paint.Cap.ROUND
     }
     private val paintSecond = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-        color = android.graphics.Color.parseColor("#6366f1")
+        color = android.graphics.Color.parseColor("#4F8EF7")
         style = android.graphics.Paint.Style.STROKE
         strokeWidth = 2f
         strokeCap = android.graphics.Paint.Cap.ROUND
@@ -1370,7 +1483,7 @@ class AnalogClockView(context: android.content.Context) : android.view.View(cont
         strokeWidth = 2f
     }
     private val paintCenter = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-        color = android.graphics.Color.parseColor("#6366f1")
+        color = android.graphics.Color.parseColor("#4F8EF7")
         style = android.graphics.Paint.Style.FILL
     }
 

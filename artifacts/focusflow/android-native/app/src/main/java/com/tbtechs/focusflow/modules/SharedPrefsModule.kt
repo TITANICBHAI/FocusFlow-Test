@@ -66,6 +66,37 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
     }
 
     /**
+     * Pauses or resumes blocking for an intentional Pomodoro break.
+     * This does not end the focus session and deliberately bypasses the
+     * session-PIN gate used by setFocusActive(false).
+     */
+    @ReactMethod
+    fun setFocusBreak(active: Boolean, untilMs: Double, promise: Promise) {
+        val editor = prefs().edit()
+        if (active) {
+            editor.putBoolean("focus_active", false)
+                .putLong("focus_break_until_ms", untilMs.toLong())
+        } else {
+            editor.putBoolean("focus_active", true)
+                .remove("focus_break_until_ms")
+        }
+        editor.apply()
+        promise.resolve(null)
+    }
+
+    /** Clears a pending break while leaving the focus_active flag unchanged. */
+    @ReactMethod
+    fun clearFocusBreak(promise: Promise) {
+        prefs().edit().remove("focus_break_until_ms").apply()
+        promise.resolve(null)
+    }
+
+    @ReactMethod
+    fun getFocusBreakUntilMs(promise: Promise) {
+        promise.resolve(prefs().getLong("focus_break_until_ms", 0L))
+    }
+
+    /**
      * Writes the list of ALLOWED package names for task-based focus blocking.
      * The AccessibilityService blocks any app NOT in this list during a task focus.
      * Pass the full allow-list every call — the service replaces the previous value.
@@ -120,7 +151,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
     }
 
     /**
-     * Writes the active task's accent color (hex string, e.g. "#6366f1") so the
+     * Writes the active task's accent color (hex string, e.g. "#4F8EF7") so the
      * widget can tint its header / sub-line to match the task. Pass an empty
      * string to clear (widget falls back to the default indigo accent).
      */
@@ -295,9 +326,9 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
 
     /**
      * Writes the list of blocked words to SharedPreferences.
-     * During any active blocking session (task focus or standalone block),
-     * if any of these words appear in the window content on screen,
-     * AppBlockerAccessibilityService redirects the user to home.
+     * Whenever any of these words appear in window content on screen,
+     * AppBlockerAccessibilityService redirects the user to home. Keyword
+     * blocking is independent of app lists, VPN state, and timed sessions.
      *
      * Pass an empty array to disable word blocking entirely.
      *
@@ -364,6 +395,9 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
     fun setNetworkBlockEnabled(enabled: Boolean, promise: Promise) {
         prefs().edit()
             .putBoolean("net_block_enabled", enabled)
+            // Keep the old native mechanism gate synchronized with the UI
+            // toggle. Older services still read both keys.
+            .putBoolean("net_block_vpn", enabled)
             .apply()
         promise.resolve(null)
     }
@@ -380,6 +414,9 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
     fun setVpnSelectedPackages(packagesJson: String, promise: Promise) {
         prefs().edit()
             .putString("vpn_selected_packages", packagesJson)
+            // net_block_packages is the canonical list consumed by the VPN
+            // service, watchdog, AccessibilityService, and restore path.
+            .putString("net_block_packages", packagesJson)
             .apply()
         promise.resolve(null)
     }
@@ -546,79 +583,6 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
     fun setLauncherClockStyle(style: String, promise: Promise) {
         prefs().edit().putString("launcher_clock_style", style).apply()
         promise.resolve(null)
-    }
-
-    /**
-     * Returns all Group-A (Kotlin-critical) enforcement settings as a single JSON
-     * object string.  Called once on cold start so JS can seed context from
-     * SharedPreferences before the SQLite DB has loaded — prevents the DB-slow /
-     * DB-deleted edge case from wiping real enforcement config with empty defaults.
-     *
-     * Keys match AppSettings field names for zero-transformation parsing on the JS side.
-     * Array fields are returned as JSON strings (not nested JSON arrays) so the whole
-     * result stays a flat JSON object that is easy to pass across the bridge.
-     *
-     * Never rejects — returns "{}" on any error so a failed read cannot block cold start.
-     */
-    @ReactMethod
-    fun getAllEnforcementSettings(promise: Promise) {
-        try {
-            val p = prefs()
-            val obj = org.json.JSONObject()
-
-            // Standalone block
-            obj.put("standaloneBlockPackages",
-                p.getString("standalone_blocked_packages", "[]") ?: "[]")
-            obj.put("standaloneBlockUntilMs",
-                p.getLong("standalone_block_until_ms", 0L))
-
-            // Always-on enforcement
-            obj.put("alwaysOnEnforcementEnabled",
-                p.getBoolean(AppBlockerAccessibilityService.PREF_ALWAYS_BLOCK, false))
-            obj.put("alwaysOnPackages",
-                p.getString(AppBlockerAccessibilityService.PREF_ALWAYS_BLOCK_PKGS, "[]") ?: "[]")
-
-            // Daily allowance
-            obj.put("dailyAllowanceEntries",
-                p.getString("daily_allowance_config", "[]") ?: "[]")
-
-            // Blocked words
-            obj.put("blockedWords",
-                p.getString(AppBlockerAccessibilityService.PREF_BLOCKED_WORDS, "[]") ?: "[]")
-
-            // System-guard booleans
-            obj.put("systemGuardEnabled",
-                p.getBoolean(AppBlockerAccessibilityService.PREF_SYSTEM_GUARD_ENABLED, false))
-            obj.put("blockInstallActionsEnabled",
-                p.getBoolean(AppBlockerAccessibilityService.PREF_BLOCK_INSTALL_ACTIONS, false))
-            obj.put("blockYoutubeShortsEnabled",
-                p.getBoolean(AppBlockerAccessibilityService.PREF_BLOCK_YT_SHORTS, false))
-            obj.put("blockInstagramReelsEnabled",
-                p.getBoolean(AppBlockerAccessibilityService.PREF_BLOCK_IG_REELS, false))
-
-            // VPN / network block
-            obj.put("vpnBlockEnabled",
-                p.getBoolean("net_block_enabled", false))
-            obj.put("standaloneVpnPackages",
-                p.getString("vpn_selected_packages", "[]") ?: "[]")
-
-            // Launcher settings
-            obj.put("launcherBlockUninstall",
-                p.getBoolean("launcher_block_uninstall", false))
-            obj.put("launcherLockDuringStandalone",
-                p.getBoolean("launcher_lock_during_standalone", true))
-            obj.put("launcherHiddenPackages",
-                p.getString("launcher_hidden_packages", "[]") ?: "[]")
-            obj.put("launcherDockPackages",
-                p.getString("launcher_dock_packages", "[]") ?: "[]")
-            obj.put("launcherClockStyle",
-                p.getString("launcher_clock_style", "digital") ?: "digital")
-
-            promise.resolve(obj.toString())
-        } catch (e: Exception) {
-            // Never block cold start — return empty object on any failure
-            promise.resolve("{}")
-        }
     }
 
     @ReactMethod

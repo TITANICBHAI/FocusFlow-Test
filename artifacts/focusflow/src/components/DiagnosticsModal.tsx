@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 import { clearLogs, formatLogsForShare, getRecentLogs, type LogEntry } from '@/services/startupLogger';
+import ReportIssueModal from '@/components/ReportIssueModal';
 
 interface Props {
   visible: boolean;
@@ -28,10 +29,10 @@ interface Props {
 }
 
 const LEVEL_COLORS: Record<string, string> = {
-  DEBUG: '#5AC8FA',
-  INFO: '#34C759',
-  WARN: '#FF9500',
-  ERROR: '#FF3B30',
+  DEBUG: '#4F8EF7',
+  INFO: '#22C55E',
+  WARN: '#F59E0B',
+  ERROR: '#EF4444',
 };
 
 function LogRow({ item, monoFont }: { item: LogEntry; monoFont: string }) {
@@ -87,6 +88,7 @@ export default function DiagnosticsModal({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
 
   const monoFont = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
 
@@ -141,7 +143,7 @@ export default function DiagnosticsModal({ visible, onClose }: Props) {
               <Ionicons name="copy-outline" size={20} color={theme.text} />
             </Pressable>
             <Pressable onPress={handleClear} style={styles.headerBtn} accessibilityLabel="Clear logs">
-              <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+              <Ionicons name="trash-outline" size={20} color="#EF4444" />
             </Pressable>
             <Pressable onPress={onClose} style={styles.headerBtn} accessibilityLabel="Close">
               <Ionicons name="close" size={22} color={theme.text} />
@@ -149,7 +151,7 @@ export default function DiagnosticsModal({ visible, onClose }: Props) {
           </View>
         </View>
 
-        <View style={[styles.legend, { backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7' }]}>
+        <View style={[styles.legend, { backgroundColor: isDark ? '#111421' : '#171A27' }]}>
           {Object.entries(LEVEL_COLORS).map(([level, color]) => (
             <View key={level} style={styles.legendItem}>
               <View style={[styles.dot, { backgroundColor: color }]} />
@@ -159,6 +161,34 @@ export default function DiagnosticsModal({ visible, onClose }: Props) {
           <Text style={[styles.legendText, { color: theme.textSecondary ?? '#888', marginLeft: 'auto' }]}>
             {logs.length} entries (newest first)
           </Text>
+        </View>
+
+        <View
+          style={[
+            styles.reportCard,
+            {
+              backgroundColor: isDark ? '#111421' : '#17152A',
+              borderColor: isDark ? 'rgba(79,142,247,0.35)' : '#172B4D',
+            },
+          ]}
+        >
+          <View style={styles.reportCopy}>
+            <Ionicons name="paper-plane-outline" size={19} color="#4F8EF7" />
+            <View style={styles.reportText}>
+              <Text style={[styles.reportTitle, { color: theme.text }]}>Help us fix this</Text>
+              <Text style={[styles.reportDescription, { color: theme.textSecondary ?? '#888' }]}>
+                Send these logs only when you choose to report an issue.
+              </Text>
+            </View>
+          </View>
+          <Pressable
+            onPress={() => setReportVisible(true)}
+            style={styles.reportButton}
+            accessibilityRole="button"
+            accessibilityLabel="Report this issue"
+          >
+            <Text style={styles.reportButtonText}>Report this issue</Text>
+          </Pressable>
         </View>
 
         {loading ? (
@@ -179,13 +209,14 @@ export default function DiagnosticsModal({ visible, onClose }: Props) {
           />
         )}
 
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 8, backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7' }]}>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 8, backgroundColor: isDark ? '#111421' : '#171A27' }]}>
           <Pressable onPress={load} style={styles.refreshBtn}>
             <Ionicons name="refresh" size={16} color={theme.text} />
             <Text style={[styles.refreshText, { color: theme.text }]}>Refresh</Text>
           </Pressable>
         </View>
       </View>
+      <ReportIssueModal visible={reportVisible} onClose={() => setReportVisible(false)} />
     </Modal>
   );
 }
@@ -256,5 +287,43 @@ const styles = StyleSheet.create({
   refreshText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  reportCard: {
+    marginHorizontal: 12,
+    marginTop: 10,
+    marginBottom: 2,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 10,
+  },
+  reportCopy: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+  },
+  reportText: {
+    flex: 1,
+    gap: 2,
+  },
+  reportTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  reportDescription: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  reportButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#4F8EF7',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  reportButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

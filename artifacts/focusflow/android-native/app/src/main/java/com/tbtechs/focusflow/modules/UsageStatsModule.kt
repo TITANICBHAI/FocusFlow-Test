@@ -2,6 +2,7 @@ package com.tbtechs.focusflow.modules
 
 import android.app.AppOpsManager
 import android.app.admin.DevicePolicyManager
+import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.ComponentName
@@ -13,10 +14,12 @@ import android.os.PowerManager
 import android.os.Process
 import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
+import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.WritableNativeMap
 
 /**
  * UsageStatsModule
@@ -24,6 +27,7 @@ import com.facebook.react.bridge.ReactMethod
  * JS name: NativeModules.UsageStats
  * Methods:
  *   - getForegroundApp()             → Promise<String?>
+ *   - getUsageSummary(startMs, endMs) → Promise<Map> — aggregated app usage
  *   - hasPermission()                → Promise<Boolean>  — Usage Access (AppOps)
  *   - openUsageAccessSettings()      → Promise<null>
  *   - hasAccessibilityPermission()   → Promise<Boolean>  — Accessibility Service enabled
@@ -69,6 +73,126 @@ class UsageStatsModule(private val reactContext: ReactApplicationContext) :
     }
 
     /**
+     * Aggregates observed foreground usage for the requested time range.
+     *
+     * UsageStatsManager keeps this data on-device.  Each UsageStats row is
+     * already aggregated by package for the requested range, so this method
+     * only normalizes the values and resolves display names through the local
+     * PackageManager.  It intentionally reports observed device time rather
+     * than attempting to classify usage as productive or unproductive.
+     */
+    @ReactMethod
+    fun getUsageSummary(startMs: Double, endMs: Double, promise: Promise) {
+        try {
+            val start = startMs.toLong()
+            val end = endMs.toLong()
+            if (start >= end) {
+                val empty = WritableNativeMap()
+                empty.putInt("totalMinutes", 0)
+                empty.putArray("apps", com.facebook.react.bridge.Arguments.createArray())
+                promise.resolve(empty)
+                return
+            }
+
+            val usageManager = reactContext.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+            val packageManager = reactContext.packageManager
+            val ownPackage = reactContext.packageName
+
+            val foregroundType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                UsageEvents.Event.ACTIVITY_RESUMED else UsageEvents.Event.MOVE_TO_FOREGROUND
+            val backgroundType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                UsageEvents.Event.ACTIVITY_PAUSED  else UsageEvents.Event.MOVE_TO_BACKGROUND
+
+            // Per-package accumulators
+            val fgStartMs    = mutableMapOf<String, Long>()   // foreground session start timestamp
+            val foregroundMs = mutableMapOf<String, Long>()   // clipped foreground duration
+            val launchCounts = mutableMapOf<String, Int>()
+            val lastUsedAt   = mutableMapOf<String, Long>()
+            var lastFgPkg: String? = null
+
+            // Query 24h before `start` so sessions already in progress at the boundary
+            // (e.g. an app open at midnight) are captured. The maxOf(fgStart, start)
+            // clamp below clips their pre-boundary portion correctly.
+            val queryStart = start - 24L * 60 * 60 * 1000L
+            val events = usageManager.queryEvents(queryStart, end)
+            val event  = UsageEvents.Event()
+
+            while (events.hasNextEvent()) {
+                events.getNextEvent(event)
+                val pkg = event.packageName
+                if (pkg == ownPackage) continue
+
+                lastUsedAt[pkg] = maxOf(lastUsedAt[pkg] ?: 0L, event.timeStamp)
+
+                when (event.eventType) {
+                    foregroundType -> {
+                        fgStartMs[pkg] = event.timeStamp  // may be before `start` — intentional
+                        if (pkg != lastFgPkg) {
+                            // Only count as a launch if the foreground event is inside the window
+                            if (event.timeStamp >= start) {
+                                launchCounts[pkg] = (launchCounts[pkg] ?: 0) + 1
+                            }
+                            lastFgPkg = pkg
+                        }
+                    }
+                    backgroundType -> {
+                        val fgStart = fgStartMs.remove(pkg) ?: continue
+                        val clippedStart = maxOf(fgStart, start)   // clips pre-start portion
+                        val clippedEnd   = minOf(event.timeStamp, end)
+                        if (clippedEnd > clippedStart) {
+                            foregroundMs[pkg] = (foregroundMs[pkg] ?: 0L) + (clippedEnd - clippedStart)
+                        }
+                    }
+                }
+            }
+
+            // Handle sessions still in foreground at the end of the query window
+            // (app was foregrounded but no BACKGROUND event arrived before `end`)
+            val now = System.currentTimeMillis()
+            for ((pkg, fgStart) in fgStartMs) {
+                val clippedStart = maxOf(fgStart, start)
+                val clippedEnd   = minOf(now, end)
+                if (clippedEnd > clippedStart) {
+                    foregroundMs[pkg] = (foregroundMs[pkg] ?: 0L) + (clippedEnd - clippedStart)
+                }
+            }
+
+            // Build the app list sorted by foreground time descending
+            val apps = foregroundMs.entries
+                .filter { it.value > 0L }
+                .map { (pkg, ms) ->
+                    val appName = try {
+                        packageManager.getApplicationLabel(
+                            packageManager.getApplicationInfo(pkg, 0)
+                        ).toString()
+                    } catch (_: Exception) { pkg }
+
+                    WritableNativeMap().apply {
+                        putString("packageName",    pkg)
+                        putString("appName",        appName)
+                        putInt("foregroundMinutes", (ms / 60_000L).toInt())
+                        putInt("launchCount",       launchCounts[pkg] ?: 0)
+                        putDouble("lastUsedAt",     (lastUsedAt[pkg] ?: 0L).toDouble())
+                    }
+                }
+                .sortedByDescending { it.getInt("foregroundMinutes") }
+
+            val totalMs      = foregroundMs.values.sumOf { it }
+            val totalMinutes = (totalMs / 60_000L).toInt()
+
+            val appArray = Arguments.createArray()
+            apps.forEach { appArray.pushMap(it) }
+
+            promise.resolve(WritableNativeMap().apply {
+                putInt("totalMinutes", totalMinutes)
+                putArray("apps", appArray)
+            })
+        } catch (e: Exception) {
+            promise.reject("USAGE_SUMMARY_ERROR", e.message, e)
+        }
+    }
+
+    /**
      * Returns whether the PACKAGE_USAGE_STATS (Usage Access) permission has been granted.
      *
      * Primary check: AppOpsManager.checkOpNoThrow — the standard API.
@@ -94,7 +218,11 @@ class UsageStatsModule(private val reactContext: ReactApplicationContext) :
             if (mode == AppOpsManager.MODE_DEFAULT) {
                 val usm = reactContext.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
                 val now = System.currentTimeMillis()
-                val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, now - 60_000, now)
+                val stats = usm.queryUsageStats(
+                    UsageStatsManager.INTERVAL_DAILY,
+                    now - 24 * 60 * 60 * 1_000L,
+                    now,
+                )
                 promise.resolve(!stats.isNullOrEmpty())
                 return
             }
@@ -104,7 +232,11 @@ class UsageStatsModule(private val reactContext: ReactApplicationContext) :
             if (mode != AppOpsManager.MODE_IGNORED && mode != AppOpsManager.MODE_ERRORED) {
                 val usm = reactContext.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
                 val now = System.currentTimeMillis()
-                val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, now - 60_000, now)
+                val stats = usm.queryUsageStats(
+                    UsageStatsManager.INTERVAL_DAILY,
+                    now - 24 * 60 * 60 * 1_000L,
+                    now,
+                )
                 if (!stats.isNullOrEmpty()) {
                     promise.resolve(true)
                     return
@@ -456,38 +588,22 @@ class UsageStatsModule(private val reactContext: ReactApplicationContext) :
                 return
             }
 
+            // Query the restricted-settings AppOp directly. The string constant
+            // is used instead of the symbolic OPSTR_ACCESS_RESTRICTED_SETTINGS
+            // so this compiles against any compileSdk >= 33 without needing the
+            // exact symbol (which has been renamed across SDK previews).
             val appOps = reactContext.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
-            val uid = Process.myUid()
-            val pkg = reactContext.packageName
-
-            // Primary: call checkOpNoThrow(int, int, String) via reflection using
-            // op code 111 (OP_ACCESS_RESTRICTED_SETTINGS, added in API 33).
-            // This is more reliable than the string-based unsafeCheckOpNoThrow
-            // across OEM builds where the string constant may be remapped.
-            val mode: Int = try {
-                val method = AppOpsManager::class.java.getMethod(
-                    "checkOpNoThrow",
-                    Int::class.java,
-                    Int::class.java,
-                    String::class.java
+            val mode = try {
+                appOps.unsafeCheckOpNoThrow(
+                    "android:access_restricted_settings",
+                    Process.myUid(),
+                    reactContext.packageName
                 )
-                method.invoke(appOps, 111, uid, pkg) as Int
             } catch (_: Exception) {
-                // Fallback: string-based lookup used on devices where reflection
-                // fails (heavily customised OEM builds, future API changes).
-                try {
-                    appOps.unsafeCheckOpNoThrow(
-                        "android:access_restricted_settings",
-                        uid,
-                        pkg
-                    )
-                } catch (_: Exception) {
-                    // Both methods failed — can't determine. Show banner only
-                    // when installer is unknown (sideloaded APK) to minimise
-                    // false positives on OEM builds that don't support this op.
-                    promise.resolve(installer == null)
-                    return
-                }
+                // If the op is unknown on this OEM build, treat as not-restricted
+                // rather than block the user with a false positive.
+                promise.resolve(false)
+                return
             }
 
             // MODE_ALLOWED means the user has tapped "Allow restricted settings"
@@ -554,16 +670,5 @@ class UsageStatsModule(private val reactContext: ReactApplicationContext) :
         } catch (_: Exception) {
             promise.resolve(null)
         }
-    }
-
-    /**
-     * Returns the device manufacturer string in lower-case (e.g. "samsung",
-     * "xiaomi", "oneplus", "realme", "oppo", "google"). Used by the JS layer
-     * to pre-select the correct brand in the Troubleshoot modal so users don't
-     * have to pick manually.
-     */
-    @ReactMethod
-    fun getDeviceManufacturer(promise: Promise) {
-        promise.resolve(Build.MANUFACTURER.lowercase())
     }
 }

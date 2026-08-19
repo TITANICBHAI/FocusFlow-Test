@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { formatLogsForShare } from "@/services/startupLogger";
+import ReportIssueModal from "@/components/ReportIssueModal";
 
 export type ErrorFallbackProps = {
   error: Error;
@@ -27,16 +28,17 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
   const insets = useSafeAreaInsets();
 
   const theme = {
-    background: isDark ? "#000000" : "#FFFFFF",
-    backgroundSecondary: isDark ? "#1C1C1E" : "#F2F2F7",
-    text: isDark ? "#FFFFFF" : "#000000",
+    background: isDark ? "#0A0A14" : "#F7F8FC",
+    backgroundSecondary: isDark ? "#111421" : "#EEF1F8",
+    text: isDark ? "#F5F7FF" : "#141722",
     textSecondary: isDark ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.7)",
-    link: "#007AFF",
-    danger: "#FF3B30",
+    link: "#4F8EF7",
+    danger: "#EF4444",
     buttonText: "#FFFFFF",
   };
 
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
 
   const handleRestart = async () => {
     try {
@@ -131,6 +133,24 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
             Copy Logs
           </Text>
         </Pressable>
+
+        <Pressable
+          onPress={() => setReportVisible(true)}
+          style={({ pressed }) => [
+            styles.button,
+            {
+              backgroundColor: theme.danger,
+              opacity: pressed ? 0.9 : 1,
+              transform: [{ scale: pressed ? 0.98 : 1 }],
+            },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Report this issue"
+        >
+          <Text style={[styles.buttonText, { color: theme.buttonText }]}>
+            Report this issue
+          </Text>
+        </Pressable>
       </View>
 
       {__DEV__ ? (
@@ -205,6 +225,12 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
           </View>
         </Modal>
       ) : null}
+
+      <ReportIssueModal
+        visible={reportVisible}
+        onClose={() => setReportVisible(false)}
+        error={error}
+      />
     </View>
   );
 }

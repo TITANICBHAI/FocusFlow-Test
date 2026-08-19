@@ -1,0 +1,39 @@
+Let me read it first before saying anything:Okay I've read both sides fully. Here's the actual state of it:
+
+---
+
+**The config screen (`home-launcher.tsx`)**
+
+It's a settings list pretending to be a launcher configurator. You're configuring a home screen through three separate scrollable toggle lists with no icons, no preview, and no search. Every single `AppToggleRow` shows a generic `apps-outline` placeholder — the installed app list comes back with real app names but the icon slot renders the same Ionicons glyph for every single app. You're picking dock apps from a list of text + package name + a grey circle. On a screen that's supposed to help you build your home screen.
+
+Both the Dock section and the Home Screen Grid section are `apps.slice(0, 30)` — hardcoded to the first 30 alphabetically sorted apps with no search and no load-more. There's a note at the bottom saying "Search the full list in the launcher drawer" — so to add an app starting with a letter past N to your home grid, you have to exit the config screen, open the actual launcher, open the app drawer, find the app, and long-press it. The config screen is useless for half your app library.
+
+The Wallpaper setting is a `TouchableOpacity` that opens an Alert saying to use Android's built-in wallpaper picker. `launcherWallpaperUri` exists in `AppSettings`, the native module has an image picker, it's just not connected here.
+
+There's no live preview anywhere. You toggle a switch and have no idea whether you just added an app to the 3rd position in the dock or nowhere useful at all.
+
+---
+
+**The native launcher (`LauncherActivity.kt`)**
+
+The entire UI is built with imperative `addView` calls — every home grid icon, every drawer section header, every dock slot is created fresh in code. The app drawer is a `ScrollView` containing a `LinearLayout` containing multiple `GridLayout`s, one per alphabet letter. At 80+ apps this will be measurably janky because none of those views are recycled. `openDrawer()` creates all of them from scratch every time it's called.
+
+The search filter doesn't filter a data source — it iterates over every child view in the `gridContainer` and sets `visibility = GONE` or `VISIBLE`. It works for 30 apps but it's the wrong pattern.
+
+There's no drag-and-drop. Long-press shows a context menu (Add to Dock / Remove / App Info) but you cannot reorder icons. The order of the home grid is the order packages were added to `launcherPinnedPackages`, and changing that order requires going back to the config screen where there's also no reordering. The dock order is insertion order.
+
+The swipe-up gesture is a raw threshold check: `if (swipeTouchStartY - ev.rawY > dp(60))` — no velocity, no physics, no interpolation. The drawer animates in with a `translationY` tween which is fine, but the gesture feel is binary rather than spring-based.
+
+The home grid is a `GridLayout` inside a `ScrollView`. Every `onResume` and every config change calls `removeAllViews()` and rebuilds the entire grid. No diffing, no transitions.
+
+---
+
+**What to actually do**
+
+The config screen needs a complete rethink. It shouldn't be a settings list at all — it should be a phone-frame preview of the launcher with an edit mode where you tap to add, drag to reorder, and see the result in real time. The three toggle lists (dock, grid, hidden) should collapse into a single app picker with tabs or categories, proper search from the start, and real app icons.
+
+On the native side, the app drawer needs a `RecyclerView`. That's not optional — the current implementation degrades badly with a real app library. The home grid needs drag-and-drop or at minimum a config-side ordering mechanism. The gesture system needs `VelocityTracker` so the drawer feels like it has mass.
+
+The config screen and the launcher also have no live sync path. When you toggle an app in RN, the launcher doesn't know until `onResume` fires. For something as immediate as "add this to my dock," that's a meaningful delay. The fix is a SharedPrefs change listener in `LauncherActivity` so the grid and dock rebuild the moment the prefs key changes.
+
+The biggest thing though is the icons. Without real app icons in the config screen, the whole experience is abstract. `InstalledAppsModule` has the data. It just needs to be surfaced.

@@ -34,6 +34,9 @@ import {
   dbGetTasksInDateRange,
 } from '@/data/database';
 import { GreyoutModule, TemptationEntry } from '@/native-modules/GreyoutModule';
+import { UsageInsights } from '@/components/UsageInsights';
+import { QuickBlockSheet } from '@/components/QuickBlockSheet';
+import type { UsageApp } from '@/native-modules/UsageStatsModule';
 import type { Task } from '@/data/types';
 
 type Filter = 'yesterday' | 'today' | 'week' | 'alltime';
@@ -78,6 +81,7 @@ function StatsScreen() {
   const { width }       = useWindowDimensions();
 
   const [filter, setFilter] = useState<Filter>('yesterday');
+  const [quickBlockApp, setQuickBlockApp] = useState<UsageApp | null>(null);
 
   // ── TODAY DB data ─────────────────────────────────────────────────────────
   const [focusMinutes,  setFocusMinutes]  = useState(0);
@@ -249,6 +253,27 @@ function StatsScreen() {
   const maxWeekCompleted = Math.max(...weeklyDays.map((d) => d.completed), 1);
   const maxWeekFocus     = Math.max(...weeklyDays.map((d) => d.focusMinutes), 1);
 
+  const usageWindow = useMemo(() => {
+    const now = dayjs();
+    if (filter === 'yesterday') {
+      const day = now.subtract(1, 'day');
+      return { startMs: day.startOf('day').valueOf(), endMs: day.endOf('day').valueOf() };
+    }
+    if (filter === 'today') {
+      return { startMs: now.startOf('day').valueOf(), endMs: now.endOf('day').valueOf() };
+    }
+    const start = now.subtract(6, 'day');
+    return { startMs: start.startOf('day').valueOf(), endMs: now.endOf('day').valueOf() };
+  }, [filter]);
+
+  const weeklyFocusByDate = useMemo<Record<string, number>>(() => {
+    const map: Record<string, number> = {};
+    weeklyDays.forEach((day, index) => {
+      map[dayjs().subtract(6 - index, 'day').format('YYYY-MM-DD')] = day.focusMinutes;
+    });
+    return map;
+  }, [weeklyDays]);
+
   // ── TEMPTATION LOG (yesterday + week view + all-time) ─────────────────────────────
   const [weekLoading,    setWeekLoading]    = useState(false);
   const [allTemptations, setAllTemptations] = useState<TemptationEntry[]>([]);
@@ -306,6 +331,13 @@ function StatsScreen() {
       else map.set(e.pkg, { pkg: e.pkg, appName: e.appName || e.pkg, count: 1 });
     }
     return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [allTemptations]);
+
+  const todayDistractionCount = useMemo(() => {
+    const today = dayjs();
+    return allTemptations.filter(
+      (entry) => entry.timestamp >= today.startOf('day').valueOf() && entry.timestamp <= today.endOf('day').valueOf(),
+    ).length;
   }, [allTemptations]);
 
   const handleClearLog = () => {
@@ -414,26 +446,6 @@ function StatsScreen() {
           <Text style={[styles.dbErrorText, { color: COLORS.orange }]}>
             History unavailable — could not read task database. Today's data is unaffected.
           </Text>
-          <TouchableOpacity
-            onPress={() => {
-              setHistoricalError(false);
-              void (async () => {
-                try {
-                  const end = new Date();
-                  const start = new Date();
-                  start.setDate(start.getDate() - 30);
-                  const rows = await dbGetTasksInDateRange(start.toISOString(), end.toISOString());
-                  setHistoricalTasks(rows);
-                } catch {
-                  setHistoricalError(true);
-                }
-              })();
-            }}
-            style={styles.retryBtn}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="refresh-outline" size={16} color={COLORS.orange} />
-          </TouchableOpacity>
         </View>
       )}
 
@@ -486,6 +498,17 @@ function StatsScreen() {
                 </View>
               )}
             </View>
+
+            <UsageInsights
+              startMs={usageWindow.startMs}
+              endMs={usageWindow.endMs}
+              focusMinutes={yesterdayFocusMins}
+              blockedAttempts={yesterdayDistractions.reduce((sum, row) => sum + row.count, 0)}
+              standalonePackages={state.settings.standaloneBlockPackages ?? []}
+              standaloneUntil={state.settings.standaloneBlockUntil}
+              alwaysOnPackages={state.settings.alwaysOnPackages ?? []}
+              onAppPress={setQuickBlockApp}
+            />
 
             {/* Task list */}
             {yesterdayBreakdown.total === 0 ? (
@@ -627,6 +650,17 @@ function StatsScreen() {
             )}
           </View>
 
+          <UsageInsights
+            startMs={usageWindow.startMs}
+            endMs={usageWindow.endMs}
+            focusMinutes={focusMinutes}
+            blockedAttempts={todayDistractionCount}
+            standalonePackages={state.settings.standaloneBlockPackages ?? []}
+            standaloneUntil={state.settings.standaloneBlockUntil}
+            alwaysOnPackages={state.settings.alwaysOnPackages ?? []}
+            onAppPress={setQuickBlockApp}
+          />
+
           {/* ── Task Summary ───────────────────────────────────────────── */}
           {todayStats.total > 0 ? (
             <View style={[styles.card, { backgroundColor: theme.card }]}>
@@ -703,7 +737,20 @@ function StatsScreen() {
             contentContainerStyle={[styles.content, { paddingBottom: 60 + insets.bottom + 24 }]}
             showsVerticalScrollIndicator={false}>
 
-            <SectionLabel label="TASK PRODUCTIVITY" theme={theme} />
+             <SectionLabel label="TASK PRODUCTIVITY" theme={theme} />
+
+             <UsageInsights
+               startMs={usageWindow.startMs}
+               endMs={usageWindow.endMs}
+               focusMinutes={weekSummary.focusMins}
+               blockedAttempts={totalThisWeek}
+               showWeeklyTrend
+               focusByDate={weeklyFocusByDate}
+               standalonePackages={state.settings.standaloneBlockPackages ?? []}
+               standaloneUntil={state.settings.standaloneBlockUntil}
+               alwaysOnPackages={state.settings.alwaysOnPackages ?? []}
+               onAppPress={setQuickBlockApp}
+             />
 
             {/* Week summary chips */}
             <View style={styles.chipRow}>
@@ -853,6 +900,11 @@ function StatsScreen() {
           </ScrollView>
         )
       )}
+      <QuickBlockSheet
+        visible={quickBlockApp !== null}
+        app={quickBlockApp}
+        onClose={() => setQuickBlockApp(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -1106,7 +1158,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   dbErrorText: { flex: 1, fontSize: FONT.sm, lineHeight: 18 },
-  retryBtn: { padding: 4 },
 
   card: { borderRadius: RADIUS.lg, padding: SPACING.md, gap: SPACING.sm },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

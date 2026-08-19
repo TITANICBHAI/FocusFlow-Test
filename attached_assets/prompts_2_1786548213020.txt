@@ -1,0 +1,194 @@
+The uploaded note is directionally correct, and it identifies the main architectural problem. I agree with using its approach mainly for daily allowance enforcement, but I would not copy it exactly.
+
+My verdict
+Keep these responsibilities separate
+Responsibility	Best source
+User’s allowance settings	SQLite → SharedPreferences
+Immediate app blocking	AccessibilityService
+Historical usage reports	UsageStatsManager
+Historical app opens	UsageEvents
+Current active session	AccessibilityService + checkpoint
+Digital Wellbeing data	Do not use directly
+The note is right that UsageStatsManager is not reliable enough to be the only real-time blocking engine.
+
+Method 1: Use UsageEvents for daily open counts
+The note proposes replacing the stored count with:
+
+Query UsageEvents from midnight to now whenever an app opens.
+
+Advantages
+Avoids the stored counter drifting if the service misses an event
+Automatically survives service restarts
+Uses Android’s historical event stream
+Avoids manually incrementing daily_allowance_used.count
+Important limitation
+UsageEvents is still Android usage-history data. It may be delayed or buffered. So immediately after a new app launch, querying it may not yet include the newest event.
+
+That means this approach could still allow one extra opening in an edge case.
+
+The current AccessibilityService event is more immediate than UsageEvents. Therefore I would not make UsageEvents the only authority for blocking.
+
+Better approach for count mode
+Use a hybrid:
+
+AccessibilityService detects the app entering the foreground immediately.
+It maintains the current count for immediate enforcement.
+On service reconnect or startup, reconcile the count against UsageEvents.
+Use UsageEvents as the recovery/audit source, not the only real-time source.
+That gives you both:
+
+Instant enforcement
+Recovery after service restarts
+So yes, this method belongs in the daily allowance path, but as reconciliation rather than a complete replacement for live event handling.
+
+Method 2: Checkpoint active time every 15–30 seconds
+This is the strongest recommendation in the uploaded note.
+
+Currently, the service only records timed allowance usage when:
+
+The user switches apps
+The allowance timer expires
+onInterrupt() runs
+The service reconnects and finds a saved session
+That means a service kill can lose the active session.
+
+Periodic checkpointing would reduce the maximum loss to roughly the checkpoint interval.
+
+Advantages
+Better protection against Android killing the service
+More reliable time-budget enforcement
+Allows the service to recover an active session
+Makes SharedPreferences hold only short-lived active-session state instead of all usage history
+One correction: avoid double counting
+The note suggests:
+
+Total Usage Today =
+UsageStats Today + Active Session Checkpoint
+
+That can double-count if Android’s UsageStats already includes part of the active session.
+
+A safer calculation is:
+
+Persisted/system usage
++ only the unreported portion of the active session
+
+The service should record:
+
+Session start time
+Last checkpoint time
+Amount already acknowledged by UsageStats, if known
+Then it should add only the portion that has not already appeared in Android’s usage data.
+
+For enforcement, the simpler and safer model is:
+
+AccessibilityService owns the current active session timer
+Checkpoint that timer every 15–30 seconds
+UsageStats is used for reporting/reconciliation, not directly added blindly
+Method 3: Remove daily_allowance_used as the full source of truth
+I agree with reducing this storage.
+
+The current daily_allowance_used JSON stores:
+
+Count usage
+Time-budget usage
+Interval usage
+That can drift when the service is killed or misses a transition.
+
+I would change it so that SharedPreferences stores only:
+
+active session checkpoint
+
+and perhaps a small recovery record, rather than being the permanent source of all usage totals.
+
+The user’s actual allowance configuration still needs to remain stored:
+
+daily_allowance_config
+
+That is not redundant usage data. It is the rule itself:
+
+App package
+Mode
+Count limit
+Time limit
+Interval length
+That configuration cannot come from Usage Access.
+
+Method 4: Fix silent native bridge failures
+This should definitely be implemented.
+
+Currently, methods such as:
+
+SharedPrefsModule.setDailyAllowanceConfig(...)
+
+silently return if the native method is unavailable.
+
+That can create this false situation:
+
+UI says the allowance saved
+SQLite says the allowance saved
+Usage permission is enabled
+AccessibilityService has no native configuration
+User assumes the allowance is broken
+The bridge should return success/failure or throw an explicit error, and the UI should report:
+
+Native enforcement is unavailable in this build. Install the Android build with FocusFlow accessibility support.
+
+This is directly relevant to why the allowance may not be working.
+
+Should we change the UsageStats module or the daily allowance module?
+For the daily allowance bug
+Use the uploaded architecture mainly in:
+
+AppBlockerAccessibilityService.kt
+
+and:
+
+SharedPrefsModule.ts
+AppContext.tsx
+
+Specifically:
+
+Add active-session checkpointing
+Add lifecycle-safe recovery
+Reconcile count usage with UsageEvents
+Make native sync failures visible
+Reduce reliance on daily_allowance_used
+For the usage report problems
+Still make separate fixes in:
+
+UsageStatsModule.kt
+UsageInsights.tsx
+
+The uploaded architecture does not fix these report-specific problems:
+
+Apps used for less than one minute are currently omitted
+Usage is truncated to whole minutes
+Current active-app time can look stale
+Usage summaries are not stored locally
+Those are reporting/UI issues, not allowance-enforcement issues.
+
+Recommended final architecture
+SQLite
+  └── allowance configuration
+        └── sync to SharedPreferences
+AccessibilityService
+  ├── immediate foreground detection
+  ├── immediate blocking
+  ├── current session timer
+  ├── count enforcement
+  └── 15–30 second checkpoint
+UsageEvents
+  ├── launch history
+  ├── count reconciliation after restart
+  └── historical reports
+UsageStatsManager
+  ├── historical foreground duration
+  └── usage insights
+Digital Wellbeing
+  └── not directly used
+
+So my recommendation is:
+
+Do not replace the UsageStats reporting system with the allowance system, and do not replace AccessibilityService with UsageEvents. Improve daily allowance using the uploaded hybrid design, while separately fixing the report filtering and freshness issues in UsageStats.
+
+That gives FocusFlow immediate blocking, recovery after service restarts, and more accurate reports without relying on Digital Wellbeing’s private data.

@@ -45,8 +45,8 @@ const CONTENT = {
         title: isChinese ? '本地优先存储' : 'Local-first data',
         icon: 'phone-portrait-outline' as const,
         body: isChinese
-          ? '任务、日程、屏蔽列表、使用限额和设置，均仅存储于本设备的 SQLite 数据库和 Android 系统偏好设置中，不会上传至任何服务器。'
-          : 'Tasks, schedules, block lists, allowances, and settings are stored exclusively in FocusFlow\'s on-device SQLite database and Android SharedPreferences. Nothing is transmitted to any server.',
+          ? '任务、日程、屏蔽列表、使用限额和设置，均仅存储于本设备的 SQLite 数据库和 Android 系统偏好设置中。只有当您主动提交诊断报告时，相关技术日志才会离开设备。'
+          : 'Tasks, schedules, block lists, allowances, and settings are stored exclusively in FocusFlow\'s on-device SQLite database and Android SharedPreferences. Technical diagnostics leave the device only when you intentionally submit an issue report.',
       },
       {
         title: isChinese ? 'Android 权限' : 'Android permissions',

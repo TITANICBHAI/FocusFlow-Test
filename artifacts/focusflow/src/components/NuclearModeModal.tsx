@@ -78,13 +78,6 @@ export function NuclearModeModal({ visible, onClose }: Props) {
   }, [visible, loadApps]);
 
   const handleUninstall = (pkg: string, label: string) => {
-    if (!NuclearModeModule.isAvailable) {
-      Alert.alert(
-        'Native module unavailable',
-        'Nuclear Mode requires a full EAS/custom build of FocusFlow. It does not work in Expo Go.',
-      );
-      return;
-    }
     Alert.alert(
       `Uninstall ${label}?`,
       `This will open Android's system uninstall dialog. You'll need to confirm there to permanently remove ${label}.`,
@@ -97,11 +90,8 @@ export function NuclearModeModal({ visible, onClose }: Props) {
             setUninstalling(pkg);
             try {
               await NuclearModeModule.requestUninstallApp(pkg);
-            } catch (e) {
-              Alert.alert(
-                'Could not open uninstall dialog',
-                e instanceof Error ? e.message : 'Try uninstalling from your device Settings → Apps instead.',
-              );
+            } catch {
+              Alert.alert('Could not open uninstall dialog', 'Try uninstalling from your device Settings → Apps instead.');
             } finally {
               setUninstalling(null);
             }

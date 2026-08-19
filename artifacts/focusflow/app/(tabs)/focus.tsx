@@ -29,6 +29,7 @@ import { DailyAllowanceModal } from '@/components/DailyAllowanceModal';
 import ExtendModal from '@/components/ExtendModal';
 import { PinRotationModal } from '@/components/PinRotationModal';
 import { PinVerifyModal } from '@/components/PinVerifyModal';
+import FocusFlowLogo from '@/components/FocusFlowLogo';
 import { SessionPinModule } from '@/native-modules/SessionPinModule';
 import { SharedPrefsModule } from '@/native-modules/SharedPrefsModule';
 import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
@@ -258,9 +259,10 @@ function FocusScreen() {
             contentContainerStyle={[styles.emptyContainer, { paddingBottom: 60 + insets.bottom + 20 }]}
             showsVerticalScrollIndicator={false}
           >
-            {/* Big shield icon with red tint */}
-            <View style={[styles.standaloneIconWrap, { backgroundColor: COLORS.red + '15' }]}>
-              <Ionicons name="ban" size={42} color={COLORS.red} />
+            <FocusFlowLogo size={56} glow />
+            {/* Protected state icon */}
+            <View style={[styles.standaloneIconWrap, { backgroundColor: COLORS.green + '15' }]}>
+              <Ionicons name="ban" size={42} color={COLORS.green} />
             </View>
             <Text style={[styles.emptyTitle, { color: theme.text }]}>Apps Blocked</Text>
             <Text style={[styles.emptySubtitle, { color: theme.muted }]}>
@@ -277,7 +279,7 @@ function FocusScreen() {
 
             {/* Add more apps button */}
             <TouchableOpacity
-              style={[styles.addMoreAppsBtn, { backgroundColor: theme.card, borderColor: COLORS.red + '44' }]}
+              style={[styles.addMoreAppsBtn, { backgroundColor: theme.card, borderColor: COLORS.green + '44' }]}
               onPress={() => setBlockModalVisible(true)}
               activeOpacity={0.8}
             >
@@ -332,27 +334,23 @@ function FocusScreen() {
     // ── State 2: Nothing active — prompt to create a task ─────────────────────
     const alwaysOnPkgs = settings.alwaysOnPackages ?? [];
     const alwaysOnHasList = alwaysOnPkgs.length > 0;
-    const allowanceCount = (settings.dailyAllowanceEntries ?? []).length;
-    const keywordCount   = (settings.blockedWords ?? []).length;
     // Master enforcement switch — defaults to ON when undefined.
     const enforcementOn = settings.alwaysOnEnforcementEnabled !== false;
-    // "Active" = configured always-on rules AND enforcement is on (drives icon colour).
-    const alwaysOnActive = enforcementOn && (
-      alwaysOnHasList || allowanceCount > 0 || keywordCount > 0
-    );
+    // "Active" = list has packages AND enforcement is on (drives icon colour).
+    const alwaysOnActive = alwaysOnHasList && enforcementOn;
     const autoCopyOn = settings.autoCopyToAlwaysOn ?? false;
     const withDefensePin = (action: () => void) => {
-      if (!settings.pinProtectionEnabled) {
+      if (!(settings.pinProtectionEnabled ?? false)) {
         action();
         return;
       }
       SharedPrefsModule.getString('defense_pin_hash')
         .then((hash) => {
-          if (hash) {
+          if (!hash) {
+            action();
+          } else {
             pendingDefAction.current = action;
             setDefPinVisible(true);
-          } else {
-            action();
           }
         })
         .catch(() => action());
@@ -365,7 +363,10 @@ function FocusScreen() {
       void updateSettings({ ...settings, alwaysOnEnforcementEnabled: true });
     };
     // Slim hint counts shown below the card — quick at-a-glance status.
+    const allowanceCount = (settings.dailyAllowanceEntries ?? []).length;
     const scheduleCount  = (settings.recurringBlockSchedules ?? []).filter((s) => s.enabled).length;
+    const blockedWords   = settings.blockedWords ?? [];
+    const keywordCount   = blockedWords.length;
     const handleClearAlwaysOn = () => {
       withDefensePin(() => {
         Alert.alert(
@@ -390,7 +391,8 @@ function FocusScreen() {
           contentContainerStyle={[styles.emptyContainer, { paddingBottom: 60 + insets.bottom + 20 }]}
           showsVerticalScrollIndicator={false}
         >
-          <Ionicons name="calendar-outline" size={64} color={theme.border} />
+          <FocusFlowLogo size={58} />
+          <Ionicons name="calendar-outline" size={48} color={theme.border} />
           <Text style={[styles.emptyTitle, { color: theme.muted }]}>No Tasks Yet</Text>
           <Text style={[styles.emptySubtitle, { color: theme.muted }]}>
             Create a task in the Schedule tab to start using Focus Mode
@@ -409,29 +411,25 @@ function FocusScreen() {
                The always-on toggle is the master switch for all 24/7 enforcement.
                The four rows below it are dimmed (but still tappable) when off,
                so the user can still configure each tool even while paused. */}
-          <View style={[styles.enforcementPanel, { backgroundColor: theme.card, borderColor: enforcementOn ? COLORS.orange + '55' : theme.border }]}>
+          <View style={[styles.enforcementPanel, { backgroundColor: theme.card, borderColor: enforcementOn ? COLORS.green + '55' : theme.border }]}>
 
             {/* Header row — master toggle */}
             <View style={styles.enforcementHeader}>
               <Ionicons
                 name={alwaysOnActive ? 'shield-checkmark' : 'shield-outline'}
                 size={15}
-                color={alwaysOnActive ? COLORS.orange : theme.muted}
+                color={alwaysOnActive ? COLORS.green : theme.muted}
               />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.enforcementTitle, { color: theme.text }]}>Always-On Enforcement</Text>
                 <Text style={[styles.enforcementSubtitle, { color: theme.muted }]}>
-                  {!enforcementOn
-                    ? 'Paused — rules kept, nothing enforced'
-                    : alwaysOnActive
-                      ? 'Active — blocking 24/7 regardless of sessions'
-                      : 'Enabled — add a rule to start blocking'}
+                  {enforcementOn ? 'Active — blocking 24/7 regardless of sessions' : 'Paused — list kept, nothing enforced'}
                 </Text>
               </View>
               <Switch
                 value={enforcementOn}
                 onValueChange={handleToggleEnforcement}
-                trackColor={{ false: theme.border, true: COLORS.orange + '99' }}
+                trackColor={{ false: theme.border, true: COLORS.green + '99' }}
                 thumbColor={enforcementOn ? COLORS.orange : theme.muted}
               />
             </View>
@@ -715,7 +713,13 @@ function FocusScreen() {
           <Text style={[styles.statusText, { color: theme.textSecondary }]}>
             {isFocusing
               ? (settings.pomodoroEnabled ?? false)
-                ? `Focus Mode Active · ${pomodoro.phase === 'work' ? '🎯 Work' : '☕ Break'} Phase`
+                ? `Focus Mode Active · ${
+                    pomodoro.isBreakActive
+                      ? '☕ Break · apps unlocked'
+                      : pomodoro.phase === 'work'
+                        ? '🎯 Work'
+                        : '☕ Break available'
+                  }`
                 : 'Focus Mode Active'
               : 'Task In Progress'}
           </Text>
@@ -805,6 +809,7 @@ function FocusScreen() {
             pomodoro={pomodoro}
             workMinutes={settings.pomodoroDuration ?? 25}
             breakMinutes={settings.pomodoroBreak ?? 5}
+            onTakeBreak={() => { void pomodoro.takeBreak(); }}
           />
         )}
 
@@ -1185,12 +1190,15 @@ function PomodoroStrip({
   pomodoro,
   workMinutes,
   breakMinutes,
+  onTakeBreak,
 }: {
   pomodoro: import('@/hooks/usePomodoro').PomodoroState;
   workMinutes: number;
   breakMinutes: number;
+  onTakeBreak: () => void;
 }) {
   const isWork = pomodoro.phase === 'work';
+  const isBreakActive = pomodoro.isBreakActive;
   const accentColor = isWork ? COLORS.primary : COLORS.green;
   const mins = Math.floor(pomodoro.secondsLeft / 60);
   const secs = pomodoro.secondsLeft % 60;
@@ -1226,8 +1234,20 @@ function PomodoroStrip({
       <Text style={[pomStyles.hint, { color: accentColor + 'bb' }]}>
         {isWork
           ? `${mins}m left → ${breakMinutes}m break`
-          : `${mins}m rest left → back to ${workMinutes}m work`}
+           : isBreakActive
+             ? `Apps unlocked · blocking resumes in ${timeStr}`
+             : `${mins}m rest available · tap below to unlock apps`}
       </Text>
+      {!isWork && !isBreakActive && (
+        <TouchableOpacity
+          style={[pomStyles.breakButton, { backgroundColor: COLORS.green }]}
+          onPress={onTakeBreak}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="cafe-outline" size={15} color="#fff" />
+          <Text style={pomStyles.breakButtonText}>Take {breakMinutes}m break</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -1706,6 +1726,16 @@ const pomStyles = StyleSheet.create({
     fontSize: FONT.xs,
     fontWeight: '700',
   },
+  breakButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.sm,
+    marginTop: SPACING.xs,
+  },
+  breakButtonText: { color: '#fff', fontSize: FONT.sm, fontWeight: '700' },
   progressTrack: {
     height: 4,
     borderRadius: 2,

@@ -105,7 +105,7 @@ class VpnWatchdogReceiver : BroadcastReceiver() {
         // ── Gate checks — bail early if we should not be restarting ────────────
 
         if (!prefs.getBoolean("net_block_enabled",  false)) return
-        if (!prefs.getBoolean("net_block_vpn",      false)) return
+        if (!prefs.getBoolean("net_block_vpn",      true)) return
         if (!prefs.getBoolean("net_block_self_heal", false)) return
 
         // ── Session validity ────────────────────────────────────────────────────
@@ -126,14 +126,12 @@ class VpnWatchdogReceiver : BroadcastReceiver() {
                 untilMs <= 0L || now < untilMs
             }
         }
+        val alwaysOn = prefs.getBoolean("always_block_active", false)
 
-        // Also keep the watchdog alive when always-on VPN packages are configured.
-        // net_block_packages is persisted by NetworkBlockerVpnService.startVpn() and
-        // reflects the last active package list, so it serves as the always-on indicator.
-        val alwaysOnPkgs    = prefs.getString("net_block_packages", "[]") ?: "[]"
-        val hasAlwaysOnPkgs = try { org.json.JSONArray(alwaysOnPkgs).length() > 0 } catch (_: Exception) { false }
-        if (!focusActive && !saActive && !hasAlwaysOnPkgs) {
-            // No active session and no always-on packages — cancel the alarm
+        if (!focusActive && !saActive && !alwaysOn &&
+            !NetworkBlockerVpnService.hasPersistentVpnConfiguration(prefs)
+        ) {
+            // Session has ended — cancel the alarm so it stops firing
             cancel(context)
             return
         }
@@ -149,6 +147,7 @@ class VpnWatchdogReceiver : BroadcastReceiver() {
         try {
             if (VpnService.prepare(context) != null) {
                 prefs.edit().putBoolean("vpn_permission_lost", true).apply()
+                VpnRecoveryNotifier.postPermissionRequired(context)
                 return
             }
         } catch (_: Exception) { return }
@@ -171,8 +170,11 @@ class VpnWatchdogReceiver : BroadcastReceiver() {
             } else {
                 context.startService(vpnIntent)
             }
-        } catch (_: Exception) {
-            // Best-effort — the next alarm tick will try again
+        } catch (e: Exception) {
+            prefs.edit()
+                .putString("vpn_status", NetworkBlockerVpnService.STATUS_STARTUP_FAILED)
+                .putString("vpn_error", e.message ?: "Watchdog could not start VPN service")
+                .apply()
         }
     }
 }

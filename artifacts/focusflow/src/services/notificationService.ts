@@ -55,7 +55,7 @@ export async function setupNotificationChannels(): Promise<void> {
     name: 'Task Reminders',
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#6366f1',
+    lightColor: '#4F8EF7',
     sound: 'default',
   });
   // Morning digest channel — low-priority daily summary, no vibration.
@@ -71,22 +71,87 @@ export async function setupNotificationChannels(): Promise<void> {
     name: 'Weekly Report',
     importance: Notifications.AndroidImportance.DEFAULT,
     vibrationPattern: [0, 200],
-    lightColor: '#6366f1',
+    lightColor: '#4F8EF7',
     sound: 'default',
   });
 }
 
 // ─── Schedule reminders for a task ───────────────────────────────────────────
 
-export async function scheduleTaskReminders(task: Task): Promise<void> {
-  await cancelTaskReminders(task.id);
+// Android/Expo starts dropping scheduled notifications at roughly 500. Keep
+// headroom for digest/report notifications and OEM-specific reservations.
+const MAX_SCHEDULED_NOTIFICATIONS = 450;
 
-  const granted = await requestPermissions();
+type NotificationSlotBudget = { remaining: number };
+type ScheduleOptions = {
+  skipCancel?: boolean;
+  permissionsGranted?: boolean;
+  slotBudget?: NotificationSlotBudget;
+};
+
+let notificationWriteTail: Promise<void> = Promise.resolve();
+
+function enqueueNotificationWrite<T>(operation: () => Promise<T>): Promise<T> {
+  const next = notificationWriteTail.then(operation, operation);
+  notificationWriteTail = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  return next;
+}
+
+async function cancelTaskRemindersUnlocked(taskIds: string[]): Promise<void> {
+  const uniqueIds = [...new Set(taskIds.filter(Boolean))];
+  if (uniqueIds.length === 0) return;
+
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  const prefixes = uniqueIds.map((id) => `${id}-`);
+  const toCancel = scheduled.filter((n) =>
+    prefixes.some((prefix) => n.identifier.startsWith(prefix)),
+  );
+  await Promise.all(
+    toCancel.map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
+  );
+
+  if (Platform.OS === 'android') {
+    await Promise.all(uniqueIds.map((id) => TaskAlarmModule.cancelAlarm(id)));
+  }
+}
+
+async function scheduleTaskRemindersUnlocked(
+  task: Task,
+  options: ScheduleOptions = {},
+): Promise<void> {
+  if (!options.skipCancel) {
+    await cancelTaskRemindersUnlocked([task.id]);
+  }
+
+  // Completed, skipped, and overdue tasks are history. They must not consume
+  // notification slots or create an AlarmManager entry.
+  if (task.status === 'completed' || task.status === 'skipped' || task.status === 'overdue') {
+    return;
+  }
+
+  const granted = options.permissionsGranted ?? await requestPermissions();
   if (!granted) return;
+
+  if (!options.slotBudget) {
+    const alreadyScheduled = await Notifications.getAllScheduledNotificationsAsync();
+    options.slotBudget = {
+      remaining: Math.max(0, MAX_SCHEDULED_NOTIFICATIONS - alreadyScheduled.length),
+    };
+  }
 
   const now     = Date.now();
   const startMs = new Date(task.startTime).getTime();
   const endMs   = new Date(task.endTime).getTime();
+  const schedule = async (
+    request: Parameters<typeof Notifications.scheduleNotificationAsync>[0],
+  ): Promise<void> => {
+    if (options.slotBudget && options.slotBudget.remaining <= 0) return;
+    await Notifications.scheduleNotificationAsync(request);
+    if (options.slotBudget) options.slotBudget.remaining--;
+  };
 
   // Pre-start reminders
   const endLabel = formatTime(task.endTime);
@@ -104,7 +169,7 @@ export async function scheduleTaskReminders(task: Task): Promise<void> {
       continue;
     }
 
-    await Notifications.scheduleNotificationAsync({
+    await schedule({
       identifier: `${task.id}-pre${r.offsetMs}`,
       content: {
         title: `🎯 ${task.title}`,
@@ -139,7 +204,7 @@ export async function scheduleTaskReminders(task: Task): Promise<void> {
     if (fireAt >= endMs) continue;
     if (endMs - fireAt < MIN_HEADROOM_MS) continue;
 
-    await Notifications.scheduleNotificationAsync({
+    await schedule({
       identifier: `${task.id}-mid${r.offsetMs}`,
       content: {
         title: `🟢 ${task.title}`,
@@ -156,7 +221,7 @@ export async function scheduleTaskReminders(task: Task): Promise<void> {
   // T-1 minute warning before end
   const almostDone = endMs - 60_000;
   if (almostDone - now > 1000) {
-    await Notifications.scheduleNotificationAsync({
+    await schedule({
       identifier: `${task.id}-almost`,
       content: {
         title: `⏳ ${task.title} — 1 minute left`,
@@ -172,7 +237,7 @@ export async function scheduleTaskReminders(task: Task): Promise<void> {
 
   // End-time notification — also used as the OVERRUN_CHECK trigger by backgroundTasks.ts
   if (endMs - now > 1000) {
-    await Notifications.scheduleNotificationAsync({
+    await schedule({
       identifier: `${task.id}-end`,
       content: {
         title: `⏰ ${task.title} — Time's up!`,
@@ -196,30 +261,77 @@ export async function scheduleTaskReminders(task: Task): Promise<void> {
   // Schedule for endMs (and only when in the future — the native side will
   // post immediately if the trigger is in the past, which can happen if the
   // user reschedules a task after its end time).
-  if (Platform.OS === 'android') {
+  if (Platform.OS === 'android' && endMs > Date.now()) {
     void TaskAlarmModule.scheduleAlarm(task.id, task.title, endMs);
   }
 }
 
-// ─── Cancel helpers ───────────────────────────────────────────────────────────
-
-export async function cancelTaskReminders(taskId: string): Promise<void> {
-  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-  await Promise.all(
-    scheduled
-      .filter((n) => n.identifier.startsWith(taskId))
-      .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier))
-  );
-  // Cancel the AlarmManager registration too — without this, a task that the
-  // user completes early or deletes still fires its full-screen alarm at the
-  // original end time, which feels broken.
-  if (Platform.OS === 'android') {
-    void TaskAlarmModule.cancelAlarm(taskId);
-  }
+export function scheduleTaskReminders(task: Task): Promise<void> {
+  return enqueueNotificationWrite(() => scheduleTaskRemindersUnlocked(task));
 }
 
-export async function cancelAllReminders(): Promise<void> {
-  await Notifications.cancelAllScheduledNotificationsAsync();
+/**
+ * Cancel existing reminders once, then re-arm a group of tasks under one
+ * notification-capacity budget. Background recovery and schedule rebalancing
+ * use this instead of scanning the complete scheduled-notification list once
+ * per task.
+ */
+export function scheduleTaskRemindersBatch(tasks: Task[]): Promise<void> {
+  return enqueueNotificationWrite(async () => {
+    const uniqueTasks = [...new Map(tasks.map((task) => [task.id, task])).values()];
+    await cancelTaskRemindersUnlocked(uniqueTasks.map((task) => task.id));
+
+    const actionable = uniqueTasks.filter(
+      (task) =>
+        task.status !== 'completed' &&
+        task.status !== 'skipped' &&
+        task.status !== 'overdue',
+    );
+    if (actionable.length === 0) return;
+
+    const granted = await requestPermissions();
+    if (!granted) return;
+
+    const alreadyScheduled = await Notifications.getAllScheduledNotificationsAsync();
+    const slotBudget: NotificationSlotBudget = {
+      remaining: Math.max(0, MAX_SCHEDULED_NOTIFICATIONS - alreadyScheduled.length),
+    };
+
+    for (const task of actionable) {
+      await scheduleTaskRemindersUnlocked(task, {
+        skipCancel: true,
+        permissionsGranted: true,
+        slotBudget,
+      });
+    }
+  });
+}
+
+// ─── Cancel helpers ───────────────────────────────────────────────────────────
+
+export function cancelTaskReminders(taskId: string): Promise<void> {
+  return enqueueNotificationWrite(() => cancelTaskRemindersUnlocked([taskId]));
+}
+
+export function cancelTaskRemindersBatch(taskIds: string[]): Promise<void> {
+  return enqueueNotificationWrite(() => cancelTaskRemindersUnlocked(taskIds));
+}
+
+export function cancelAllReminders(): Promise<void> {
+  return enqueueNotificationWrite(async () => {
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    const taskIds = [
+      ...new Set(
+        scheduled
+          .map((notification) => notification.content.data?.taskId)
+          .filter((taskId): taskId is string => typeof taskId === 'string' && taskId.length > 0),
+      ),
+    ];
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    if (Platform.OS === 'android') {
+      await Promise.all(taskIds.map((taskId) => TaskAlarmModule.cancelAlarm(taskId)));
+    }
+  });
 }
 
 // ─── Persistent "in-progress" notification ───────────────────────────────────

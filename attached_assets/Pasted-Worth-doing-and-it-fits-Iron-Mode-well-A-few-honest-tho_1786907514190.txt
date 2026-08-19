@@ -1,0 +1,31 @@
+Worth doing, and it fits Iron Mode well. A few honest thoughts on where the value actually is and where the risk sits.
+
+**The moment that matters most**
+
+The title flip from "Layers active so far" to "Iron Mode activated" is the only animation that will actually land emotionally. If you animate nothing else, animate that. The individual row ticks are nice reinforcement but the title is the payoff moment — that's where the user feels the commitment click into place.
+
+**The real technical risk**
+
+The component already runs `checkAll()` on mount, on AppState change, and twice more with 2s and 4s delays when returning from settings. That means `statuses` can update 3-4 times in quick succession when a user comes back from granting a permission. If the animation is triggered by every `statuses` change, you get multiple overlapping sequences playing on top of each other.
+
+The fix is a `useRef` that tracks the previous statuses snapshot. On each update, compare old vs new, animate only the rows that flipped from not-granted to granted in that specific diff, then commit the new snapshot to the ref. This one constraint keeps the animation clean.
+
+**Initial display vs. mid-session grants**
+
+These need different treatment. When the card first appears and several permissions are already granted, stagger them all in sequence from the top down so the user sees the system being "read." When a user returns mid-session and grants one specific permission, only that row should animate — the rest are static. Trying to handle both with the same code path usually ends up looking wrong in one of the two cases.
+
+**The counter line**
+
+"1 of 5 layers active" updating in real time is actually more motivating than the ticks alone because it gives a numeric anchor. People finishing at "5 of 5" feels conclusive. This is cheap to add and I'd prioritise it over the row-by-row animation if you had to pick one.
+
+**Reduced motion**
+
+`AccessibilityInfo.isReduceMotionEnabled()` exists in React Native and should gate all of this. Skip durations to 0, not the animation calls themselves — that way the state logic stays identical and you don't introduce a separate code path.
+
+**What I'd cut**
+
+The card fade/slide-in on first appearance is the lowest-value part of the spec. Users don't notice a card sliding in — they notice checkmarks appearing. Skip the card entrance animation and spend the complexity budget on the title transition and the counter.
+
+**Overall**
+
+Do it but keep the scope tight: counter line, per-row checkmark scale-in only for newly granted permissions, title transition, reduced motion support. That's probably 60-80 lines of animation code and the risk is manageable as long as the prev-statuses ref approach is used. Don't let the card entrance animation or staggered initial display scope-creep this into a 200-line animation system.

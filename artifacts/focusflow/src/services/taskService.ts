@@ -29,7 +29,7 @@ export function createTask(data: {
     priority: data.priority ?? 'medium',
     tags: data.tags ?? [],
     reminders: [],
-    color: data.color ?? '#6366f1',
+    color: data.color ?? '#4F8EF7',
     focusMode: data.focusMode ?? false,
     focusAllowedPackages: data.focusAllowedPackages,
     createdAt: new Date().toISOString(),
@@ -168,7 +168,7 @@ export function getTodayTasks(tasks: Task[]): Task[] {
   return tasks
     .filter((t) => {
       const s = dayjs(t.startTime);
-      return s.isAfter(startOfDay) && s.isBefore(endOfDay);
+      return s.valueOf() >= startOfDay.valueOf() && s.valueOf() <= endOfDay.valueOf();
     })
     .sort((a, b) => dayjs(a.startTime).unix() - dayjs(b.startTime).unix());
 }

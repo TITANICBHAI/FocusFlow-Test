@@ -46,7 +46,7 @@ import org.json.JSONObject
  * ── Settings stored in SharedPrefs ("focusday_prefs") ────────────────────────
  *
  *   net_block_enabled   Boolean — master toggle (default false)
- *   net_block_vpn       Boolean — use VPN tunnel (recommended, default true)
+ *   net_block_vpn       Boolean — use VPN tunnel (mirrors net_block_enabled)
  *   net_block_wifi      Boolean — also try direct WiFi disable (default true)
  *   net_block_mobile    Boolean — also try mobile data disable (default false)
  *   net_block_global    Boolean — block ALL traffic vs only blocked app traffic (default false)
@@ -60,9 +60,10 @@ import org.json.JSONObject
  *   requestVpnPermission()            → Promise<null>   — shows system VPN dialog
  *   getNetworkBlockSettings()         → Promise<String>  — full settings JSON
  *   setNetworkBlockSettings(json)     → Promise<null>
- *   startNetworkBlock(packagesJson)   → Promise<null>   — activate VPN + WiFi block
+ *   startNetworkBlock(packagesJson)   → Promise<String> — activate VPN + WiFi block
  *   stopNetworkBlock()                → Promise<null>   — deactivate + restore
  *   isNetworkBlockActive()            → Promise<Boolean>
+ *   getNetworkBlockStatus()           → Promise<String> — status/error JSON
  *   tryDisableWifi()                  → Promise<null>   — direct WiFi action
  *   tryRestoreWifi()                  → Promise<null>   — re-enable WiFi
  */
@@ -71,6 +72,7 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
 
     companion object {
         private const val PREFS_NAME = "focusday_prefs"
+        private const val PREF_DEFENSE_PIN_HASH = "defense_pin_hash"
     }
 
     override fun getName(): String = "NetworkBlock"
@@ -136,7 +138,7 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
                 put("mobile",   prefs.getBoolean("net_block_mobile",  false))
                 put("global",   prefs.getBoolean("net_block_global",  false))
                 put("restore",  prefs.getBoolean("net_block_restore", true))
-                put("packages", org.json.JSONArray(prefs.getString("net_block_packages", "[]") ?: "[]"))
+                put("packages", prefs.getString("net_block_packages", "[]") ?: "[]")
             }
             promise.resolve(obj.toString())
         } catch (e: Exception) {
@@ -154,8 +156,41 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
     fun setNetworkBlockSettings(settingsJson: String, promise: Promise) {
         try {
             val obj = JSONObject(settingsJson)
+            val currentEnabled = prefs.getBoolean("net_block_enabled", false)
+            val currentVpn = prefs.getBoolean("net_block_vpn", true)
+            val requestedEnabled = if (obj.has("enabled")) obj.getBoolean("enabled") else currentEnabled
+            val requestedVpn = if (obj.has("vpn")) obj.getBoolean("vpn") else currentVpn
+
+            // The UI lock is only the first line of defence. Reject direct bridge
+            // attempts to disable VPN while a live Focus or Standalone block exists,
+            // and require the Defense Password for every other VPN disable.
+            if ((currentEnabled && !requestedEnabled) || (currentVpn && !requestedVpn)) {
+                if (isBlockingSessionActive()) {
+                    promise.reject(
+                        "ACTIVE_BLOCK",
+                        "Network blocking cannot be disabled while Focus or Standalone Block is active",
+                    )
+                    return
+                }
+                val storedDefenseHash = prefs.getString(PREF_DEFENSE_PIN_HASH, null)
+                val suppliedDefenseHash = obj.optString("defensePinHash", null)
+                if (!storedDefenseHash.isNullOrBlank() &&
+                    (suppliedDefenseHash.isNullOrBlank() ||
+                        !storedDefenseHash.equals(suppliedDefenseHash, ignoreCase = true))
+                ) {
+                    promise.reject("DEFENSE_PIN_REQUIRED", "A Defense Password is required to disable network blocking")
+                    return
+                }
+            }
+
             val editor = prefs.edit()
-            if (obj.has("enabled"))  editor.putBoolean("net_block_enabled", obj.getBoolean("enabled"))
+            if (obj.has("enabled")) {
+                val enabled = obj.getBoolean("enabled")
+                editor.putBoolean("net_block_enabled", enabled)
+                // Keep the legacy mechanism flag synchronized for old native
+                // callers and already-installed APKs.
+                if (!obj.has("vpn")) editor.putBoolean("net_block_vpn", enabled)
+            }
             if (obj.has("vpn"))      editor.putBoolean("net_block_vpn",     obj.getBoolean("vpn"))
             if (obj.has("wifi"))     editor.putBoolean("net_block_wifi",    obj.getBoolean("wifi"))
             if (obj.has("mobile"))   editor.putBoolean("net_block_mobile",  obj.getBoolean("mobile"))
@@ -169,21 +204,46 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
         }
     }
 
+    /**
+     * Returns the last native VPN health state. This is deliberately persisted
+     * because service startup is asynchronous and the React process may not be
+     * the process that established the tunnel.
+     */
+    @ReactMethod
+    fun getNetworkBlockStatus(promise: Promise) {
+        try {
+            val state = prefs.getString("vpn_status", NetworkBlockerVpnService.STATUS_STOPPED)
+                ?: NetworkBlockerVpnService.STATUS_STOPPED
+            val error = prefs.getString("vpn_error", null)
+            val failed = prefs.getString("vpn_failed_packages", "[]") ?: "[]"
+            val obj = JSONObject().apply {
+                put("state", state)
+                put("running", NetworkBlockerVpnService.isRunning)
+                put("error", error ?: JSONObject.NULL)
+                put("failedPackages", failed)
+            }
+            promise.resolve(obj.toString())
+        } catch (e: Exception) {
+            promise.reject("STATUS_ERROR", e.message, e)
+        }
+    }
+
     // ─── Active control ───────────────────────────────────────────────────────
 
     /**
      * Activates network blocking for [packagesJson] (JSON array of package names).
      * Combines all enabled mechanisms: VPN tunnel + direct WiFi disable.
      *
-     * If the master toggle (net_block_enabled) is false, this is a no-op.
-     * If VPN permission has not been granted, VPN block is skipped but WiFi
-     * actions are still attempted.
+     * If the master toggle is false, this returns "disabled".
+     * If VPN permission has not been granted, the call rejects with a typed
+     * error instead of claiming success. The UI can then ask the user to grant
+     * consent while the direct network fallbacks remain independent.
      */
     @ReactMethod
     fun startNetworkBlock(packagesJson: String, promise: Promise) {
         try {
             if (!prefs.getBoolean("net_block_enabled", false)) {
-                promise.resolve(null)
+                promise.resolve(NetworkBlockerVpnService.STATUS_DISABLED)
                 return
             }
 
@@ -193,19 +253,44 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
             val global    = prefs.getBoolean("net_block_global", false)
 
             // 1 — VPN tunnel (primary, most reliable)
+            if (useVpn) {
+                // The service and every watchdog path read this canonical list.
+                // Persist it before dispatching the asynchronous service start.
+                prefs.edit()
+                    .putString("net_block_packages", packagesJson)
+                    .putString("net_block_mode", if (global) NetworkBlockerVpnService.MODE_GLOBAL
+                                                 else NetworkBlockerVpnService.MODE_PER_APP)
+                    .apply()
+            }
             if (useVpn && !NetworkBlockerVpnService.isRunning) {
                 val vpnPermission = VpnService.prepare(reactContext)
-                if (vpnPermission == null) {   // permission already granted
-                    val mode = if (global) NetworkBlockerVpnService.MODE_GLOBAL
-                               else        NetworkBlockerVpnService.MODE_PER_APP
-                    val intent = Intent(reactContext, NetworkBlockerVpnService::class.java).apply {
-                        action = NetworkBlockerVpnService.ACTION_START
-                        putExtra(NetworkBlockerVpnService.EXTRA_PACKAGES, packagesJson)
-                        putExtra(NetworkBlockerVpnService.EXTRA_MODE, mode)
-                    }
-                    reactContext.startService(intent)
+                if (vpnPermission != null) {
+                    val conflict = isAnotherVpnActiveInternal()
+                    prefs.edit()
+                        .putBoolean("vpn_permission_lost", !conflict)
+                        .putString(
+                            "vpn_status",
+                            if (conflict) NetworkBlockerVpnService.STATUS_ANOTHER_VPN
+                            else NetworkBlockerVpnService.STATUS_PERMISSION_MISSING,
+                        )
+                        .apply()
+                    if (useWifi) tryDisableWifiInternal()
+                    if (useMobile) tryDisableMobileDataInternal()
+                    promise.reject(
+                        if (conflict) "ANOTHER_VPN_ACTIVE" else "VPN_PERMISSION_REQUIRED",
+                        if (conflict) "Another VPN is currently active"
+                        else "VPN permission must be granted before network blocking can start",
+                    )
+                    return
                 }
-                // If permission is not granted, skip VPN — WiFi/data actions may still fire
+                val mode = if (global) NetworkBlockerVpnService.MODE_GLOBAL
+                           else        NetworkBlockerVpnService.MODE_PER_APP
+                val intent = Intent(reactContext, NetworkBlockerVpnService::class.java).apply {
+                    action = NetworkBlockerVpnService.ACTION_START
+                    putExtra(NetworkBlockerVpnService.EXTRA_PACKAGES, packagesJson)
+                    putExtra(NetworkBlockerVpnService.EXTRA_MODE, mode)
+                }
+                startVpnService(intent)
             }
 
             // 2 — Direct WiFi disable (supplementary; works on Android 9-)
@@ -218,7 +303,7 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
                 tryDisableMobileDataInternal()
             }
 
-            promise.resolve(null)
+            promise.resolve(if (useVpn) NetworkBlockerVpnService.STATUS_STARTING else NetworkBlockerVpnService.STATUS_DISABLED)
         } catch (e: Exception) {
             promise.reject("NET_BLOCK_ERROR", e.message, e)
         }
@@ -228,29 +313,47 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
      * Deactivates all network-blocking mechanisms and restores connectivity
      * if the net_block_restore setting is true.
      *
-     * When a session PIN is configured, [pinHash] must be the correct SHA-256 hex
-     * digest of the PIN. A bare JS bridge call without the correct PIN will be
-     * rejected regardless of focus state.
+     * When a session PIN or Defense Password is configured, [pinHash] must be
+     * the correct SHA-256 hex digest of either configured credential. A bare JS
+     * bridge call without the correct credential will be rejected regardless of
+     * focus state.
      *
      * @param pinHash SHA-256 hex of the PIN, or null/empty if no PIN is configured
      */
     @ReactMethod
     fun stopNetworkBlock(pinHash: String?, promise: Promise) {
-        val storedHash = prefs.getString(
+        if (isBlockingSessionActive()) {
+            promise.reject(
+                "ACTIVE_BLOCK",
+                "Network blocking cannot be stopped while Focus or Standalone Block is active",
+            )
+            return
+        }
+        val storedSessionHash = prefs.getString(
             com.tbtechs.focusflow.modules.SessionPinModule.PREF_PIN_HASH, null
         )
-        if (!storedHash.isNullOrBlank()) {
-            if (pinHash.isNullOrBlank() ||
-                !storedHash.equals(pinHash.lowercase(), ignoreCase = true)) {
-                promise.reject("PIN_REQUIRED", "A session PIN is set — supply the correct PIN hash to stop network block")
-                return
-            }
+        val storedDefenseHash = prefs.getString(PREF_DEFENSE_PIN_HASH, null)
+        val suppliedHash = pinHash?.lowercase()
+        val matchesSessionPin = !storedSessionHash.isNullOrBlank() &&
+            !suppliedHash.isNullOrBlank() &&
+            storedSessionHash.equals(suppliedHash, ignoreCase = true)
+        val matchesDefensePin = !storedDefenseHash.isNullOrBlank() &&
+            !suppliedHash.isNullOrBlank() &&
+            storedDefenseHash.equals(suppliedHash, ignoreCase = true)
+        if ((!storedSessionHash.isNullOrBlank() || !storedDefenseHash.isNullOrBlank()) &&
+            !matchesSessionPin && !matchesDefensePin
+        ) {
+            promise.reject("PIN_REQUIRED", "A session PIN or Defense Password is required to stop network block")
+            return
         }
         try {
             val intent = Intent(reactContext, NetworkBlockerVpnService::class.java).apply {
                 action = NetworkBlockerVpnService.ACTION_STOP
             }
-            try { reactContext.startService(intent) } catch (_: Exception) {}
+            try { startVpnService(intent) } catch (e: Exception) {
+                promise.reject("NET_RESTORE_ERROR", e.message, e)
+                return
+            }
 
             val restore = prefs.getBoolean("net_block_restore", true)
             if (restore) {
@@ -289,27 +392,51 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
     @ReactMethod
     fun isAnotherVpnActive(promise: Promise) {
         try {
-            if (NetworkBlockerVpnService.isRunning) {
-                // Our own VPN is running — not a conflict
-                promise.resolve(false)
-                return
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val cm = reactContext.getSystemService(Context.CONNECTIVITY_SERVICE)
-                    as? ConnectivityManager
-                if (cm != null) {
-                    for (network in cm.allNetworks) {
-                        val caps = cm.getNetworkCapabilities(network) ?: continue
-                        if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
-                            promise.resolve(true)
-                            return
-                        }
-                    }
-                }
-            }
-            promise.resolve(false)
+            promise.resolve(isAnotherVpnActiveInternal())
         } catch (e: Exception) {
             promise.resolve(false)
+        }
+    }
+
+    private fun isAnotherVpnActiveInternal(): Boolean {
+        if (NetworkBlockerVpnService.isRunning) return false
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false
+        val cm = reactContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return false
+        return cm.allNetworks.any { network ->
+            cm.getNetworkCapabilities(network)
+                ?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+        }
+    }
+
+    /**
+     * Uses the same native state consumed by the AccessibilityService, including
+     * expiry timestamps, so a stale boolean cannot keep the VPN locked forever.
+     */
+    private fun isBlockingSessionActive(): Boolean {
+        val now = System.currentTimeMillis()
+        val focusActive = prefs.getBoolean("focus_active", false).let { active ->
+            if (!active) false
+            else {
+                val endMs = prefs.getLong("task_end_ms", 0L)
+                endMs <= 0L || now < endMs
+            }
+        }
+        val standaloneActive = prefs.getBoolean("standalone_block_active", false).let { active ->
+            if (!active) false
+            else {
+                val untilMs = prefs.getLong("standalone_block_until_ms", 0L)
+                untilMs <= 0L || now < untilMs
+            }
+        }
+        return focusActive || standaloneActive
+    }
+
+    private fun startVpnService(intent: Intent) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            reactContext.startForegroundService(intent)
+        } else {
+            reactContext.startService(intent)
         }
     }
 

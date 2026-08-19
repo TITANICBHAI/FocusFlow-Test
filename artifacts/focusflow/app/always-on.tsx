@@ -33,14 +33,9 @@ import { useTheme } from '@/hooks/useTheme';
 import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
 import { InstalledAppsModule, InstalledApp } from '@/native-modules/InstalledAppsModule';
 import { SharedPrefsModule } from '@/native-modules/SharedPrefsModule';
+import { NetworkBlockModule } from '@/native-modules/NetworkBlockModule';
 import { PinVerifyModal } from '@/components/PinVerifyModal';
-
-const SYSTEM_NEVER_BLOCK = new Set([
-  'com.android.dialer',
-  'com.google.android.dialer',
-  'com.samsung.android.dialer',
-  'com.whatsapp',
-]);
+import { SYSTEM_NEVER_BLOCK } from '@/services/protectedApps';
 
 export default function AlwaysOnScreen() {
   const insets = useSafeAreaInsets();
@@ -62,21 +57,14 @@ export default function AlwaysOnScreen() {
 
   // Track the original selection at mount time to detect removals
   const originalPkgsRef = useRef<Set<string>>(new Set(settings.alwaysOnPackages ?? []));
-  // Pending action to run after defense PIN is verified
-  const pendingPinAction = useRef<(() => void) | null>(null);
-
-  const withDefensePin = useCallback((action: () => void) => {
-    SharedPrefsModule.getString('defense_pin_hash')
-      .then((hash) => {
-        if (hash) {
-          pendingPinAction.current = action;
-          setPinVerifyVisible(true);
-        } else {
-          action();
-        }
-      })
-      .catch(() => action());
-  }, []);
+  const originalVpnPkgsRef = useRef<Set<string>>(new Set(settings.alwaysOnVpnPackages ?? []));
+  const blockProtectionActive =
+    state.focusSession?.isActive === true ||
+    (
+      !!settings.standaloneBlockUntil &&
+      (settings.standaloneBlockPackages ?? []).length > 0 &&
+      new Date(settings.standaloneBlockUntil).getTime() > Date.now()
+    );
 
   useEffect(() => {
     InstalledAppsModule.getInstalledApps()
@@ -122,16 +110,32 @@ export default function AlwaysOnScreen() {
     });
   }, []);
 
-  const doSave = useCallback(async () => {
+  const doSave = useCallback(async (defensePinHash: string | null = null) => {
     setSaving(true);
     try {
       const pkgs = Array.from(selected);
       const vpnPkgs = Array.from(vpnSelected);
+
+      // VPN consent may have been revoked while this picker was open. Do not
+      // save a new VPN list until Android confirms the grant again.
+      if (vpnPkgs.length > 0) {
+        const vpnGranted = await NetworkBlockModule.ensureVpnPermission();
+        if (!vpnGranted) {
+          Alert.alert(
+            'VPN permission required',
+            'Network blocking is selected, but Android VPN permission is not available. Grant it and tap Save again.',
+          );
+          return;
+        }
+      }
+
       await updateSettings({
         ...settings,
         alwaysOnPackages: pkgs,
         alwaysOnVpnPackages: vpnPkgs,
-      });
+        vpnBlockEnabled:
+          vpnPkgs.length > 0 || (settings.standaloneVpnPackages ?? []).length > 0,
+      }, { defensePinHash });
       router.back();
     } catch {
       Alert.alert('Save failed', 'Could not save the always-on list. Please try again.');
@@ -140,35 +144,52 @@ export default function AlwaysOnScreen() {
     }
   }, [selected, vpnSelected, settings, updateSettings]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    // Detect if any originally-present packages are being removed
     const originalPkgs = originalPkgsRef.current;
-    const isRemoving = [...originalPkgs].some((pkg) => !selected.has(pkg));
-    if (isRemoving) {
-      withDefensePin(() => void doSave());
+    const originalVpnPkgs = originalVpnPkgsRef.current;
+    const isRemoving =
+      [...originalPkgs].some((pkg) => !selected.has(pkg)) ||
+      [...originalVpnPkgs].some((pkg) => !vpnSelected.has(pkg));
+
+    if (isRemoving && blockProtectionActive) {
+      Alert.alert(
+        'Network block is locked',
+        'Always-on apps and VPN-blocked apps cannot be removed while Focus Mode or a Standalone Block is active.',
+      );
       return;
     }
-    void doSave();
+
+    if (isRemoving) {
+      try {
+        const hash = await SharedPrefsModule.getString('defense_pin_hash');
+        if (hash) {
+          setPinVerifyVisible(true);
+          return;
+        }
+      } catch {}
+    }
+
+    await doSave();
   };
 
   const handleClearAll = () => {
     if (selected.size === 0) return;
-    withDefensePin(() => {
-      Alert.alert(
-        'Clear all?',
-        'This removes all apps from the always-on enforcement list. They will no longer be blocked.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Clear all',
-            style: 'destructive',
-            onPress: () => {
-              setSelected(new Set());
-              setVpnSelected(new Set());
-            },
+    Alert.alert(
+      'Clear all?',
+      'This removes all apps from the always-on enforcement list. They will no longer be blocked.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear all',
+          style: 'destructive',
+          onPress: () => {
+            setSelected(new Set());
+            setVpnSelected(new Set());
           },
-        ]
-      );
-    });
+        },
+      ]
+    );
   };
 
   const renderItem = ({ item }: { item: InstalledApp }) => {
@@ -181,7 +202,7 @@ export default function AlwaysOnScreen() {
           style={[
             styles.appRow,
             { borderBottomColor: theme.border },
-            checked && { backgroundColor: COLORS.primary + '0D' },
+            checked && { backgroundColor: COLORS.primary + '14' },
           ]}
           onPress={() => toggle(item.packageName)}
           activeOpacity={0.7}
@@ -271,7 +292,7 @@ export default function AlwaysOnScreen() {
       </View>
 
       {/* Info banner */}
-      <View style={[styles.banner, { backgroundColor: COLORS.primary + '12', borderColor: COLORS.primary + '33' }]}>
+      <View style={[styles.banner, { backgroundColor: COLORS.primary + '14', borderColor: COLORS.primary + '2E' }]}>
         <Ionicons name="infinite-outline" size={16} color={COLORS.primary} />
         <Text style={[styles.bannerText, { color: theme.text }]}>
           These apps are blocked continuously — no session or timer needed. They stay blocked until you untick them here.
@@ -342,10 +363,9 @@ export default function AlwaysOnScreen() {
         pinType="defense"
         title="Defense Password Required"
         description="You are removing apps from the always-on block list. Enter your defense password to confirm."
-        onVerified={() => {
+        onVerified={(hash) => {
           setPinVerifyVisible(false);
-          pendingPinAction.current?.();
-          pendingPinAction.current = null;
+          void doSave(hash);
         }}
         onCancel={() => setPinVerifyVisible(false)}
       />

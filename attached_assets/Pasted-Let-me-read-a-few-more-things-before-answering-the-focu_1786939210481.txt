@@ -1,0 +1,31 @@
+Let me read a few more things before answering — the focus tab and Pomodoro hook specifically:Now I have what I need. Here's the full picture.
+
+---
+
+**Serious fixes first — things that are broken right now**
+
+The biggest one nobody has mentioned: **Pomodoro breaks don't unblock apps.** `usePomodoro` is completely disconnected from the blocking layer. It tracks time, sends a notification, and vibrates — that's it. During a break phase, every app is still blocked. The user gets a "☕ Break Time" notification and then can't open anything. The fix requires `usePomodoro` (or the focus tab) to call `SharedPrefsModule.setFocusActive(false)` when a break starts, write the break end time, and re-enable blocking when work resumes. This also means updating the ForegroundTaskService notification to show break vs. work state.
+
+The other broken thing: **`TASK_ENDED` from native fires into the void when the focus tab isn't mounted.** The event logs a message and nothing else happens. If the user is on the Stats tab when their task ends, the focus screen never transitions to the "Time's up — what next?" state. The fix is making `TASK_ENDED` trigger a navigation call or at minimum update a piece of shared state that the focus screen reads on mount.
+
+---
+
+**What's genuinely missing and worth adding**
+
+**Recurring tasks.** This is the biggest gap in the schedule system. `RecurringBlockSchedule` exists for blocking, but `Task` has no recurrence field and the database has no recurrence columns. Any user who tries to make this a daily habit has to manually recreate their task list every morning. The implementation scope: add `recurrence?: { type: 'daily' | 'weekdays' | 'weekly'; days?: number[] }` to the `Task` type, add a DB column, and add a morning job (the background fetch already runs) that generates today's instances from recurring templates. Don't make it complex — daily and weekdays covers 90% of use cases.
+
+**Session buffer / transition time.** When a task completes early and `keepFocusActiveUntilTaskEnd = false`, focus stops immediately. If the next focus task starts in 8 minutes, the user has an 8-minute window with no blocking and no context. You should offer a deliberate transition: a 5-minute "cooldown" where blocking stays off and the focus screen shows "Next: [task name] in 8 minutes." This makes the gap intentional rather than accidental.
+
+**Pomodoro break control needs to surface blocked apps temporarily.** Related to the first fix — when break starts, instead of unblocking everything, the cleaner UX is an explicit "take a break" button that unlocks for the break duration. The Pomodoro hook fires the notification, the user taps it, gets a countdown showing when blocking resumes. This is better than automatic unblocking because the user consciously decides to use break time.
+
+**Post-session check-in.** After completing a task, a single-question prompt: "How was your focus?" with a 3-point scale. Store it as a `quality` integer on `focus_sessions`. This makes the stats tab genuinely useful — right now it shows session count and total minutes but nothing about session quality. One field, one prompt, meaningful data.
+
+**Surface `analyzeScheduleHealth`.** The function is built — overlaps, gaps, overloaded hours — but nothing renders it. A subtle indicator on the schedule view ("3 overlapping tasks" or "Schedule looks clean ✓") costs almost nothing to build and uses what's already there.
+
+---
+
+**What not to add**
+
+Not more blocking mechanisms. Not more notification types. Not chronotype-based auto-scheduling (too speculative, the data you'd need doesn't exist yet). Not task dependencies or time-boxing beyond what's already there.
+
+The schedule and focus mode need to be finished and reliable before they get more surface area. The priority order is: fix Pomodoro breaks → fix TASK_ENDED handler → add recurring tasks → session buffer → check-in → surface schedule health. That's probably 3-4 weeks of focused work and it makes the core loop — schedule a task, start a session, actually focus, complete it, come back tomorrow — actually work end to end.

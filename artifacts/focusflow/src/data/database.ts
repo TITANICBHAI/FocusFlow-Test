@@ -17,6 +17,14 @@ const RECOVERY_DB_NAME = 'focusday_recovery.db';
 let _openingPromise: Promise<SQLite.SQLiteDatabase | null> | null = null;
 
 /**
+ * SQLite reads can safely overlap, but writes against the same Expo SQLite
+ * handle must be serialized. Without this queue, a burst of task inserts or
+ * schedule updates can race transactions and surface SQLITE_BUSY / "database
+ * is locked" errors even though database opening itself is single-flight.
+ */
+let _writeTail: Promise<void> = Promise.resolve();
+
+/**
  * Latched after all three open attempts (primary × 2 + recovery) have failed.
  * Once true, getDb() returns null immediately instead of re-entering the
  * 3-attempt cycle — preventing the cascade of repeated DB_UNRECOVERABLE
@@ -42,6 +50,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   pomodoroBreak: 5,
   notificationsEnabled: true,
   privacyAccepted: false,
+  protectionMode: 'standard',
   standaloneBlockPackages: [],
   standaloneBlockUntil: null,
   alwaysOnPackages: [],
@@ -65,7 +74,6 @@ const DEFAULT_SETTINGS: AppSettings = {
   alwaysOnEnforcementEnabled: false,
   lastShownStreakMilestone: 0,
   vpnBlockEnabled: false,
-  vpnSelfHealEnabled: true,
   standaloneVpnPackages: [],
   launcherEnabled: false,
   launcherHiddenPackages: [],
@@ -121,6 +129,17 @@ async function openAndInit(name: string = PRIMARY_DB_NAME): Promise<SQLite.SQLit
 // database (which also re-runs `initSchema`), and retries the operation once.
 
 type DbOp<T> = (db: SQLite.SQLiteDatabase) => Promise<T>;
+
+type DbWriteOp<T> = () => Promise<T>;
+
+function runSerializedWrite<T>(op: DbWriteOp<T>): Promise<T> {
+  const next = _writeTail.then(op, op);
+  _writeTail = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  return next;
+}
 
 function isDeadHandleError(e: unknown): boolean {
   const m = String((e as { message?: string } | null | undefined)?.message ?? e);
@@ -187,6 +206,15 @@ async function runWithDb<T>(opName: string, op: DbOp<T>): Promise<T> {
 }
 
 /**
+ * Run a database mutation after all earlier mutations have settled. Keeping
+ * the existing dead-handle retry inside the queue prevents a recovery retry
+ * from racing the next write against a freshly reopened handle.
+ */
+function runWithDbWrite<T>(opName: string, op: DbOp<T>): Promise<T> {
+  return runSerializedWrite(() => runWithDb(opName, op));
+}
+
+/**
  * Same as `runWithDb` but returns a fallback value instead of throwing —
  * for read-only callers that prefer to render an empty state on failure.
  */
@@ -236,6 +264,7 @@ export async function getDb(): Promise<SQLite.SQLiteDatabase | null> {
     try {
       db = await openAndInit(PRIMARY_DB_NAME);
       void logger.debug('database', `getDb: primary opened OK in ${Date.now() - t0}ms`);
+      void SQLite.deleteDatabaseAsync(RECOVERY_DB_NAME).catch(() => {});
       return db;
     } catch (firstErr) {
       const ms1 = Date.now() - t0;
@@ -272,6 +301,7 @@ export async function getDb(): Promise<SQLite.SQLiteDatabase | null> {
       try {
         db = await openAndInit(PRIMARY_DB_NAME);
         void logger.debug('database', `getDb: primary opened OK on attempt 2 in ${Date.now() - t0}ms total`);
+        void SQLite.deleteDatabaseAsync(RECOVERY_DB_NAME).catch(() => {});
         return db;
       } catch (secondErr) {
         const ms2 = Date.now() - t0;
@@ -368,6 +398,20 @@ export async function logDbDiagnostics(): Promise<void> {
 }
 
 async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
+  // Enable referential-integrity checks for any foreign keys defined by the
+  // schema. This is connection-scoped and safe for the existing schema, which
+  // currently has no foreign-key constraints.
+  await db.runAsync('PRAGMA foreign_keys = ON');
+
+  // Give short-lived native contention time to clear. The JS write queue
+  // handles app-level concurrency; this also protects against a brief writer
+  // outside the queue, such as an OS/background lifecycle interaction.
+  try {
+    await db.runAsync('PRAGMA busy_timeout = 5000');
+  } catch {
+    // Best-effort; the serialized write queue remains the primary safeguard.
+  }
+
   // ── WAL mode ────────────────────────────────────────────────────────────────
   // Best-effort: some Android filesystems (certain OEM /data partitions) reject
   // WAL mode and throw NullPointerException inside execAsync. If it fails we
@@ -395,7 +439,7 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
       priority TEXT NOT NULL DEFAULT 'medium',
       tags TEXT NOT NULL DEFAULT '[]',
       reminders TEXT NOT NULL DEFAULT '[]',
-      color TEXT NOT NULL DEFAULT '#6366f1',
+      color TEXT NOT NULL DEFAULT '#4F8EF7',
       focus_mode INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
@@ -451,6 +495,9 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
   await db.runAsync('CREATE INDEX IF NOT EXISTS idx_tasks_start_time ON tasks(start_time)');
   await db.runAsync('CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)');
   await db.runAsync('CREATE INDEX IF NOT EXISTS idx_tasks_status_end ON tasks(status, end_time)');
+  await db.runAsync('CREATE INDEX IF NOT EXISTS idx_focus_sessions_task_active ON focus_sessions(task_id, is_active)');
+  await db.runAsync('CREATE INDEX IF NOT EXISTS idx_focus_sessions_started_at ON focus_sessions(started_at)');
+  await db.runAsync('CREATE INDEX IF NOT EXISTS idx_focus_overrides_overridden_at ON focus_overrides(overridden_at)');
 }
 
 // ─── Tasks ────────────────────────────────────────────────────────────────────
@@ -527,8 +574,8 @@ export async function dbGetTasksForDate(dateISO: string): Promise<Task[]> {
 }
 
 export async function dbInsertTask(task: Task): Promise<void> {
-  return runWithDb('dbInsertTask', (database) => database.runAsync(
-    `INSERT INTO tasks (id, title, description, start_time, end_time, duration_minutes, status, priority, tags, reminders, color, focus_mode, focus_allowed_packages, created_at, updated_at)
+  return runWithDbWrite('dbInsertTask', (database) => database.runAsync(
+    `INSERT OR IGNORE INTO tasks (id, title, description, start_time, end_time, duration_minutes, status, priority, tags, reminders, color, focus_mode, focus_allowed_packages, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       task.id,
@@ -551,7 +598,7 @@ export async function dbInsertTask(task: Task): Promise<void> {
 }
 
 export async function dbUpdateTask(task: Task): Promise<void> {
-  return runWithDb('dbUpdateTask', (database) => database.runAsync(
+  return runWithDbWrite('dbUpdateTask', (database) => database.runAsync(
     `UPDATE tasks SET title=?, description=?, start_time=?, end_time=?, duration_minutes=?, status=?, priority=?, tags=?, reminders=?, color=?, focus_mode=?, focus_allowed_packages=?, updated_at=? WHERE id=?`,
     [
       task.title,
@@ -579,7 +626,7 @@ export async function dbUpdateTask(task: Task): Promise<void> {
  */
 export async function dbUpdateTasksBatch(tasks: Task[]): Promise<void> {
   if (tasks.length === 0) return;
-  return runWithDb('dbUpdateTasksBatch', async (database) => {
+  return runWithDbWrite('dbUpdateTasksBatch', async (database) => {
     await database.withTransactionAsync(async () => {
       for (const task of tasks) {
         await database.runAsync(
@@ -607,7 +654,7 @@ export async function dbUpdateTasksBatch(tasks: Task[]): Promise<void> {
 }
 
 export async function dbDeleteTask(taskId: string): Promise<void> {
-  return runWithDb('dbDeleteTask', (database) =>
+  return runWithDbWrite('dbDeleteTask', (database) =>
     database.runAsync('DELETE FROM tasks WHERE id = ?', [taskId]).then(() => undefined),
   );
 }
@@ -629,12 +676,8 @@ function rowToTask(row: Record<string, unknown>): Task {
     startTime: row.start_time as string,
     endTime: row.end_time as string,
     durationMinutes: row.duration_minutes as number,
-    status: (['scheduled', 'active', 'completed', 'skipped', 'overdue'].includes(row.status as string)
-      ? row.status as Task['status']
-      : 'scheduled'),
-    priority: (['low', 'medium', 'high', 'critical'].includes(row.priority as string)
-      ? row.priority as Task['priority']
-      : 'medium'),
+    status: row.status as Task['status'],
+    priority: row.priority as Task['priority'],
     // Individual try/catch via safeJsonParse — a single malformed row
     // no longer throws through the whole rows.map() and wipes today's tasks.
     tags: safeJsonParse<string[]>(row.tags, []),
@@ -668,10 +711,6 @@ export async function dbGetSettings(): Promise<AppSettings> {
           intervalHours: 1,
         }));
         delete parsed.dailyAllowancePackages;
-        await database.runAsync(
-          `INSERT OR REPLACE INTO settings (key, value) VALUES ('app_settings', ?)`,
-          [JSON.stringify({ ...DEFAULT_SETTINGS, ...parsed })],
-        );
       }
       return { ...DEFAULT_SETTINGS, ...parsed };
     } catch {
@@ -681,7 +720,7 @@ export async function dbGetSettings(): Promise<AppSettings> {
 }
 
 export async function dbSaveSettings(settings: AppSettings): Promise<void> {
-  return runWithDb('dbSaveSettings', (database) => database.runAsync(
+  return runWithDbWrite('dbSaveSettings', (database) => database.runAsync(
     `INSERT OR REPLACE INTO settings (key, value) VALUES ('app_settings', ?)`,
     [JSON.stringify(settings)],
   ).then(() => undefined));
@@ -690,14 +729,14 @@ export async function dbSaveSettings(settings: AppSettings): Promise<void> {
 // ─── Focus Sessions ──────────────────────────────────────────────────────────
 
 export async function dbStartFocusSession(session: FocusSession): Promise<void> {
-  return runWithDb('dbStartFocusSession', (database) => database.runAsync(
+  return runWithDbWrite('dbStartFocusSession', (database) => database.runAsync(
     `INSERT INTO focus_sessions (task_id, started_at, is_active, allowed_packages) VALUES (?, ?, 1, ?)`,
     [session.taskId, session.startedAt, JSON.stringify(session.allowedPackages)],
   ).then(() => undefined));
 }
 
 export async function dbEndFocusSession(taskId: string): Promise<void> {
-  return runWithDb('dbEndFocusSession', (database) => database.runAsync(
+  return runWithDbWrite('dbEndFocusSession', (database) => database.runAsync(
     `UPDATE focus_sessions SET is_active = 0, ended_at = ? WHERE task_id = ? AND is_active = 1`,
     [new Date().toISOString(), taskId],
   ).then(() => undefined));
@@ -741,7 +780,7 @@ export async function dbGetTodayFocusMinutes(): Promise<number> {
 
 export async function dbLogFocusOverride(taskId: string, appName: string, reason?: string): Promise<void> {
   try {
-    await runWithDb('dbLogFocusOverride', (database) => database.runAsync(
+    await runWithDbWrite('dbLogFocusOverride', (database) => database.runAsync(
       `INSERT INTO focus_overrides (task_id, app_name, overridden_at, reason) VALUES (?, ?, ?, ?)`,
       [taskId, appName, new Date().toISOString(), reason ?? null],
     ).then(() => undefined));
@@ -762,11 +801,23 @@ export async function dbGetTodayOverrideCount(): Promise<number> {
   });
 }
 
+export async function dbGetOverrideCountInRange(startISO: string, endISO: string): Promise<number> {
+  return runWithDbOr('dbGetOverrideCountInRange', 0, async (database) => {
+    const row = await database.getFirstAsync<{ count: number }>(
+      `SELECT COUNT(*) as count
+       FROM focus_overrides
+       WHERE overridden_at >= ? AND overridden_at <= ?`,
+      [startISO, endISO],
+    );
+    return row?.count ?? 0;
+  });
+}
+
 // ─── Daily Streak ─────────────────────────────────────────────────────────────
 
 export async function dbRecordDayCompletion(completed: number, total: number): Promise<void> {
   try {
-    await runWithDb('dbRecordDayCompletion', (database) => {
+    await runWithDbWrite('dbRecordDayCompletion', (database) => {
       const date = localDateString(new Date());
       return database.runAsync(
         `INSERT OR REPLACE INTO daily_completions (date, completed, total) VALUES (?, ?, ?)`,
@@ -787,7 +838,7 @@ export async function dbRecordDayCompletion(completed: number, total: number): P
  */
 export async function dbBackfillDayCompletions(daysBack: number = 30): Promise<void> {
   try {
-    await runWithDb('dbBackfillDayCompletions', async (database) => {
+    await runWithDbWrite('dbBackfillDayCompletions', async (database) => {
       const cutoff = new Date();
       cutoff.setHours(0, 0, 0, 0);
       cutoff.setDate(cutoff.getDate() - daysBack + 1);
@@ -878,7 +929,7 @@ export async function dbGetStreak(): Promise<number> {
 
 export async function dbCheckpointWal(): Promise<void> {
   try {
-    await runWithDb('dbCheckpointWal', async (database) => {
+    await runWithDbWrite('dbCheckpointWal', async (database) => {
       await database.execAsync('PRAGMA wal_checkpoint(FULL);');
     });
   } catch (e) {
@@ -937,34 +988,36 @@ export async function dbGetAllTimeFocusSessions(): Promise<number> {
  * Non-fatal — errors are silently swallowed by the caller.
  */
 export async function dbPruneOldData(daysToKeep = 90): Promise<void> {
-  return runWithDbOr('dbPruneOldData', undefined, async (database) => {
-    // Focus sessions and daily completion rows are compact — keep 90 days.
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - daysToKeep);
-    const cutoffIso  = cutoff.toISOString();
-    const cutoffDate = cutoffIso.slice(0, 10);
-    await database.runAsync(
-      `DELETE FROM focus_sessions WHERE is_active = 0 AND ended_at IS NOT NULL AND ended_at < ?`,
-      [cutoffIso],
-    );
-    await database.runAsync(
-      `DELETE FROM daily_completions WHERE date < ?`,
-      [cutoffDate],
-    );
-    // Tasks are kept for a full year so the "All Time" task log stays meaningful.
-    // Each row is small (~500 bytes), so 365 days of tasks is well under 10 MB.
-    const taskCutoff = new Date();
-    taskCutoff.setDate(taskCutoff.getDate() - 365);
-    await database.runAsync(
-      `DELETE FROM tasks WHERE status IN ('completed', 'skipped') AND end_time < ?`,
-      [taskCutoff.toISOString()],
-    );
-  });
+  return runSerializedWrite(() =>
+    runWithDbOr('dbPruneOldData', undefined, async (database) => {
+      // Focus sessions and daily completion rows are compact — keep 90 days.
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - daysToKeep);
+      const cutoffIso  = cutoff.toISOString();
+      const cutoffDate = cutoffIso.slice(0, 10);
+      await database.runAsync(
+        `DELETE FROM focus_sessions WHERE is_active = 0 AND ended_at IS NOT NULL AND ended_at < ?`,
+        [cutoffIso],
+      );
+      await database.runAsync(
+        `DELETE FROM daily_completions WHERE date < ?`,
+        [cutoffDate],
+      );
+      // Tasks are kept for a full year so the "All Time" task log stays meaningful.
+      // Each row is small (~500 bytes), so 365 days of tasks is well under 10 MB.
+      const taskCutoff = new Date();
+      taskCutoff.setDate(taskCutoff.getDate() - 365);
+      await database.runAsync(
+        `DELETE FROM tasks WHERE status IN ('completed', 'skipped') AND end_time < ?`,
+        [taskCutoff.toISOString()],
+      );
+    }),
+  );
 }
 
 /** Deletes every task row in one shot. Used by "Clear All Tasks" in Settings. */
 export async function dbDeleteAllTasks(): Promise<void> {
-  return runWithDb('dbDeleteAllTasks', (database) =>
+  return runWithDbWrite('dbDeleteAllTasks', (database) =>
     database.runAsync('DELETE FROM tasks').then(() => undefined),
   );
 }

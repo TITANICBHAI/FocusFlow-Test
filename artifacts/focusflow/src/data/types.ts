@@ -69,14 +69,7 @@ export interface GreyoutWindow {
   endMin: number;
   days: number[]; // Calendar.DAY_OF_WEEK: 1=Sun 2=Mon 3=Tue 4=Wed 5=Thu 6=Fri 7=Sat
   scheduleId?: string; // if set, this window was auto-generated from a RecurringBlockSchedule
-  /** Optional human-readable name for this window (e.g. "Morning Focus"). */
-  name?: string;
-  /**
-   * Whether this window is currently active. Defaults to true when absent —
-   * existing windows without this field are treated as enabled.
-   * Toggling this pauses the window without deleting it.
-   */
-  enabled?: boolean;
+  scheduleName?: string; // display name copied from the recurring/group schedule
 }
 
 /**
@@ -154,6 +147,8 @@ export interface AppSettings {
   notificationsEnabled: boolean;
   onboardingComplete: boolean;
   privacyAccepted: boolean;
+  /** First-run enforcement preference. Iron Mode adds the stronger optional layers. */
+  protectionMode?: 'standard' | 'iron';
   // Standalone app blocking — independent of any task
   standaloneBlockPackages: string[]; // packages to always block regardless of task state
   standaloneBlockUntil: string | null; // ISO timestamp when the standalone block expires
@@ -182,6 +177,12 @@ export interface AppSettings {
    */
   autoCopyToAlwaysOn?: boolean;
   /**
+   * Internal bookkeeping for the existing auto-copy setting. These packages
+   * were added to Always-On by a timed block and may be removed on expiry;
+   * explicitly added Always-On packages are never removed automatically.
+   */
+  autoCopiedAlwaysOnPackages?: string[];
+  /**
    * Highest streak milestone (in days) the user has already been congratulated
    * for. Used to detect new milestones (3, 7, 14, 30, 60, 90, 180, 365) and
    * trigger a one-time celebration modal on the next app open.
@@ -200,8 +201,8 @@ export interface AppSettings {
   //   time_budget: allowed N total minutes per day (resets midnight)
   //   interval:    allowed N minutes every X hours (rolling window)
   dailyAllowanceEntries: DailyAllowanceEntry[];
-  // Word blocking: if any of these words appear on screen during an active blocking session
-  // (task focus or standalone block), the user is immediately redirected to home.
+  // Word blocking: if any of these words appear on screen, the user is
+  // redirected home. This is independent of app lists and timed sessions.
   blockedWords: string[];
   // Aversion deterrents — each applied the instant a blocked app is detected
   aversionDimmerEnabled: boolean;   // near-black WindowManager overlay (dark screen)
@@ -263,14 +264,8 @@ export interface AppSettings {
   userProfile?: UserProfile;
 
   /**
-   * User-selected UI language. When null/undefined, the device locale is used.
-   * Stored as an i18n language code: 'en' | 'zh' | 'fr' | 'de' | 'ja' | 'ko' | 'es'
-   */
-  language?: string;
-
-  /**
-   * Beginner mode hides advanced surfaces (Custom Node Rules, Recurring
-   * Schedules, Aversion Deterrents, Custom Wallpaper). Default true so new
+   * Beginner mode hides advanced surfaces (Recurring Schedules, Aversion
+   * Deterrents, Custom Wallpaper). Default true so new
    * users land in the friendlier UI.
    */
   beginnerMode?: boolean;
@@ -288,31 +283,6 @@ export interface AppSettings {
    * to commit or drop the preset. Cleared per-category once applied/dismissed.
    */
   pendingPresets?: PendingPresets;
-}
-
-/**
- * A custom node-blocking rule derived from NodeSpy captures or compatible
- * JSON exports. The AccessibilityService uses these to detect and intercept
- * specific UI nodes (e.g. addictive feed elements) inside a target app.
- */
-export interface CustomNodeRule {
-  id: string;
-  label: string;
-  pkg: string;
-  matchResId?: string;
-  matchText?: string;
-  matchCls?: string;
-  /** 'overlay' = show block overlay, 'home' = go home immediately */
-  action: 'overlay' | 'home';
-  enabled: boolean;
-  importedAt: string;
-  confidence?: number;
-  qualityTier?: 'strong' | 'medium' | 'weak';
-  selectorType?: string;
-  stability?: number;
-  warnings?: string[];
-  captureTimestamp?: number;
-  sourceName?: string;
 }
 
 /** Preset payload from a `.focusflow` import that has not been applied yet. */

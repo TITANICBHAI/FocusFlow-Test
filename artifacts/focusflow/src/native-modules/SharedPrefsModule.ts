@@ -10,7 +10,7 @@
  */
 
 import { NativeModules, Platform } from 'react-native';
-import type { AppSettings, DailyAllowanceEntry } from '@/data/types';
+import type { DailyAllowanceEntry } from '@/data/types';
 import { logger } from '@/services/startupLogger';
 
 const SharedPrefs = Platform.OS === 'android' ? NativeModules.SharedPrefs : null;
@@ -49,6 +49,30 @@ export const SharedPrefsModule = {
     await callNative('setFocusActive', () => SharedPrefs.setFocusActive(active, pinHash));
   },
 
+  /**
+   * Temporarily pauses focus blocking for an intentional Pomodoro break.
+   * Unlike setFocusActive(false), this path is not a session-ending action and
+   * therefore never requires the session PIN.
+   */
+  async setFocusBreak(active: boolean, untilMs: number): Promise<void> {
+    if (!hasSharedPrefsMethod('setFocusBreak')) return;
+    await callNative('setFocusBreak', () => SharedPrefs.setFocusBreak(active, untilMs));
+  },
+
+  async clearFocusBreak(): Promise<void> {
+    if (!hasSharedPrefsMethod('clearFocusBreak')) return;
+    await callNative('clearFocusBreak', () => SharedPrefs.clearFocusBreak());
+  },
+
+  async getFocusBreakUntilMs(): Promise<number> {
+    if (!hasSharedPrefsMethod('getFocusBreakUntilMs')) return 0;
+    const result = await callNative(
+      'getFocusBreakUntilMs',
+      () => SharedPrefs.getFocusBreakUntilMs() as Promise<number>,
+    );
+    return Number(result ?? 0);
+  },
+
   async setAllowedPackages(packages: string[]): Promise<void> {
     if (!hasSharedPrefsMethod('setAllowedPackages')) return;
     await callNative('setAllowedPackages', () => SharedPrefs.setAllowedPackages(packages));
@@ -60,7 +84,7 @@ export const SharedPrefsModule = {
   },
 
   /**
-   * Writes the active task's accent color (hex string, e.g. "#6366f1") so the
+   * Writes the active task's accent color (hex string, e.g. "#4F8EF7") so the
    * widget can tint its header / sub-line. Pass an empty string to clear.
    * Triggers a widget redraw on the native side.
    */
@@ -279,67 +303,6 @@ export const SharedPrefsModule = {
   async setLauncherClockStyle(style: 'digital' | 'analog'): Promise<void> {
     if (!hasSharedPrefsMethod('setLauncherClockStyle')) return;
     await callNative('setLauncherClockStyle', () => SharedPrefs.setLauncherClockStyle(style));
-  },
-
-  /**
-   * Reads all Group-A (Kotlin-critical) enforcement settings from SharedPreferences
-   * in a single bridge call and returns them as a typed partial AppSettings.
-   *
-   * Called once at the very start of AppContext.init() — before the SQLite DB read —
-   * so the native-sync functions in init() work with real persisted values even when
-   * the DB is slow or unavailable.  If the bridge is missing or the call fails, an
-   * empty object is returned so cold start is never blocked.
-   *
-   * Array fields arrive as JSON strings from the Kotlin side and are parsed here.
-   * On DB load, the DB result is merged on top (DB wins) to get the authoritative values.
-   */
-  async getAllEnforcementSettings(): Promise<Partial<AppSettings>> {
-    if (!hasSharedPrefsMethod('getAllEnforcementSettings')) return {};
-    const json = await callNative('getAllEnforcementSettings', () =>
-      SharedPrefs.getAllEnforcementSettings() as Promise<string>,
-    );
-    if (!json) return {};
-    try {
-      const raw = JSON.parse(json) as Record<string, unknown>;
-      const parseArr = (v: unknown): string[] => {
-        try {
-          const parsed = JSON.parse(v as string);
-          return Array.isArray(parsed) ? (parsed as string[]) : [];
-        } catch { return []; }
-      };
-      const partial: Partial<AppSettings> = {
-        // Standalone block
-        standaloneBlockPackages: parseArr(raw.standaloneBlockPackages),
-        standaloneBlockUntil: (() => {
-          const ms = Number(raw.standaloneBlockUntilMs ?? 0);
-          return ms > 0 ? new Date(ms).toISOString() : null;
-        })(),
-        // Always-on enforcement
-        alwaysOnEnforcementEnabled: Boolean(raw.alwaysOnEnforcementEnabled),
-        alwaysOnPackages: parseArr(raw.alwaysOnPackages),
-        // Daily allowance
-        dailyAllowanceEntries: parseArr(raw.dailyAllowanceEntries) as DailyAllowanceEntry[],
-        // Blocked words
-        blockedWords: parseArr(raw.blockedWords),
-        // System-guard booleans
-        systemGuardEnabled: Boolean(raw.systemGuardEnabled),
-        blockInstallActionsEnabled: Boolean(raw.blockInstallActionsEnabled),
-        blockYoutubeShortsEnabled: Boolean(raw.blockYoutubeShortsEnabled),
-        blockInstagramReelsEnabled: Boolean(raw.blockInstagramReelsEnabled),
-        // VPN / network block
-        vpnBlockEnabled: Boolean(raw.vpnBlockEnabled),
-        standaloneVpnPackages: parseArr(raw.standaloneVpnPackages),
-        // Launcher settings
-        launcherBlockUninstall: Boolean(raw.launcherBlockUninstall),
-        launcherLockDuringStandalone: Boolean(raw.launcherLockDuringStandalone),
-        launcherHiddenPackages: parseArr(raw.launcherHiddenPackages),
-        launcherDockPackages: parseArr(raw.launcherDockPackages),
-        launcherClockStyle: raw.launcherClockStyle === 'analog' ? 'analog' : 'digital',
-      };
-      return partial;
-    } catch {
-      return {};
-    }
   },
 
   /**

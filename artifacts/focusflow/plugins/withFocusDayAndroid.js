@@ -8,14 +8,14 @@
  *   4. Declares AppBlockerAccessibilityService
  *   5. Declares BootReceiver
  *   6. Declares DeviceAdminReceiver (FocusDayDeviceAdminReceiver)
- *   7. Declares VpnWatchdogReceiver (AlarmManager watchdog for VPN service)
- *   8. Declares TemptationReportReceiver (weekly Sunday 08:00 report alarm)
- *   9. Declares NotificationActionReceiver with COMPLETE / EXTEND / SKIP intent-filters
- *  10. Declares FocusFlowWidget (AppWidgetProvider) with APPWIDGET_UPDATE intent-filter
- *  11. Declares BlockOverlayActivity (full-screen block fallback, showWhenLocked + turnScreenOn)
- *  12. Declares TaskAlarmActivity (full-screen alarm, showWhenLocked + turnScreenOn)
- *  13. Declares LauncherActivity with HOME + DEFAULT intent-filter
- *  14. Declares NetworkBlockerVpnService with BIND_VPN_SERVICE permission
+ *   7. Declares NotificationActionReceiver with COMPLETE / EXTEND / SKIP intent-filters
+ *   8. Declares FocusFlowWidget (AppWidgetProvider) with APPWIDGET_UPDATE intent-filter
+ *   9. Declares TaskAlarmActivity (full-screen alarm, showWhenLocked + turnScreenOn)
+ *  10. Declares LauncherActivity with HOME + DEFAULT intent-filter
+ *  11. Declares NetworkBlockerVpnService with BIND_VPN_SERVICE permission
+ *  12. Declares VpnWatchdogReceiver for VPN self-healing
+ *  13. Declares BlockOverlayActivity for full-screen app blocking
+ *  14. Declares TemptationReportReceiver for weekly reports
  *  15. Adds <queries> block for Android 11+ package visibility
  *  16. Registers FocusDayPackage via withMainApplication (reliable for RN 0.76+)
  *  17. Copies all Kotlin source files from android-native/ into the project
@@ -144,6 +144,14 @@ function withFocusDayManifest(config) {
       // that null-routes packets from blocked apps. Android enforces this separately from
       // FOREGROUND_SERVICE; the service declaration also needs android:permission set.
       'android.permission.BIND_VPN_SERVICE',
+      // Used by NetworkBlockModule's supplementary Wi-Fi/mobile network controls.
+      // The VPN remains the primary network-blocking mechanism on modern Android.
+      'android.permission.CHANGE_WIFI_STATE',
+      'android.permission.ACCESS_WIFI_STATE',
+      'android.permission.CHANGE_NETWORK_STATE',
+      // The local VPN does not forward traffic to an external server, but the
+      // Android network stack still requires the app's normal network permission.
+      'android.permission.INTERNET',
     ];
 
     const existing = (manifest.manifest['uses-permission'] || []).map(
@@ -163,13 +171,6 @@ function withFocusDayManifest(config) {
     if (!manifest.manifest.$['xmlns:tools']) {
       manifest.manifest.$['xmlns:tools'] = 'http://schemas.android.com/tools';
     }
-
-    // ── Cleartext traffic — enforce false unconditionally ─────────────────────
-    // Prevents the app from making unencrypted HTTP requests. FocusFlow has no
-    // external network calls (all data is local SQLite), so this has no
-    // functional cost and closes the door on accidental cleartext connections
-    // from any third-party SDK included transitively.
-    app.$['android:usesCleartextTraffic'] = 'false';
 
     // ── Foreground Task Service ───────────────────────────────────────────────
     const serviceExists = (app.service || []).some(
@@ -295,42 +296,6 @@ function withFocusDayManifest(config) {
       });
     }
 
-    // ── VpnWatchdogReceiver ───────────────────────────────────────────────────
-    // Fires every ~60 s via AlarmManager while a network-blocking VPN session is
-    // active. Restarts the VPN service if it has died unexpectedly.
-    // exported=false — only our own AlarmManager alarm triggers it.
-    const vpnWatchdogExists = (app.receiver || []).some(
-      (r) => r.$['android:name'] === 'com.tbtechs.focusflow.services.VpnWatchdogReceiver'
-    );
-    if (!vpnWatchdogExists) {
-      if (!app.receiver) app.receiver = [];
-      app.receiver.push({
-        $: {
-          'android:name':     'com.tbtechs.focusflow.services.VpnWatchdogReceiver',
-          'android:enabled':  'true',
-          'android:exported': 'false',
-        },
-      });
-    }
-
-    // ── TemptationReportReceiver ──────────────────────────────────────────────
-    // Fires every Sunday at 08:00 via AlarmManager to generate the weekly
-    // temptation-attempt summary report.
-    // exported=false — only our own AlarmManager alarm triggers it.
-    const temptationReportExists = (app.receiver || []).some(
-      (r) => r.$['android:name'] === 'com.tbtechs.focusflow.services.TemptationReportReceiver'
-    );
-    if (!temptationReportExists) {
-      if (!app.receiver) app.receiver = [];
-      app.receiver.push({
-        $: {
-          'android:name':     'com.tbtechs.focusflow.services.TemptationReportReceiver',
-          'android:enabled':  'true',
-          'android:exported': 'false',
-        },
-      });
-    }
-
     // ── Notification Action Receiver ──────────────────────────────────────────
     // NotificationActionReceiver is a static BroadcastReceiver that handles taps
     // on the foreground notification action buttons (Done / +15m / +30m / Skip).
@@ -421,11 +386,10 @@ function withFocusDayManifest(config) {
       });
     }
 
-    // ── BlockOverlayActivity ──────────────────────────────────────────────────
-    // Full-screen block overlay activity used as the fallback when
-    // SYSTEM_ALERT_WINDOW is not granted. Shown over the lock screen so the
-    // blocked app is never visible. noHistory=false so the back-stack is intact;
-    // exported=false because it is only launched via our own PendingIntent.
+    // ── BlockOverlayActivity ───────────────────────────────────────────────────
+    // Full-screen fallback overlay used when the preferred WindowManager overlay
+    // path is unavailable. It is launched by an explicit PendingIntent and must
+    // remain private to the app.
     const blockOverlayExists = (app.activity || []).some(
       (a) => a.$['android:name'] === 'com.tbtechs.focusflow.services.BlockOverlayActivity'
     );
@@ -433,12 +397,31 @@ function withFocusDayManifest(config) {
       if (!app.activity) app.activity = [];
       app.activity.push({
         $: {
-          'android:name':           'com.tbtechs.focusflow.services.BlockOverlayActivity',
-          'android:showWhenLocked': 'true',
-          'android:turnScreenOn':   'true',
-          'android:noHistory':      'false',
-          'android:exported':       'false',
-          'android:theme':          '@android:style/Theme.NoTitleBar.Fullscreen',
+          'android:name':               'com.tbtechs.focusflow.services.BlockOverlayActivity',
+          'android:excludeFromRecents': 'true',
+          'android:showWhenLocked':     'true',
+          'android:turnScreenOn':       'true',
+          'android:noHistory':          'false',
+          'android:launchMode':         'singleTask',
+          'android:theme':              '@android:style/Theme.NoTitleBar.Fullscreen',
+          'android:exported':            'false',
+        },
+      });
+    }
+
+    // ── TemptationReportReceiver ───────────────────────────────────────────────
+    // Explicit AlarmManager receiver for the weekly temptation report. It has no
+    // intent-filter because the app's PendingIntent targets this class directly.
+    const temptationReportExists = (app.receiver || []).some(
+      (r) => r.$['android:name'] === 'com.tbtechs.focusflow.services.TemptationReportReceiver'
+    );
+    if (!temptationReportExists) {
+      if (!app.receiver) app.receiver = [];
+      app.receiver.push({
+        $: {
+          'android:name':     'com.tbtechs.focusflow.services.TemptationReportReceiver',
+          'android:enabled':  'true',
+          'android:exported': 'false',
         },
       });
     }
@@ -510,10 +493,52 @@ function withFocusDayManifest(config) {
           'android:name':       'com.tbtechs.focusflow.services.NetworkBlockerVpnService',
           'android:permission': 'android.permission.BIND_VPN_SERVICE',
           'android:exported':   'false',
+          'android:foregroundServiceType': 'specialUse',
         },
+        property: [{
+          $: {
+            'android:name': 'android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE',
+            'android:value': 'network_blocking',
+          },
+        }],
         'intent-filter': [{
           action: [{ $: { 'android:name': 'android.net.VpnService' } }],
         }],
+      });
+    } else {
+      // A pre-existing service entry can come from an earlier prebuild. Keep
+      // its foreground-service declaration current on subsequent builds too.
+      const vpnService = app.service.find(
+        (s) => s.$['android:name'] === 'com.tbtechs.focusflow.services.NetworkBlockerVpnService'
+      );
+      vpnService.$['android:foregroundServiceType'] = 'specialUse';
+      vpnService.$['android:permission'] = 'android.permission.BIND_VPN_SERVICE';
+      if (!vpnService.property) vpnService.property = [];
+      if (!vpnService.property.some((p) => p.$['android:name'] === 'android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE')) {
+        vpnService.property.push({
+          $: {
+            'android:name': 'android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE',
+            'android:value': 'network_blocking',
+          },
+        });
+      }
+    }
+
+    // ── VpnWatchdogReceiver ────────────────────────────────────────────────────
+    // AlarmManager-based recovery receiver for VPN process death on aggressive
+    // OEMs. It is explicitly targeted by the app's own PendingIntent, so it does
+    // not need an intent-filter and must remain non-exported.
+    const vpnWatchdogExists = (app.receiver || []).some(
+      (r) => r.$['android:name'] === 'com.tbtechs.focusflow.services.VpnWatchdogReceiver'
+    );
+    if (!vpnWatchdogExists) {
+      if (!app.receiver) app.receiver = [];
+      app.receiver.push({
+        $: {
+          'android:name':     'com.tbtechs.focusflow.services.VpnWatchdogReceiver',
+          'android:enabled':  'true',
+          'android:exported': 'false',
+        },
       });
     }
 
@@ -680,6 +705,28 @@ function withFocusDayBuildConfig(config) {
 
       let content = fs.readFileSync(buildGradlePath, 'utf8');
 
+      // ── AndroidX RecyclerView for LauncherActivity's app drawer ───────────
+      // LauncherActivity uses RecyclerView and GridLayoutManager directly.
+      // Keep this in the config plugin because `expo prebuild --clean`
+      // regenerates android/ and does not rely on android-native/install.sh.
+      const recyclerDependency =
+        'implementation "androidx.recyclerview:recyclerview:1.3.2"';
+      if (!content.includes('androidx.recyclerview:recyclerview')) {
+        const recyclerPatched = content.replace(
+          /(^\s*dependencies\s*\{)/m,
+          `$1\n    ${recyclerDependency}`
+        );
+
+        if (recyclerPatched === content) {
+          throw new Error(
+            '[withFocusDayAndroid] Could not find dependencies block in app/build.gradle.'
+          );
+        }
+
+        content = recyclerPatched;
+        console.log('[withFocusDayAndroid] Added AndroidX RecyclerView dependency.');
+      }
+
       // ── Enable R8 full minification for release ──────────────────────────
       // Expo default: minifyEnabled (findProperty('android.enableProguardInReleaseBuilds')?.toBoolean() ?: false)
       // We force it true so R8 runs unconditionally on release builds.
@@ -789,47 +836,36 @@ function withFocusDayBackupRules(config) {
       fs.mkdirSync(xmlDir, { recursive: true });
 
       // backup_rules.xml — used on Android < 12 (API level < 31)
-      // SharedPreferences are explicitly excluded: they contain sensitive
-      // session state (focus_active, task_name, allowed_packages, etc.) that
-      // must not be exported to cloud storage even if allowBackup is ever
-      // re-enabled. Only the SQLite database files are included.
       const backupRules = `<?xml version="1.0" encoding="utf-8"?>
 <!--
   Full-backup content rules for Android < 12 (API < 31).
-  Only the SQLite database directory is explicitly included.
-  SharedPreferences are NOT listed here — Android only backs up
-  what is explicitly included, so omitting sharedpref is sufficient
-  to keep sensitive session state (focus_active, task_name,
-  allowed_packages, etc.) out of Google Drive backups.
-  NOTE: <exclude> is only valid for paths inside an <include>; a
-  bare sharedpref exclude without a matching include is a lint error.
+  expo-sqlite stores databases in Context.getFilesDir()/SQLite/
+  so domain="file" with path="SQLite/" covers all DB files.
+  Including the -wal and -shm sidecars ensures the backup is
+  consistent and no recent writes are lost on restore.
 -->
 <full-backup-content>
     <include domain="file" path="SQLite/" />
+    <include domain="sharedpref" path="." />
 </full-backup-content>
 `;
 
       // data_extraction_rules.xml — used on Android 12+ (API 31+)
-      // SharedPreferences are excluded from both cloud-backup and
-      // device-transfer for the same reason as backup_rules.xml above.
       const dataExtractionRules = `<?xml version="1.0" encoding="utf-8"?>
 <!--
   Data extraction rules for Android 12+ (API 31+).
   Covers both cloud backup (Google Drive) and device-to-device
   transfer (e.g. tap-to-transfer, Setup Wizard).
   expo-sqlite path: Context.getFilesDir()/SQLite/
-  SharedPreferences are intentionally omitted — Android only backs
-  up explicitly included paths, so sensitive session state
-  (focus_active, task_name, allowed_packages, etc.) is never
-  exported. A bare <exclude> without a matching <include> is a
-  lint fatal error (FullBackupContent) and must not be added.
 -->
 <data-extraction-rules>
     <cloud-backup>
         <include domain="file" path="SQLite/" />
+        <include domain="sharedpref" path="." />
     </cloud-backup>
     <device-transfer>
         <include domain="file" path="SQLite/" />
+        <include domain="sharedpref" path="." />
     </device-transfer>
 </data-extraction-rules>
 `;
@@ -849,24 +885,22 @@ function withFocusDayBackupRules(config) {
   config = withAndroidManifest(config, (cfg) => {
     const app = cfg.modResults.manifest.application[0];
 
-    // android:allowBackup — enforce false unconditionally to prevent app data
-    // from being backed up to cloud storage, avoiding potential data leakage.
-    // This overrides any existing value (including a pre-set true) so the
-    // final manifest always has allowBackup="false".
-    app.$['android:allowBackup'] = 'false';
+    // android:allowBackup — must be true for Auto Backup to run
+    if (!app.$['android:allowBackup']) {
+      app.$['android:allowBackup'] = 'true';
+    }
 
-    // android:fullBackupContent — API < 31 backup rules.
-    // Set unconditionally (same policy as allowBackup) so a pre-existing value
-    // cannot override the hardened rules file.
-    // Note: these attributes are inert while allowBackup="false", but they act
-    // as a safe default if backup is ever re-enabled in future.
-    app.$['android:fullBackupContent'] = '@xml/backup_rules';
-    console.log('[withFocusDayAndroid] Set android:fullBackupContent=@xml/backup_rules');
+    // android:fullBackupContent — API < 31 backup rules
+    if (!app.$['android:fullBackupContent']) {
+      app.$['android:fullBackupContent'] = '@xml/backup_rules';
+      console.log('[withFocusDayAndroid] Set android:fullBackupContent=@xml/backup_rules');
+    }
 
-    // android:dataExtractionRules — API 31+ backup rules.
-    // Set unconditionally for the same reason as fullBackupContent above.
-    app.$['android:dataExtractionRules'] = '@xml/data_extraction_rules';
-    console.log('[withFocusDayAndroid] Set android:dataExtractionRules=@xml/data_extraction_rules');
+    // android:dataExtractionRules — API 31+ backup rules
+    if (!app.$['android:dataExtractionRules']) {
+      app.$['android:dataExtractionRules'] = '@xml/data_extraction_rules';
+      console.log('[withFocusDayAndroid] Set android:dataExtractionRules=@xml/data_extraction_rules');
+    }
 
     return cfg;
   });

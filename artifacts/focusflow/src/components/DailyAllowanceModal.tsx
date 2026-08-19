@@ -49,6 +49,14 @@ const MODE_ICONS: Record<AllowanceMode, React.ComponentProps<typeof Ionicons>['n
 
 const ALL_MODES: AllowanceMode[] = ['count', 'time_budget', 'interval'];
 
+/** Matches the Android service's device-local YYYY-MM-DD allowance boundary. */
+function getLocalDateKey(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function makeDefaultEntry(pkg: string): DailyAllowanceEntry {
   return { packageName: pkg, mode: 'count', countPerDay: 1, budgetMinutes: 30, intervalMinutes: 5, intervalHours: 1 };
 }
@@ -98,11 +106,13 @@ export function DailyAllowanceModal({
     setOriginalPkgs(new Set(selectedEntries.map((e) => e.packageName)));
     setExpandedPkg(null);
     setSearch('');
-    setLoading(true);
-    InstalledAppsModule.getInstalledApps()
-      .then(setApps)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    if (apps.length === 0) {
+      setLoading(true);
+      InstalledAppsModule.getInstalledApps()
+        .then(setApps)
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }
     // Load live usage data so we can show remaining time/opens per app
     SharedPrefsModule.getString('daily_allowance_used')
       .then((raw) => {
@@ -112,7 +122,7 @@ export function DailyAllowanceModal({
             mode?: string; date?: string; count?: number;
             usedMs?: number; windowStartMs?: number;
           }>;
-          const today = new Date().toISOString().slice(0, 10); // "yyyy-MM-dd"
+          const today = getLocalDateKey();
           // Zero out stale entries (different date = fresh day)
           const fresh: typeof parsed = {};
           for (const [pkg, val] of Object.entries(parsed)) {
@@ -180,7 +190,7 @@ export function DailyAllowanceModal({
         })
         .catch(() => action());
     },
-    [requireDefensePin],
+    [requireDefensePin, locked],
   );
 
   const toggle = useCallback(
@@ -205,14 +215,7 @@ export function DailyAllowanceModal({
     setEntriesMap((prev) => {
       const next = new Map(prev);
       const existing = next.get(pkg) ?? makeDefaultEntry(pkg);
-      const updated = { ...existing, ...patch };
-      if ('intervalMinutes' in patch || 'intervalHours' in patch) {
-        updated.intervalMinutes = Math.min(
-          updated.intervalMinutes ?? 5,
-          (updated.intervalHours ?? 1) * 60,
-        );
-      }
-      next.set(pkg, updated);
+      next.set(pkg, { ...existing, ...patch });
       return next;
     });
   }, []);
@@ -250,7 +253,7 @@ export function DailyAllowanceModal({
   const getRemainingLabel = useCallback((entry: DailyAllowanceEntry): string | null => {
     const usage = usageMap[entry.packageName];
     if (!usage) return null;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getLocalDateKey();
     if (usage.date && usage.date !== today) return null;
 
     if (entry.mode === 'count') {
@@ -275,7 +278,6 @@ export function DailyAllowanceModal({
     if (entry.mode === 'interval') {
       const usedMs = usage.usedMs ?? 0;
       if (usedMs === 0) return null;
-      if (!usage.windowStartMs) return null;
       const windowStartMs = usage.windowStartMs ?? 0;
       const windowEndMs = windowStartMs + (entry.intervalHours ?? 1) * 3_600_000;
       const now = Date.now();
@@ -428,11 +430,6 @@ export function DailyAllowanceModal({
             <Text style={[styles.intervalSummary, { color: theme.muted }]}>
               App is allowed for {entry.intervalMinutes ?? 5} min every {entry.intervalHours ?? 1} hour{(entry.intervalHours ?? 1) !== 1 ? 's' : ''}.
             </Text>
-            {(entry.intervalMinutes ?? 5) >= (entry.intervalHours ?? 1) * 60 && (
-              <Text style={[styles.intervalWarning, { color: COLORS.red }]}>
-                ⚠️ Allowance equals or exceeds window — app is effectively unrestricted.
-              </Text>
-            )}
           </>
         )}
       </View>
@@ -846,10 +843,6 @@ const styles = StyleSheet.create({
   intervalSummary: {
     fontSize: FONT.xs,
     fontStyle: 'italic',
-    marginTop: 2,
-  },
-  intervalWarning: {
-    fontSize: FONT.xs,
     marginTop: 2,
   },
 

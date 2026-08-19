@@ -1,3 +1,4 @@
+import { COLORS } from '@/styles/theme';
 /**
  * pinCrypto.ts
  *
@@ -165,7 +166,7 @@ export function getPasswordStrength(password: string): PasswordStrength {
   const variety = [hasUpper, hasLower, hasDigit, hasSpecial].filter(Boolean).length;
 
   if (password.length >= 16 && variety >= 3) {
-    return { level: 'very-strong', label: 'Very strong', color: '#10b981', barWidth: 100, valid: true };
+    return { level: 'very-strong', label: 'Very strong', color: COLORS.green, barWidth: 100, valid: true };
   }
   if (password.length >= 12 && variety >= 2) {
     return { level: 'strong', label: 'Strong', color: '#22c55e', barWidth: 75, valid: true };
@@ -173,7 +174,7 @@ export function getPasswordStrength(password: string): PasswordStrength {
   if (password.length >= 8 && variety >= 2) {
     return { level: 'fair', label: 'Fair — try adding symbols or numbers', color: '#f59e0b', barWidth: 50, valid: true };
   }
-  return { level: 'weak', label: 'Weak — mix uppercase, lowercase, numbers & symbols', color: '#f97316', barWidth: 30, valid: true };
+  return { level: 'weak', label: 'Weak — mix uppercase, lowercase, numbers & symbols', color: COLORS.orange, barWidth: 30, valid: true };
 }
 
 /** Common trivially-guessable passwords to block. */

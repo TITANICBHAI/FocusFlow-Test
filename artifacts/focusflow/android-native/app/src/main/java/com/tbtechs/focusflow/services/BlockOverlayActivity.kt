@@ -54,6 +54,7 @@ class BlockOverlayActivity : Activity() {
     companion object {
         const val EXTRA_BLOCKED_PKG  = "blocked_pkg"
         const val EXTRA_BLOCKED_NAME = "blocked_name"
+        const val EXTRA_BLOCK_REASON = "block_reason"
 
         /** Written by AccessibilityService after HOME press is confirmed. */
         const val PREF_OVERLAY_X_READY = "overlay_x_ready"
@@ -100,6 +101,7 @@ class BlockOverlayActivity : Activity() {
     private lateinit var prefs: SharedPreferences
     private val handler = Handler(Looper.getMainLooper())
     private var blockedName: String = ""
+    private var blockReason: String = ""
     private var intentionalFinish = false
 
     // ✕ button — hidden until AccessibilityService confirms user is at home
@@ -123,6 +125,7 @@ class BlockOverlayActivity : Activity() {
         super.onCreate(savedInstanceState)
         prefs = getSharedPreferences(AppBlockerAccessibilityService.PREFS_NAME, MODE_PRIVATE)
         blockedName = intent?.getStringExtra(EXTRA_BLOCKED_NAME) ?: ""
+        blockReason = intent?.getStringExtra(EXTRA_BLOCK_REASON) ?: ""
 
         // Clear any stale x_ready flag from a previous session
         prefs.edit().putBoolean(PREF_OVERLAY_X_READY, false).apply()
@@ -138,6 +141,7 @@ class BlockOverlayActivity : Activity() {
         super.onNewIntent(intent)
         // singleTask re-use: just update the blocked name label if needed
         intent?.getStringExtra(EXTRA_BLOCKED_NAME)?.let { if (it.isNotEmpty()) blockedName = it }
+        intent?.getStringExtra(EXTRA_BLOCK_REASON)?.let { if (it.isNotEmpty()) blockReason = it }
     }
 
     // ─── Back button: fully swallowed — only ✕ can dismiss the overlay ─────────
@@ -366,6 +370,10 @@ class BlockOverlayActivity : Activity() {
         }
         col.addView(buildLockEmoji())
         col.addView(buildBlockedLabel())
+        if (blockReason.isNotEmpty()) {
+            col.addView(buildReasonHeading())
+            col.addView(buildReasonLabel())
+        }
         col.addView(buildQuoteView())
         col.addView(buildSubLabel())
         root.addView(col)
@@ -396,7 +404,37 @@ class BlockOverlayActivity : Activity() {
         layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { bottomMargin = dp(36) }
+        ).apply { bottomMargin = dp(if (blockReason.isNotEmpty()) 16 else 36) }
+    }
+
+    private fun buildReasonHeading(): TextView = TextView(this).apply {
+        text = "WHY THIS APP IS BLOCKED"
+        textSize = 11f
+        setTextColor(Color.parseColor("#D7D7F0"))
+        gravity = Gravity.CENTER
+        letterSpacing = 0.08f
+        layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { bottomMargin = dp(6) }
+    }
+
+    private fun buildReasonLabel(): TextView = TextView(this).apply {
+        text = blockReason
+        textSize = 13f
+        setTextColor(Color.parseColor("#F1F1FA"))
+        gravity = Gravity.CENTER
+        setLineSpacing(0f, 1.4f)
+        setPadding(dp(16), dp(12), dp(16), dp(12))
+        background = GradientDrawable().apply {
+            cornerRadius = dp(12).toFloat()
+            setColor(Color.parseColor("#332E5A"))
+            setStroke(dp(1), Color.parseColor("#665FA0"))
+        }
+        layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { bottomMargin = dp(24) }
     }
 
     private fun buildQuoteView(): TextView = TextView(this).apply {

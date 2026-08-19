@@ -305,27 +305,3 @@ id = "nZlt6VToM3l9rWcuhoFVj"
 uri = "file://button-audit.md"
 type = "text"
 title = "FocusFlow — Full Button Audit"
-
-[[outputs]]
-id = "LtX0Fjau6NV5hZUgo7jnK"
-uri = "file://sign.zip"
-type = "unspecified"
-title = "sign.zip — Huawei AppGallery signing key package"
-
-[[outputs]]
-id = "juJTZglYl2FhHPpn-ko-Q"
-uri = "file://huawei-upload-key.tar.gz"
-type = "unspecified"
-title = "huawei-upload-key.tar.gz — Upload keystore + certificate"
-
-[[outputs]]
-id = "ZjzdIMpQtHfy5oyjc0sbY"
-uri = "file://upload_certificate.tar.gz"
-type = "unspecified"
-title = "upload_certificate.pem — Extract this to get the .pem file"
-
-[[outputs]]
-id = "_smYre90DnVnHOSGnrfP-"
-uri = "file://artifacts/focusflow-feature-videos/RUN_LOCALLY.md"
-type = "text"
-title = "RUN_LOCALLY.md — with exact Node & pnpm versions"

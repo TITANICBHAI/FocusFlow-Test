@@ -1,4 +1,36 @@
-# What's New — FocusFlow v1.0.3
+# What's New — FocusFlow v1.0.8
+
+## New Two-Mode Onboarding
+
+FocusFlow v1.0.8 introduces a new two-mode first-run setup so users can choose
+the right level of protection:
+
+- **Standard Mode** keeps setup focused on the essential access required for
+  app blocking.
+- **Iron Mode** adds layered setup for VPN network restriction, Device Admin
+  resistance, and Defense Password protection.
+- Both modes use a clearer, more readable setup hierarchy.
+- Iron Mode uses indigo for the main activation experience and orange only for
+  stronger-protection emphasis.
+- A live protection-layer counter shows exactly how much of the setup is active.
+- Checkmarks animate only when real permission states become active.
+- Reduced-motion preferences are respected without adding a new animation package.
+
+---
+
+## Database Reliability
+
+FocusFlow v1.0.8 strengthens the local SQLite data layer:
+
+- Database connections are opened, reused, and closed predictably.
+- Related task and settings updates use safer transaction boundaries.
+- Failed writes preserve the previous in-memory state instead of silently
+  discarding changes.
+- Persisted values and imported backup data receive defensive validation.
+- Local queries use parameters, and diagnostic logging avoids exposing user
+  content.
+
+---
 
 ## Bug Fixes
 

@@ -97,7 +97,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: "Schedule",
+            title: "Today",
             tabBarIcon: ({ color, focused }) => (
               <Ionicons
                 name={focused ? "calendar" : "calendar-outline"}
@@ -110,7 +110,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="focus"
           options={{
-            title: "Focus",
+            title: "Shield",
             tabBarIcon: ({ color, focused }) => (
               <Ionicons
                 name={
@@ -125,7 +125,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="stats"
           options={{
-            title: "Stats",
+            title: "Insights",
             tabBarIcon: ({ color, focused }) => (
               <Ionicons
                 name={focused ? "bar-chart" : "bar-chart-outline"}

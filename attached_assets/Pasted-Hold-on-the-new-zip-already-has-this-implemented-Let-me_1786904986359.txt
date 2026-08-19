@@ -1,0 +1,299 @@
+Hold on — the new zip already has this implemented. Let me check before I write redundant instructions.The entire `AppBlockerAccessibilityService.kt` block reason feature is already done in the new zip — `buildBlockReason`, `formatBlockTime`, the reason being passed through `launchBlockOverlay`, `showWindowOverlay` already displays it conditionally. Nothing to write there.
+
+Let me check what else from our list is already done before sending the agent on a wild goose chase.The block reason feature is fully done already — `buildBlockReason`, `formatBlockTime`, the reason flowing through `launchBlockOverlay` and `showWindowOverlay`, and `EXTRA_BLOCK_REASON` to the Activity. All there. Import summary is also fixed correctly in `settings.tsx`. Good.
+
+Here's what actually still needs doing:
+
+- Layer 1/2/3 grouping in onboarding — not implemented
+- Iron Mode completion/activation state — missing entirely
+- VPN copy in onboarding.tsx — still the old generic text (permissions.tsx has better copy but onboarding hasn't been updated)
+
+All three are in `onboarding.tsx`. Here are the agent instructions.
+
+---
+
+**`app/onboarding.tsx` — all three changes**
+
+---
+
+**VERIFY FIRST — read these before touching anything:**
+
+1. Find the `PERMISSIONS` array. Confirm the `id` values and their `section` values in this order:
+   - `'notifications'` → section `'core'`
+   - `'battery'` → section `'core'`
+   - `'overlay'` → section `'core'`
+   - `'usage'` → section `'core'`
+   - `'accessibility'` → section `'core'`
+   - `'media'` → section `'optional'`
+   - `'vpn'` → section `'optional'`
+   - `'device_admin'` → section `'optional'`
+
+   If the order or section assignments differ from this, stop and report before proceeding — the layer group definitions below depend on the IDs being correct.
+
+2. Find the `vpn` entry in `PERMISSIONS`. Confirm `description` and `whyNeeded` still read:
+   - description: `'Required to cut the network connection of blocked apps when Network Blocking is enabled.'`
+   - whyNeeded: `'Android requires a one-time consent dialog before any app may create a VPN...'`
+
+   If they already have different (better) text, skip Change 1.
+
+3. Find where `visibleCorePerms.map((perm) => { ... })` renders the core permission cards. Confirm it is a flat `.map()` with no layer group headers between cards.
+
+4. Find the optional step section (`step === 'optional'`). Confirm the optional cards are rendered with `optionalPerms.map(...)` and there is no Layer 3 header or completion summary card.
+
+5. Find the `enterBtn` `onPress` handler. Confirm the Iron Mode optional step button text is `'Activate Iron Mode & enter'` and it calls `handleFinish()` directly.
+
+---
+
+**Change 1 — VPN copy in the `PERMISSIONS` array**
+
+Find the `vpn` entry. Replace `description` and `whyNeeded` only:
+
+```ts
+// BEFORE
+description: 'Required to cut the network connection of blocked apps when Network Blocking is enabled.',
+whyNeeded:
+  'Android requires a one-time consent dialog before any app may create a VPN. Without it the \"Network Blocking\" toggle in Block Enforcement will have no effect.',
+
+// AFTER
+description: 'Cuts internet access for selected distracting apps during a focus session — without blocking your own traffic.',
+whyNeeded:
+  'Iron Mode can combine app blocking with a local VPN layer. For example: prepare downloaded work videos before a session, then restrict network access for distracting apps while you focus. Downloaded content may remain available offline — though some apps require occasional verification.',
+```
+
+`brokenWithout` stays unchanged.
+
+---
+
+**Change 2 — Layer group definitions**
+
+Add this constant directly above the `OnboardingScreen` function declaration, after the `PERMISSIONS` array:
+
+```ts
+const CORE_LAYER_GROUPS: Array<{
+  label: string;
+  subtitle: string;
+  ids: string[];
+}> = [
+  {
+    label: 'Layer 1 — Detect',
+    subtitle: 'Lets FocusFlow see which app is open and redirect instantly.',
+    ids: ['usage', 'accessibility'],
+  },
+  {
+    label: 'Layer 2 — Stay active',
+    subtitle: 'Keeps the blocking service alive on aggressive OEM phones.',
+    ids: ['notifications', 'battery', 'overlay'],
+  },
+];
+```
+
+---
+
+**Change 3 — Layered core rendering for Iron Mode**
+
+Find the flat `{visibleCorePerms.map((perm) => { ... })}` block inside the `step === 'core'` section.
+
+Replace only the `.map()` call (keep everything before and after it — the section label, the progress bar, the banners, the mode card — untouched). The new logic renders flat cards for Standard and layered groups for Iron Mode:
+
+```tsx
+// BEFORE
+{visibleCorePerms.map((perm) => {
+  // ... existing card JSX
+})}
+
+// AFTER
+{protectionMode === 'standard' ? (
+  visibleCorePerms.map((perm) => {
+    // PASTE THE EXISTING CARD JSX HERE — unchanged
+    const status = statuses[perm.id] ?? 'unknown';
+    const isExpanded = expandedId === perm.id;
+    const isLoading = actionLoading === perm.id;
+    return (
+      <View key={perm.id} style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }, status === 'granted' && styles.cardGranted]}>
+        {/* ...all the existing card content unchanged... */}
+      </View>
+    );
+  })
+) : (
+  CORE_LAYER_GROUPS.map((group) => {
+    const groupPerms = PERMISSIONS.filter((p) => group.ids.includes(p.id));
+    const allGranted = groupPerms.every((p) => statuses[p.id] === 'granted');
+    return (
+      <View key={group.label}>
+        {/* Layer header */}
+        <View style={styles.layerHeader}>
+          <View style={styles.layerHeaderLeft}>
+            <Text style={[styles.layerLabel, { color: allGranted ? COLORS.green : COLORS.orange }]}>
+              {group.label}
+            </Text>
+            {allGranted && (
+              <Ionicons name="checkmark-circle" size={14} color={COLORS.green} />
+            )}
+          </View>
+          <Text style={[styles.layerSubtitle, { color: theme.muted }]}>{group.subtitle}</Text>
+        </View>
+
+        {/* Cards for this layer */}
+        {groupPerms.map((perm) => {
+          const status = statuses[perm.id] ?? 'unknown';
+          const isExpanded = expandedId === perm.id;
+          const isLoading = actionLoading === perm.id;
+          return (
+            <View key={perm.id} style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }, status === 'granted' && styles.cardGranted]}>
+              {/* PASTE THE EXISTING CARD INTERIOR JSX HERE — unchanged */}
+            </View>
+          );
+        })}
+      </View>
+    );
+  })
+)}
+```
+
+**Important:** The card interior JSX (the `<TouchableOpacity style={styles.cardMain}>` block and the `{isExpanded && ...}` expanded section) is copy-pasted from the existing flat map — do not rewrite it. Just paste it in both places so Standard and Iron Mode share the same card rendering. Do not change any existing card styles.
+
+---
+
+**Change 4 — Layer 3 header in the optional step**
+
+In the `step === 'optional'` section, find the `<Text style={[styles.sectionLabel...}>IRON MODE + OPTIONAL SETUP</Text>` line and the `optionalPerms.map(...)` block below it.
+
+Replace the section label and add a layer header before the cards:
+
+```tsx
+// BEFORE
+<Text style={[styles.sectionLabel, { color: theme.muted }]}>IRON MODE + OPTIONAL SETUP</Text>
+<Text style={[styles.optionalHint, { color: theme.muted }]}>
+  Configure the extra Iron Mode layers now, or enable them later from Settings → Permissions.
+</Text>
+{optionalPerms.map((perm) => { ... })}
+
+// AFTER
+<View style={styles.layerHeader}>
+  <View style={styles.layerHeaderLeft}>
+    <Text style={[styles.layerLabel, { color: allOptionalGranted ? COLORS.green : COLORS.orange }]}>
+      Layer 3 — Resist bypass
+    </Text>
+    {allOptionalGranted && (
+      <Ionicons name="checkmark-circle" size={14} color={COLORS.green} />
+    )}
+  </View>
+  <Text style={[styles.layerSubtitle, { color: theme.muted }]}>
+    Cuts network access, resists force-stop, and locks settings behind a PIN.
+  </Text>
+</View>
+{optionalPerms.map((perm) => { ... })}   {/* unchanged */}
+```
+
+Add `allOptionalGranted` near the other derived variables at the top of the component:
+
+```ts
+const allOptionalGranted = optionalPerms.every((p) => statuses[p.id] === 'granted');
+```
+
+---
+
+**Change 5 — Iron Mode completion summary card**
+
+In the optional step, find the PIN Protection card block (the `<View style={[styles.pinCard...}>` section). Add this summary card **after** the PIN card block and **before** the `enterBtn`:
+
+```tsx
+{/* Activation summary — shows when at least some Iron Mode layers are active */}
+{(allRequiredReady || allOptionalGranted) && (
+  <View style={[styles.activationCard, {
+    backgroundColor: allOptionalGranted ? COLORS.orange + '14' : theme.card,
+    borderColor: allOptionalGranted ? COLORS.orange + '55' : theme.border,
+  }]}>
+    <Text style={[styles.activationTitle, { color: allOptionalGranted ? COLORS.orange : theme.text }]}>
+      {allOptionalGranted ? 'Iron Mode ready' : 'Layers active so far'}
+    </Text>
+
+    {[
+      { label: 'App detection', ids: ['usage', 'accessibility'] },
+      { label: 'Background survival', ids: ['notifications', 'battery', 'overlay'] },
+      { label: 'Network restriction', ids: ['vpn'] },
+      { label: 'Force-stop resistance', ids: ['device_admin'] },
+      { label: 'Settings PIN', ids: [] as string[], extra: defensePinSet },
+    ].map(({ label, ids, extra }) => {
+      const active = ids.length > 0
+        ? ids.every((id) => statuses[id] === 'granted')
+        : (extra ?? false);
+      return (
+        <View key={label} style={styles.activationRow}>
+          <Ionicons
+            name={active ? 'checkmark-circle' : 'ellipse-outline'}
+            size={14}
+            color={active ? COLORS.green : theme.muted}
+          />
+          <Text style={[styles.activationRowText, { color: active ? theme.text : theme.muted }]}>
+            {label}
+          </Text>
+        </View>
+      );
+    })}
+  </View>
+)}
+```
+
+---
+
+**Change 6 — Add the new styles**
+
+In `StyleSheet.create({...})`, add these entries at the end before the closing `}`):
+
+```ts
+// Layer headers
+layerHeader: {
+  gap: 3,
+  marginBottom: SPACING.xs,
+  marginTop: SPACING.sm,
+},
+layerHeaderLeft: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: SPACING.xs,
+},
+layerLabel: {
+  fontSize: FONT.xs,
+  fontWeight: '800',
+  letterSpacing: 0.5,
+},
+layerSubtitle: {
+  fontSize: FONT.xs,
+  lineHeight: 16,
+},
+
+// Activation summary card
+activationCard: {
+  borderRadius: RADIUS.lg,
+  borderWidth: 1,
+  padding: SPACING.md,
+  gap: SPACING.sm,
+},
+activationTitle: {
+  fontSize: FONT.sm,
+  fontWeight: '800',
+  marginBottom: SPACING.xs,
+},
+activationRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: SPACING.sm,
+},
+activationRowText: {
+  fontSize: FONT.xs,
+  fontWeight: '600',
+},
+```
+
+---
+
+**After applying, verify:**
+
+- Standard mode: still shows flat permission cards with no layer headers.
+- Iron Mode core step: shows "Layer 1 — Detect" header above Usage + Accessibility, then "Layer 2 — Stay active" header above Notifications + Battery + Overlay.
+- Optional step: shows "Layer 3 — Resist bypass" header before the optional cards.
+- Activation summary card appears at the bottom of the optional step, only when `allRequiredReady || allOptionalGranted` is true.
+- When all Iron Mode layers are active, the card title shows "Iron Mode ready" in orange; otherwise "Layers active so far".
+- No existing styles were deleted or renamed.
+- `git diff --check` passes.

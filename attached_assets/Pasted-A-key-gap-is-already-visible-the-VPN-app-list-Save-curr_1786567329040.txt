@@ -1,0 +1,156 @@
+A key gap is already visible: the VPN app-list Save currently persists alwaysOnVpnPackages, but the global vpnBlockEnabled flag remains unchanged, so selecting an app does not automatically enable VPN. I’m checking the settings-sync behavior and the two PIN systems next, because they determine whether the enforcement can be made native-hard rather than only UI-disabled.
+
+
+
+10 actions
+I inspected the existing Android/Expo code without editing anything.
+
+Current behavior
+1. VPN toggle under System Protection
+File: artifacts/focusflow/app/block-defense.tsx
+
+The VPN toggle already:
+
+Shows under System Protection.
+Requires Android VPN consent before enabling.
+Detects whether another VPN is active.
+Cannot be turned off while either:
+a Focus session is active, or
+a timed Standalone Block is active.
+The relevant state is:
+
+const blockProtectionActive = focusActive || standaloneActive;
+
+When VPN is already enabled during one of those blocks, the switch is disabled and displays:
+
+Locked on — active block in progress
+
+So the UI already partially satisfies the “untoggleable during Focus or Standalone” requirement.
+
+2. Existing Defense Password behavior
+There are two separate PIN/password systems:
+
+Defense Password
+Stored as:
+
+defense_pin_hash
+
+Used by the JavaScript UI to protect disabling protection toggles.
+
+For the VPN switch, disabling it calls requireDefensePin(...).
+
+However:
+
+If a Defense Password exists, the UI asks for it.
+If pinProtectionEnabled is on but no password has actually been configured, the UI offers Proceed anyway.
+The native Android layer does not validate defense_pin_hash when VPN settings are changed.
+Therefore, the Defense Password is currently a UI-level guard, not a native hard-enforcement guard.
+
+Focus Session Password
+Stored natively as:
+
+session_pin_hash
+
+This protects ending sessions and calling native stopNetworkBlock(...).
+
+It is separate from the Defense Password and is not currently the password used by the System Protection VPN toggle.
+
+3. VPN app-list Save does not automatically enable VPN
+There are multiple VPN-related selection flows:
+
+Dedicated VPN Block List
+File:
+
+artifacts/focusflow/app/vpn-block-list.tsx
+
+Save currently:
+
+Gets selected packages.
+Requests/checks Android VPN permission.
+Saves them as alwaysOnVpnPackages.
+Leaves vpnBlockEnabled unchanged.
+So if VPN was previously off, selecting apps and pressing Save does not automatically turn on the global VPN toggle.
+
+Always-On Block List
+File:
+
+artifacts/focusflow/app/always-on.tsx
+
+This has per-app VPN controls. Save similarly saves:
+
+alwaysOnVpnPackages: vpnPkgs
+
+but does not set:
+
+vpnBlockEnabled: true
+
+Standalone Block sheet
+File:
+
+artifacts/focusflow/src/components/StandaloneBlockModal.tsx
+
+The sheet can select per-app VPN blocking and passes the selected packages to setStandaloneBlockAndAllowance(...).
+
+That function only starts the VPN if:
+
+newSettings.vpnBlockEnabled === true
+
+So this flow also depends on the user manually enabling the main VPN toggle first.
+
+4. Native VPN behavior
+Files:
+
+android-native/.../NetworkBlockModule.kt
+android-native/.../NetworkBlockerVpnService.kt
+
+The native VPN currently:
+
+Uses a local null-routing VPN.
+Supports per-app and global routing.
+Persists the selected package list.
+Can restart after reboot/session restoration.
+Has optional self-healing if the VPN is disconnected.
+Stops the VPN through stopNetworkBlock(...).
+But the native setNetworkBlockSettings(...) method does not currently enforce:
+
+Defense Password validation.
+“Cannot disable while Focus or Standalone is active.”
+“VPN must stay enabled once selected apps exist.”
+Native stopNetworkBlock(...) checks session_pin_hash, not defense_pin_hash.
+
+Main gaps to address
+To fully match your requested behavior, the implementation would need to:
+
+Auto-enable VPN when Save contains at least one VPN-selected app
+
+Set vpnBlockEnabled: true in the relevant Save flows.
+Persist the setting.
+Start the VPN immediately after permission is confirmed.
+Keep the existing Android consent requirement
+
+The app cannot silently bypass Android’s VPN consent dialog.
+If permission is missing, the user must approve it.
+Once approved, Save can automatically enable and start VPN without requiring a separate manual toggle.
+Make Defense Password protection stronger
+
+Use the Defense Password consistently when disabling VPN.
+Ideally validate it in the native layer too, rather than relying only on the React Native UI.
+Make the active-session lock native-enforced
+
+Native code should reject attempts to disable VPN while:
+focus_active is true, or
+standalone_block_active is true and not expired.
+This protects against alternate UI paths or direct bridge calls.
+Decide how VPN-list removal should work during an active block
+
+The current app-list screens require the Defense Password only when a configured Defense Password exists.
+We may want removals from the VPN list to be blocked or PIN-protected while Focus/Standalone is active as well.
+Important limitation
+No software can prevent the user from revoking Android VPN permission from the operating system completely. FocusFlow can:
+
+Disable the in-app toggle.
+Reject native stop/disable calls.
+Detect VPN revocation.
+Attempt self-healing.
+Show a recovery notification.
+But Android’s own VPN settings and another VPN app remain system-level escape paths.

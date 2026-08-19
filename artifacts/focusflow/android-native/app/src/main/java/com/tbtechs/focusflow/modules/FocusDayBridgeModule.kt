@@ -44,7 +44,8 @@ class FocusDayBridgeModule(private val reactContext: ReactApplicationContext) :
 
     private val taskEndedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            sendEvent("TASK_ENDED", null)
+            val taskId = intent.getStringExtra("taskId")
+            sendEvent("TASK_ENDED", null, taskId)
         }
     }
 
@@ -69,6 +70,20 @@ class FocusDayBridgeModule(private val reactContext: ReactApplicationContext) :
             }
 
             if (!reactContext.hasActiveReactInstance()) return
+            // NotificationActionReceiver persists every action before sending
+            // the immediate broadcast. Clear that replay entry when JS is
+            // already alive, otherwise onHostResume emits the same action a
+            // second time.
+            val prefs = reactContext.getSharedPreferences(
+                com.tbtechs.focusflow.services.AppBlockerAccessibilityService.PREFS_NAME,
+                android.content.Context.MODE_PRIVATE
+            )
+            prefs.edit()
+                .remove(com.tbtechs.focusflow.services.NotificationActionReceiver.PREF_PENDING_ACTION)
+                .remove(com.tbtechs.focusflow.services.NotificationActionReceiver.PREF_PENDING_TASK_ID)
+                .remove(com.tbtechs.focusflow.services.NotificationActionReceiver.PREF_PENDING_MINUTES)
+                .remove(com.tbtechs.focusflow.services.NotificationActionReceiver.PREF_PENDING_TIME_MS)
+                .apply()
             val params = Arguments.createMap().apply {
                 putString("type",        "NOTIF_ACTION")
                 putString("notifAction", notifAction)
@@ -193,11 +208,12 @@ class FocusDayBridgeModule(private val reactContext: ReactApplicationContext) :
         }
     }
 
-    private fun sendEvent(type: String, payload: String?) {
+    private fun sendEvent(type: String, payload: String?, taskId: String? = null) {
         if (!reactContext.hasActiveReactInstance()) return
         val params = Arguments.createMap().apply {
             putString("type", type)
             if (payload != null) putString("blockedApp", payload) else putNull("blockedApp")
+            if (taskId != null) putString("taskId", taskId) else putNull("taskId")
         }
         reactContext
             .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)

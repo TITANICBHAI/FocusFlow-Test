@@ -1,0 +1,161 @@
+The safest option with the lowest chance of breaking other features is an additive hybrid fix.
+
+Do not replace either of the two core files or make one system fully dependent on the other.
+
+Risk comparison
+Highest risk: Replace AccessibilityService enforcement with UsageStats
+Avoid this.
+
+Why:
+
+UsageStats data is delayed
+UsageEvents may not contain the newest app-open event immediately
+Blocking would become dependent on Usage Access permission
+Users who enabled Accessibility but not Usage Access could lose allowance enforcement
+Existing blocking, overlays, VPN behavior, and focus rules all rely on the AccessibilityService
+This could break the central blocking behavior.
+
+High risk: Delete daily_allowance_used and calculate everything from UsageStats
+Also avoid doing this as a first change.
+
+Why:
+
+Time data may be stale while the user is currently inside an app
+UsageStats may be cleared or unavailable
+OEMs handle usage access differently
+The AccessibilityService needs an immediate answer when deciding whether to block
+Existing count/time/interval logic already reads the native allowance state
+This is a large behavioral migration across a core service.
+
+Lowest risk: Keep both core systems and add recovery
+This is the safest approach.
+
+Safest architecture
+Keep UsageStatsModule.kt as the reporting system
+Do not change its public return shape or make it responsible for blocking.
+
+Keep it handling:
+
+Usage reports
+Foreground minutes
+Historical launch counts
+Usage permission checks
+Analytics screens
+Other screens already depend on this module, so preserving its API is important.
+
+Keep AppBlockerAccessibilityService.kt as the enforcement system
+Do not replace its live event handling.
+
+Keep it handling:
+
+Immediate app detection
+Blocking and overlays
+Focus mode
+Standalone blocks
+Daily allowance decisions
+VPN triggers
+System protection
+That avoids disturbing the features that rely on the service’s timing and event order.
+
+What we should safely add
+1. Add active-session checkpointing
+This is the safest useful change.
+
+When a time-budget or interval app is active:
+
+Continue using the existing in-memory timer
+Save a small checkpoint every 15–30 seconds
+Restore that checkpoint if the service reconnects
+Keep the existing allowance calculation as the fallback
+This changes failure recovery without changing normal enforcement behavior.
+
+If checkpointing has a bug, the existing logic can still remain as the primary path.
+
+2. Use UsageEvents only for recovery/reconciliation
+Do not query UsageEvents on every app event and make it the immediate authority.
+
+Instead, use it:
+
+When the service reconnects
+When the day changes
+When the native counter looks inconsistent
+For reporting and diagnostics
+Normal count enforcement should continue using the existing AccessibilityService event because it is immediate.
+
+This avoids adding Usage Access as a new hard dependency for daily allowance blocking.
+
+3. Keep the allowance configuration in SharedPreferences
+This should not be removed.
+
+The configuration is not duplicate usage data. It contains the user’s rules:
+
+App package
+Count/time/interval mode
+Daily limit
+Interval window
+The service needs this locally because it can run when the JavaScript app is not active.
+
+4. Do not immediately delete daily_allowance_used
+For safety, keep it during the first fix.
+
+A safer transition would be:
+
+Keep writing the existing counter
+Add checkpoints
+Add reconciliation logs
+Compare behavior across restarts
+Only remove or reduce the old counter after validation
+Deleting it immediately creates unnecessary risk.
+
+5. Make native sync failure visible without changing existing method contracts
+The current bridge silently returns when the native method is missing. That needs improvement, but changing existing methods from Promise<void> to Promise<boolean> could affect callers.
+
+The safest option is to add a separate availability check, such as:
+
+isDailyAllowanceNativeAvailable()
+
+Then:
+
+Existing methods keep their current signatures
+Existing callers do not break
+The UI can warn when native enforcement is unavailable
+Debug logs can identify Expo Go or incomplete native builds
+Recommended implementation order
+Phase 1 — Lowest risk
+Only add diagnostics:
+
+Check that SharedPrefs.setDailyAllowanceConfig exists
+Check that the AccessibilityService is enabled
+Show/log when native enforcement is unavailable
+Do not change allowance behavior
+Phase 2 — Safe reliability improvement
+Add active-session checkpoints:
+
+Preserve the current timer
+Checkpoint every 15–30 seconds
+Restore on service reconnect
+Keep existing counters intact
+Phase 3 — Recovery only
+Use UsageEvents for:
+
+Reconciliation after restart
+Detecting missed app opens
+Diagnostics
+Do not use it as the immediate blocking authority yet.
+
+Phase 4 — Separate reporting fixes
+Fix UsageStatsModule.kt only for report accuracy:
+
+Keep apps with launch events even if they used less than one minute
+Preserve the existing UsageApp object shape
+Improve rounding/current-day refresh
+These changes should not affect blocking or allowance enforcement.
+
+Final recommendation
+The safest choice is:
+
+Keep AccessibilityService as the live enforcement engine, keep UsageStatsManager as the reporting engine, keep allowance configuration in SharedPreferences, and add checkpointing plus UsageEvents reconciliation gradually.
+
+This does not require changing the core contracts used by the rest of the app, does not make Usage Access newly mandatory for blocking, and does not risk breaking focus mode, standalone blocking, overlays, VPN enforcement, or reports.
+
+I would not start by replacing the current allowance system or deleting its stored state.

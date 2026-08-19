@@ -1,0 +1,110 @@
+**Fix 6 — `src/components/GreyoutScheduleModal.tsx`**
+
+Four steps. This is the most involved so read each one fully before applying.
+
+---
+
+**Step 1 — imports**
+
+Check the existing imports. Add these two if they aren't already there:
+
+```ts
+import { PinVerifyModal } from '@/components/PinVerifyModal';
+import { SharedPrefsModule } from '@/native-modules/SharedPrefsModule';
+```
+
+Also check the React import — `useState` and `useCallback` both need to be in it.
+
+---
+
+**Step 2 — internal pin state + handler**
+
+Find `const { theme } = useTheme();` near the top of the component body. Add this block directly after it:
+
+```ts
+type InternalPinState =
+  | { visible: false }
+  | { visible: true; title: string; description: string; action: () => void };
+
+const [internalPin, setInternalPin] = useState<InternalPinState>({ visible: false });
+
+const handlePin = useCallback(
+  (title: string, description: string, action: () => void) => {
+    SharedPrefsModule.getString('defense_pin_hash')
+      .then((hash: string | null) => {
+        if (hash) {
+          setInternalPin({ visible: true, title, description, action });
+        } else {
+          action();
+        }
+      })
+      .catch(() => {
+        action();
+      });
+  },
+  [],
+);
+```
+
+---
+
+**Step 3 — replace the four call sites**
+
+There are exactly four places that call the `requireDefensePin` prop. Each follows this pattern:
+
+```ts
+// BEFORE (each of the 4 sites looks like this)
+if (requireDefensePin) {
+  requireDefensePin('Some Title', 'Some description.', () => { /* action */ });
+} else {
+  /* same action inline */
+}
+```
+
+Replace every one with a single call — no if/else needed since `handlePin` always exists:
+
+```ts
+// AFTER
+handlePin('Some Title', 'Some description.', () => { /* action */ });
+```
+
+The action callback inside stays exactly as it was. Only the wrapper changes.
+
+One of the four (`commitDraft`) may look slightly different — something like `requireDefensePin && someCondition && requireDefensePin(...)`. For that one, keep the `someCondition` check and just replace `requireDefensePin(...)` with `handlePin(...)`, dropping the `requireDefensePin &&` guard.
+
+---
+
+**Step 4 — add `PinVerifyModal` inside the JSX**
+
+Find the closing `</Modal>` of the component's outermost `<Modal visible={visible} ...>` block. Add the pin modal just before it:
+
+```tsx
+      <PinVerifyModal
+        visible={internalPin.visible}
+        pinType="defense"
+        title={internalPin.visible ? internalPin.title : undefined}
+        description={internalPin.visible ? internalPin.description : undefined}
+        onVerified={() => {
+          if (internalPin.visible) {
+            const action = internalPin.action;
+            setInternalPin({ visible: false });
+            action();
+          }
+        }}
+        onCancel={() => setInternalPin({ visible: false })}
+      />
+    </Modal>
+```
+
+---
+
+**Verify when done:**
+
+- `requireDefensePin` prop is still declared in the `Props` interface and still destructured — just no longer called anywhere. That's intentional. Add `_requireDefensePin` rename or an eslint-disable comment if the linter complains about unused variable.
+- `handlePin` is called in exactly four places.
+- `<PinVerifyModal>` appears exactly once in the JSX, inside the outer `<Modal>`.
+- Nothing else in the file changed.
+
+---
+
+Say **done** and that's all 6 fixes shipped.

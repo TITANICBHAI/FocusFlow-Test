@@ -45,7 +45,7 @@
             android:layout_height="wrap_content"
             android:text="FOCUSFLOW"
             android:textSize="9sp"
-            android:textColor="#6366f1"
+            android:textColor="#4F8EF7"
             android:textStyle="bold"
             android:letterSpacing="0.10"
             android:maxLines="1"
@@ -57,7 +57,7 @@
             android:layout_height="wrap_content"
             android:text="No active task"
             android:textSize="13sp"
-            android:textColor="#1e1b4b"
+            android:textColor="#F5F7FF"
             android:textStyle="bold"
             android:maxLines="1"
             android:ellipsize="end"
@@ -94,7 +94,7 @@
             android:layout_height="wrap_content"
             android:text=""
             android:textSize="12sp"
-            android:textColor="#6366f1"
+            android:textColor="#4F8EF7"
             android:textStyle="bold"
             android:gravity="end"
             android:visibility="gone" />
@@ -108,8 +108,8 @@
             android:layout_marginTop="4dp"
             android:max="100"
             android:progress="0"
-            android:progressTint="#6366f1"
-            android:progressBackgroundTint="#e0e7ff"
+            android:progressTint="#4F8EF7"
+            android:progressBackgroundTint="#242A3A"
             android:visibility="gone" />
 
         <!-- "+ Add Task" pill — shown only when IDLE (no task, no block) -->

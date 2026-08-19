@@ -1,0 +1,66 @@
+**Fix 4 — `android-native/.../UsageStatsModule.kt`**
+
+Find `fun getUsageSummary`. Inside it, locate this block — it starts with `val apps = rows.mapNotNull` and ends with `val totalMinutes = apps.sumOf`:
+
+```kotlin
+// BEFORE
+val apps = rows.mapNotNull { row ->
+    val foregroundMinutes = (row.totalTimeInForeground / 60_000L).toInt()
+    if (foregroundMinutes <= 0) return@mapNotNull null
+
+    val appName = try {
+        packageManager.getApplicationLabel(
+            packageManager.getApplicationInfo(row.packageName, 0)
+        ).toString()
+    } catch (_: Exception) {
+        row.packageName
+    }
+
+    WritableNativeMap().apply {
+        putString("packageName", row.packageName)
+        putString("appName", appName)
+        putInt("foregroundMinutes", foregroundMinutes)
+        putInt("launchCount", launchCounts[row.packageName] ?: 0)
+        putDouble("lastUsedAt", row.lastTimeUsed.toDouble())
+    }
+}.sortedByDescending { it.getInt("foregroundMinutes") }
+
+val totalMinutes = apps.sumOf { it.getInt("foregroundMinutes") }
+```
+
+Replace the whole block:
+
+```kotlin
+// AFTER
+val grouped = rows.groupBy { it.packageName }
+val apps = grouped.mapNotNull { (pkg, pkgRows) ->
+    val foregroundMinutes = pkgRows.sumOf { it.totalTimeInForeground / 60_000L }.toInt()
+    if (foregroundMinutes <= 0) return@mapNotNull null
+
+    val appName = try {
+        packageManager.getApplicationLabel(
+            packageManager.getApplicationInfo(pkg, 0)
+        ).toString()
+    } catch (_: Exception) {
+        pkg
+    }
+
+    val lastUsed = pkgRows.maxOf { it.lastTimeUsed }
+
+    WritableNativeMap().apply {
+        putString("packageName", pkg)
+        putString("appName", appName)
+        putInt("foregroundMinutes", foregroundMinutes)
+        putInt("launchCount", launchCounts[pkg] ?: 0)
+        putDouble("lastUsedAt", lastUsed.toDouble())
+    }
+}.sortedByDescending { it.getInt("foregroundMinutes") }
+
+val totalMinutes = apps.sumOf { it.getInt("foregroundMinutes") }
+```
+
+The only structural change is `rows.mapNotNull { row -> }` becomes `rows.groupBy { it.packageName }` then `grouped.mapNotNull { (pkg, pkgRows) -> }`, with per-package aggregation inside. `val totalMinutes` line is identical.
+
+---
+
+Say **done** when ready and I'll give Fix 5.

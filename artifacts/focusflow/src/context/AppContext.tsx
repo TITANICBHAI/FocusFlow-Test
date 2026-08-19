@@ -11,6 +11,7 @@ import { Alert, AppState as RNAppState, Appearance, type AppStateStatus } from '
 import type { Task, AppSettings, FocusSession, DailyAllowanceEntry, RecurringBlockSchedule, GreyoutWindow } from '@/data/types';
 import {
   dbGetTasksForDate,
+  dbGetAllTasks,
   dbGetRecentUnresolvedTasks,
   dbInsertTask,
   dbUpdateTask,
@@ -42,10 +43,13 @@ import {
 import {
   rebalanceAfterOverrun,
   getUnfinishedOverdueTasks,
+  compressSchedule,
+  compressDeletedTaskGap,
 } from '@/services/schedulerEngine';
 import {
   scheduleTaskReminders,
-  cancelTaskReminders,
+  scheduleTaskRemindersBatch,
+  cancelTaskRemindersBatch,
   setupNotificationChannels,
   requestPermissions,
   scheduleStandaloneBlockExpiry,
@@ -55,6 +59,7 @@ import {
   startFocusMode as _startFocusMode,
   stopFocusMode as _stopFocusMode,
   isFocusActive,
+  updateCurrentFocusTask as _updateCurrentFocusTask,
 } from '@/services/focusService';
 import { SharedPrefsModule } from '@/native-modules/SharedPrefsModule';
 import { ForegroundServiceModule } from '@/native-modules/ForegroundServiceModule';
@@ -64,7 +69,7 @@ import { AversionsModule } from '@/native-modules/AversionsModule';
 import { GreyoutModule } from '@/native-modules/GreyoutModule';
 import { NetworkBlockModule } from '@/native-modules/NetworkBlockModule';
 import { logBootMarker, logger } from '@/services/startupLogger';
-import { initI18n } from '@/i18n';
+import { persistSetupBackups, readSetupBackups } from '@/services/setupPersistence';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -130,10 +135,12 @@ const defaultSettings: AppSettings = {
   notificationsEnabled: true,
   privacyAccepted: false,
   onboardingComplete: false,
+  protectionMode: 'standard',
   standaloneBlockPackages: [],
   standaloneBlockUntil: null,
   alwaysOnPackages: [],
-  autoCopyToAlwaysOn: false,
+  autoCopyToAlwaysOn: true,
+  autoCopiedAlwaysOnPackages: [],
   dailyAllowanceEntries: [],
   blockedWords: [],
   aversionDimmerEnabled: false,
@@ -147,7 +154,7 @@ const defaultSettings: AppSettings = {
   blockInstagramReelsEnabled: false,
   vpnBlockEnabled: false,
   standaloneVpnPackages: [],
-  keepFocusActiveUntilTaskEnd: false,
+  keepFocusActiveUntilTaskEnd: true,
   vpnSelfHealEnabled: true,
   launcherEnabled: false,
   launcherHiddenPackages: [],
@@ -210,12 +217,13 @@ interface AppContextValue {
    */
   stopFocusMode: (pinHash?: string | null) => Promise<void>;
 
-  updateSettings: (settings: AppSettings) => Promise<void>;
+  updateSettings: (settings: AppSettings, options?: { defensePinHash?: string | null }) => Promise<void>;
   /**
    * Starts or stops standalone app blocking. When stopping an active (not-yet-expired)
    * session and a session PIN is configured, [pinHash] must be the SHA-256 hex of the PIN.
    */
   setStandaloneBlock: (packages: string[], untilMs: number | null, pinHash?: string | null) => Promise<void>;
+  setQuickBlockTemporary: (packageName: string, untilMs: number) => Promise<void>;
   /**
    * Atomically sets standalone block + daily allowance. When stopping an active session
    * and a session PIN is configured, [pinHash] must be the SHA-256 hex of the PIN.
@@ -241,6 +249,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Tracks which unresolved task IDs have already triggered a "did you finish
   // your previous task?" alert so we don't show the same prompt twice.
   const alertedUnresolvedRef = useRef<Set<string>>(new Set());
+  // Native notification actions can arrive once immediately and once again
+  // when a pending action is replayed on host resume. Ignore only the same
+  // task/action pair within a short window; later user taps remain valid.
+  const recentNotifActionsRef = useRef<Map<string, number>>(new Map());
 
   // ── Prune old data once per session after DB is ready ────────────────────
   useEffect(() => {
@@ -350,6 +362,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       void refreshTasks().catch((e) => {
         void logger.warn('AppContext', `foreground resume refreshTasks failed: ${String(e)}`);
       });
+
+      // Greyout settings live in SharedPreferences on the native side. Re-sync
+      // the combined user + recurring schedule after every process resume so a
+      // crash or interrupted settings save cannot leave stale windows active.
+      try {
+        await GreyoutModule.setSchedule(_recurringSchedulesToGreyoutWindows(stateRef.current.settings));
+      } catch (e) {
+        void logger.warn('AppContext', `foreground resume greyout sync failed: ${String(e)}`);
+      }
     };
     const sub = RNAppState.addEventListener('change', handleResume);
     return () => sub.remove();
@@ -418,101 +439,48 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         void logger.warn('AppContext', `Idle foreground service failed: ${String(e)}`);
       }
 
-      // ── SharedPreferences fast read (Group A — Kotlin-critical fields) ────
-      // Read all enforcement-critical fields from SharedPreferences BEFORE the
-      // DB read.  SP is atomic and never times out, so this is safe even when
-      // SQLite is slow or the DB file has been wiped by OEM memory management.
-      // The values are dispatched immediately so the native-sync functions later
-      // in init() always work with real persisted config, never with empty defaults.
-      let spSnapshot: Partial<AppSettings> = {};
-      try {
-        void logger.info('AppContext', '[SP_READ] Reading enforcement settings from SharedPreferences');
-        spSnapshot = await SharedPrefsModule.getAllEnforcementSettings();
-        void logger.info('AppContext', '[SP_READ] SharedPreferences enforcement settings loaded');
-      } catch (e) {
-        void logger.warn('AppContext', `[SP_READ] Failed (non-fatal): ${String(e)}`);
-      }
-      // Seed context with SP values immediately — if the DB load below succeeds,
-      // the merged (DB-wins) result is dispatched again a few lines down.
-      dispatch({ type: 'SET_SETTINGS', payload: { ...defaultSettings, ...spSnapshot } });
-
       // ── Database / settings ────────────────────────────────────────────────
-      // Track whether the DB actually responded so we know whether to let DB
-      // values override the SP snapshot (DB wins on success) or to keep the SP
-      // snapshot as the authoritative source (SP wins over defaults on timeout).
       void logger.info('AppContext', 'Loading settings from DB (timeout=8000ms)');
-      let rawSettings = defaultSettings;
-      let dbSucceeded = false;
-      try {
-        const timeoutGate = new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000));
-        const race = await Promise.race([
-          dbGetSettings()
-            .then((s) => ({ ok: true as const, s }))
-            .catch(() => ({ ok: false as const, s: defaultSettings })),
-          timeoutGate.then(() => ({ ok: false as const, s: defaultSettings })),
-        ]);
-        if (race.ok) {
-          rawSettings = race.s;
-          dbSucceeded = true;
-        }
-      } catch {
-        // Entire race threw — rawSettings stays as defaultSettings
-      }
-      void logger.info('AppContext', dbSucceeded ? 'Settings loaded from DB' : '[SP_READ] DB timed out — SP snapshot stays primary');
+      const rawSettings = await withTimeout(dbGetSettings(), 8000, defaultSettings);
+      void logger.info('AppContext', 'Settings loaded from DB');
       // Fire-and-forget: writes one [DB_DIAG] INFO line per session with
       // API level, Android version, manufacturer, model, and SQLite version.
       // Never blocks init and never throws.
       void logDbDiagnostics();
 
-      // If the DB returned privacyAccepted=false or onboardingComplete=false
-      // (e.g. because it fell back to the recovery DB after OEM memory
-      // management wiped the DB file), cross-check with SharedPreferences —
-      // which survives DB file deletion — before concluding the user needs to
-      // re-accept the privacy policy or redo onboarding.  Stops the
-      // privacy/onboarding screens from re-appearing randomly between sessions.
-      //
-      // Merge strategy for Group A (enforcement) fields:
-      //   DB succeeded → DB wins (most precise/validated copy)
-      //   DB timed out → SP wins over empty defaults (real config preserved)
-      let settings: AppSettings = dbSucceeded
-        ? { ...spSnapshot, ...rawSettings }  // DB overrides SP for Group A
-        : { ...defaultSettings, ...spSnapshot }; // SP overrides defaults
-      let restoredFromSp = false;
-      if (!rawSettings.privacyAccepted) {
-        try {
-          const spValue = await SharedPrefsModule.getString('privacy_accepted');
-          if (spValue === 'true') {
-            void logger.info('AppContext', 'privacyAccepted restored from SharedPreferences backup');
-            settings = { ...settings, privacyAccepted: true };
-            restoredFromSp = true;
-          }
-        } catch (e) {
-          void logger.warn('AppContext', `SharedPrefs privacy backup check failed: ${String(e)}`);
+      // If critical first-run state is missing or stale (e.g. because the app
+      // fell back to the recovery DB after OEM memory management wiped the
+      // primary DB file), cross-check the non-SQLite backups before concluding
+      // the user needs to re-accept privacy or redo onboarding.
+      let settings = rawSettings;
+      let restoredFromBackup = false;
+      try {
+        const backup = await readSetupBackups();
+        if (!settings.privacyAccepted && backup.privacyAccepted) {
+          settings = { ...settings, privacyAccepted: true };
+          restoredFromBackup = true;
         }
-      }
-      if (!rawSettings.onboardingComplete) {
-        try {
-          const spValue = await SharedPrefsModule.getString('onboarding_complete');
-          if (spValue === 'true') {
-            void logger.info('AppContext', 'onboardingComplete restored from SharedPreferences backup');
-            settings = { ...settings, onboardingComplete: true };
-            restoredFromSp = true;
-          }
-        } catch (e) {
-          void logger.warn('AppContext', `SharedPrefs onboarding backup check failed: ${String(e)}`);
+        if (!settings.onboardingComplete && backup.onboardingComplete) {
+          settings = { ...settings, onboardingComplete: true };
+          restoredFromBackup = true;
         }
+        if (backup.protectionMode && backup.protectionMode !== settings.protectionMode) {
+          settings = { ...settings, protectionMode: backup.protectionMode };
+          restoredFromBackup = true;
+        }
+        if (restoredFromBackup) {
+          void logger.info('AppContext', 'Critical setup state restored from non-SQLite backup');
+        }
+      } catch (e) {
+        void logger.warn('AppContext', `Critical setup backup check failed: ${String(e)}`);
       }
-      if (restoredFromSp) {
+      if (restoredFromBackup) {
         try { await dbSaveSettings(settings); } catch { /* non-fatal — primary path is the in-memory state */ }
       }
-
-      // Apply stored language preference before rendering
-      try {
-        initI18n(settings.language ?? null);
-        void logger.info('AppContext', `i18n initialized with language: ${settings.language ?? 'device-default'}`);
-      } catch (e) {
-        void logger.warn('AppContext', `i18n init failed: ${String(e)}`);
-      }
+      // Heal all backup stores from the final merged settings. This covers
+      // upgrades where only one of SharedPreferences, AsyncStorage, or SQLite
+      // still contains the first-run decision.
+      try { await persistSetupBackups(settings); } catch { /* non-fatal */ }
 
       void logger.info('AppContext', 'Dispatching SET_SETTINGS + SET_DB_READY');
       dispatch({ type: 'SET_SETTINGS', payload: settings });
@@ -610,11 +578,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       try {
         void logger.info('AppContext', 'Checking for overdue tasks');
-        const allTasks = await dbGetTasksForDate(new Date().toISOString());
+        const allTasks = await dbGetAllTasks();
         const overdue = getUnfinishedOverdueTasks(allTasks);
-        for (const t of overdue) {
-          const marked = updateTaskStatus(t, 'overdue');
-          await dbUpdateTask(marked);
+        if (overdue.length > 0) {
+          await dbUpdateTasksBatch(overdue.map((t) => updateTaskStatus(t, 'overdue')));
         }
         if (overdue.length > 0) {
           void logger.info('AppContext', `Marked ${overdue.length} tasks as overdue`);
@@ -639,7 +606,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       void logger.info('AppContext', '[STARTUP_COMPLETE] init() finished successfully');
     } catch (e) {
       void logger.error('AppContext', `[STARTUP_ERROR] Unhandled init error: ${String(e)}`);
-      dispatch({ type: 'SET_SETTINGS', payload: defaultSettings });
+      // Even if a non-critical startup step fails before the DB path completes,
+      // recover the first-run markers before showing the app. Otherwise a
+      // returning user could be sent back through privacy/onboarding merely
+      // because initialization hit a transient native error.
+      let recoveredSettings = defaultSettings;
+      try {
+        const backup = await readSetupBackups();
+        recoveredSettings = {
+          ...defaultSettings,
+          privacyAccepted: backup.privacyAccepted === true,
+          onboardingComplete: backup.onboardingComplete === true,
+          protectionMode: backup.protectionMode ?? defaultSettings.protectionMode,
+        };
+        await persistSetupBackups(recoveredSettings);
+      } catch {
+        // Keep the safe defaults if backup reads are also unavailable.
+      }
+      dispatch({ type: 'SET_SETTINGS', payload: recoveredSettings });
       dispatch({ type: 'SET_DB_READY' });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -675,9 +659,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Use the dedicated always-on list (separate from timed standalone block)
     const packages = settings.alwaysOnPackages ?? [];
     const allowanceEntries = settings.dailyAllowanceEntries ?? [];
-    const words = settings.blockedWords ?? [];
     const enforcementOn = settings.alwaysOnEnforcementEnabled !== false;
-    const active = enforcementOn && (packages.length > 0 || allowanceEntries.length > 0 || words.length > 0);
+    const active = enforcementOn && (packages.length > 0 || allowanceEntries.length > 0);
     try {
       await SharedPrefsModule.setAlwaysBlockActive(active, packages);
     } catch (e) {
@@ -721,11 +704,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
    */
   async function _syncGreyoutSchedule(settings: AppSettings): Promise<void> {
     try {
-      // Only push windows that are enabled (enabled !== false). Disabled windows
-      // are kept in storage so the user can re-enable them, but the native layer
-      // must not enforce them.
-      const activeWindows = (settings.greyoutSchedule ?? []).filter((w) => w.enabled !== false);
-      await GreyoutModule.setSchedule(activeWindows);
+      await GreyoutModule.setSchedule(settings.greyoutSchedule ?? []);
     } catch (e) {
       void logger.warn('AppContext', `greyout sync failed: ${String(e)}`);
     }
@@ -738,9 +717,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
    */
   function _recurringSchedulesToGreyoutWindows(settings: AppSettings): GreyoutWindow[] {
     const schedules = settings.recurringBlockSchedules ?? [];
-    // Keep user-created windows (no scheduleId) that are currently enabled.
-    // Disabled windows are preserved in storage but must not reach the native layer.
-    const userWindows = (settings.greyoutSchedule ?? []).filter((w) => !w.scheduleId && w.enabled !== false);
+    // Keep user-created windows (no scheduleId) untouched
+    const userWindows = (settings.greyoutSchedule ?? []).filter((w) => !w.scheduleId);
     const scheduleWindows: GreyoutWindow[] = [];
     for (const sched of schedules) {
       if (!sched.enabled || sched.packages.length === 0) continue;
@@ -753,13 +731,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           endMin: sched.endMin,
           days: sched.days,
           scheduleId: sched.id,
+          scheduleName: sched.name,
         });
       }
     }
     return [...userWindows, ...scheduleWindows];
   }
 
-  async function _syncSystemGuard(settings: AppSettings): Promise<void> {
+  async function _syncSystemGuard(
+    settings: AppSettings,
+    defensePinHash: string | null = null,
+  ): Promise<void> {
     try {
       await SharedPrefsModule.setSystemGuardEnabled(settings.systemGuardEnabled ?? false);
     } catch (e) {
@@ -776,34 +758,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       void logger.warn('AppContext', `instagram-reels guard sync failed: ${String(e)}`);
     }
     try {
-      await SharedPrefsModule.setNetworkBlockEnabled(settings.vpnBlockEnabled ?? false);
-    } catch (e) {
-      void logger.warn('AppContext', `vpn block enabled sync failed: ${String(e)}`);
-    }
-    try {
-      // Merge always-on VPN packages with standalone session VPN packages so the
-      // native layer has the full set of packages to route through the tunnel.
+      // Keep the UI setting, native mechanism flag, and package list in one
+      // native write. The VPN service, watchdog, and AccessibilityService all
+      // consume net_block_packages as the canonical list.
       const alwaysOnVpnPkgs = settings.alwaysOnVpnPackages ?? [];
-      const sessionVpnPkgs  = settings.standaloneVpnPackages ?? [];
-      const mergedVpnPkgs   = Array.from(new Set([...alwaysOnVpnPkgs, ...sessionVpnPkgs]));
-      await SharedPrefsModule.setVpnSelectedPackages(mergedVpnPkgs);
+      const sessionVpnPkgs = settings.standaloneVpnPackages ?? [];
+      const mergedVpnPkgs = Array.from(new Set([...alwaysOnVpnPkgs, ...sessionVpnPkgs]));
+      await NetworkBlockModule.setNetworkBlockSettings({
+        enabled: settings.vpnBlockEnabled ?? false,
+        vpn: settings.vpnBlockEnabled ?? false,
+        packages: mergedVpnPkgs,
+        defensePinHash,
+      });
     } catch (e) {
-      void logger.warn('AppContext', `vpn selected packages sync failed: ${String(e)}`);
+      void logger.warn('AppContext', `vpn settings sync failed: ${String(e)}`);
     }
     try {
       await NetworkBlockModule.setVpnSelfHealEnabled(settings.vpnSelfHealEnabled ?? false);
     } catch (e) {
       void logger.warn('AppContext', `vpn self-heal sync failed: ${String(e)}`);
     }
-    // Always-on VPN: start the VPN service now if any always-on packages are
-    // configured and VPN blocking is enabled. The native startNetworkBlock call
-    // is a no-op when the VPN is already running (guarded inside the service),
-    // so it is safe to call on every settings save and app launch.
+    // Start the VPN service now if any canonical packages are configured and
+    // VPN blocking is enabled. The native service reconfigures itself when the
+    // package set changes and is otherwise a no-op.
     try {
       const alwaysOnVpnPkgs = settings.alwaysOnVpnPackages ?? [];
-      if ((settings.vpnBlockEnabled ?? false) && alwaysOnVpnPkgs.length > 0) {
-        void NetworkBlockModule.startNetworkBlock(JSON.stringify(alwaysOnVpnPkgs)).catch((e) =>
+      const sessionVpnPkgs = settings.standaloneVpnPackages ?? [];
+      const mergedVpnPkgs = Array.from(new Set([...alwaysOnVpnPkgs, ...sessionVpnPkgs]));
+      if ((settings.vpnBlockEnabled ?? false) && mergedVpnPkgs.length > 0) {
+        void NetworkBlockModule.startNetworkBlock(JSON.stringify(mergedVpnPkgs)).catch((e) =>
           void logger.warn('AppContext', `always-on VPN start failed: ${String(e)}`),
+        );
+      } else if (!(settings.vpnBlockEnabled ?? false) || mergedVpnPkgs.length === 0) {
+        void NetworkBlockModule.stopNetworkBlock(defensePinHash).catch((e) =>
+          void logger.warn('AppContext', `VPN stop after disabling failed: ${String(e)}`),
         );
       }
     } catch (e) {
@@ -836,6 +824,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       void logger.warn('AppContext', `launcher clock style sync failed: ${String(e)}`);
     }
+    try {
+      await SharedPrefsModule.putString('launcher_wallpaper', settings.launcherWallpaperUri ?? '');
+    } catch (e) {
+      void logger.warn('AppContext', `launcher wallpaper sync failed: ${String(e)}`);
+    }
   }
 
   /**
@@ -866,22 +859,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         void logger.warn('AppContext', `expired standalone block clear failed: ${String(e)}`);
       }
       let updatedAlwaysOn = settings.alwaysOnPackages ?? [];
-      // Bug fix: default was incorrectly `?? true` here while everywhere else
-      // (DB default, UI toggle, focus.tsx, setStandaloneBlock) defaults to false.
-      // Using `?? true` caused the expiry path to strip packages from alwaysOn
-      // even for users who never enabled autoCopy, silently un-blocking apps.
-      if ((settings.autoCopyToAlwaysOn ?? false) && packages.length > 0) {
-        const toRemove = new Set(packages);
+      let updatedAutoCopied = settings.autoCopiedAlwaysOnPackages ?? [];
+      if ((settings.autoCopyToAlwaysOn ?? true) && packages.length > 0) {
+        const autoCopied = new Set(updatedAutoCopied);
+        const toRemove = new Set(packages.filter((pkg) => autoCopied.has(pkg)));
         updatedAlwaysOn = updatedAlwaysOn.filter((p) => !toRemove.has(p));
+        updatedAutoCopied = updatedAutoCopied.filter((p) => !toRemove.has(p));
       }
-      const cleared = { ...settings, standaloneBlockUntil: null, alwaysOnPackages: updatedAlwaysOn };
+      const cleared = {
+        ...settings,
+        standaloneBlockUntil: null,
+        alwaysOnPackages: updatedAlwaysOn,
+        autoCopiedAlwaysOnPackages: updatedAutoCopied,
+      };
       try { await dbSaveSettings(cleared); } catch (e) { void logger.warn('AppContext', `_syncStandaloneBlock expiry clear: dbSaveSettings non-fatal: ${String(e)}`); }
       dispatch({ type: 'SET_SETTINGS', payload: cleared });
-      // CRITICAL: sync always-on block after expiry so SharedPrefs reflects the
-      // updated (possibly empty) alwaysOnPackages list. Without this, the Kotlin
-      // AccessibilityService keeps seeing the old packages in always_block_packages
-      // and keeps blocking them even after the standalone session has expired.
-      try { await _syncAlwaysBlock(cleared); } catch (e) { void logger.warn('AppContext', `_syncStandaloneBlock expiry _syncAlwaysBlock non-fatal: ${String(e)}`); }
     } else {
       try {
         await SharedPrefsModule.setStandaloneBlock(true, packages, untilMs);
@@ -1073,7 +1065,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (msUntilExpiry <= 0) return;
     const t = setTimeout(() => {
       void _syncStandaloneBlock(stateRef.current.settings);
-    }, msUntilExpiry + 2000); // +2 s buffer — 500 ms was too short on low-end Android power-saving modes
+    }, msUntilExpiry + 500); // +500 ms buffer so the clock has definitely passed
     return () => clearTimeout(t);
   }, [state.settings.standaloneBlockUntil]);
 
@@ -1224,11 +1216,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // ── Native event subscriptions ───────────────────────────────────────────────
 
   useEffect(() => {
-    const unsubTaskEnded = EventBridge.subscribe('TASK_ENDED', () => {
+    const unsubTaskEnded = EventBridge.subscribe('TASK_ENDED', (event) => {
       // Do NOT auto-stop focus or hide the task. The user must explicitly
       // resolve the task (Complete / Extend / Skip) via the in-app prompt.
       // Keeping focus mode running prevents distractions while they decide.
-      void logger.info('AppContext', 'TASK_ENDED received — awaiting user decision');
+      // Refreshing here is important when the event arrives while the app is
+      // mounted: the native service has already ended its timer, but React may
+      // still be holding an older task snapshot. The refresh makes the
+      // awaiting-decision prompt and widget state converge immediately without
+      // changing the explicit-resolution UX.
+      void logger.info(
+        'AppContext',
+        `TASK_ENDED received for ${event.taskId ?? 'unknown task'} — refreshing before user decision`,
+      );
+      void refreshTasks().catch((e) => {
+        void logger.warn('AppContext', `TASK_ENDED refresh failed: ${String(e)}`);
+      });
+      void SharedPrefsModule.pushWidgetUpdate();
     });
 
     const unsubAppBlocked = EventBridge.subscribe('APP_BLOCKED', (event) => {
@@ -1261,11 +1265,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const addTask = useCallback(async (task: Task) => {
+  const addTask = useCallback(async (task: Task, options?: { skipAlarms?: boolean }) => {
     try {
       await dbInsertTask(task);
       dispatch({ type: 'ADD_TASK', payload: task });
-      await scheduleTaskReminders(task);
+      if (!options?.skipAlarms) {
+        await scheduleTaskReminders(task);
+      }
     } catch (e) {
       void logger.error('AppContext', `addTask failed: ${String(e)}`);
       throw e;
@@ -1276,8 +1282,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       await dbUpdateTask(task);
       dispatch({ type: 'UPDATE_TASK', payload: task });
-      await cancelTaskReminders(task.id);
       await scheduleTaskReminders(task);
+
+      // The native focus service and AccessibilityService do not read the
+      // React task state. Keep their active-task snapshot current when an
+      // in-session task is edited (title, end time, or both).
+      if (stateRef.current.focusSession?.taskId === task.id) {
+        const finalTasks = stateRef.current.tasks.map((t) => (t.id === task.id ? task : t));
+        const endMs = new Date(task.endTime).getTime();
+        const nextTask = finalTasks
+          .filter(
+            (t) =>
+              t.id !== task.id &&
+              t.status !== 'completed' &&
+              t.status !== 'skipped' &&
+              new Date(t.startTime).getTime() >= endMs,
+          )
+          .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0];
+        _updateCurrentFocusTask(task);
+        await ForegroundServiceModule.updateNotification(
+          task.id,
+          task.title,
+          endMs,
+          nextTask?.title ?? null,
+        );
+        await SharedPrefsModule.setActiveTask(task.id, task.title, endMs, nextTask?.title ?? null);
+      }
     } catch (e) {
       void logger.error('AppContext', `updateTask failed: ${String(e)}`);
       throw e;
@@ -1286,9 +1316,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const deleteTask = useCallback(async (taskId: string) => {
     try {
+      const tasks = stateRef.current.tasks;
+      const task = tasks.find((t) => t.id === taskId);
+      const isFutureScheduledTask =
+        task?.status === 'scheduled' &&
+        new Date(task.startTime).getTime() > Date.now();
+      const compressed = task && isFutureScheduledTask
+        ? compressDeletedTaskGap(task, tasks)
+        : tasks;
+      const shifted = compressed.filter((candidate) => {
+        const original = tasks.find((t) => t.id === candidate.id);
+        return (
+          candidate.id !== taskId &&
+          original &&
+          (candidate.startTime !== original.startTime || candidate.endTime !== original.endTime)
+        );
+      });
+
       await dbDeleteTask(taskId);
-      await cancelTaskReminders(taskId);
-      dispatch({ type: 'DELETE_TASK', payload: taskId });
+      await dbUpdateTasksBatch(shifted);
+      await cancelTaskRemindersBatch([taskId]);
+      await scheduleTaskRemindersBatch(shifted);
+
+      // Deleting a future scheduled task frees its entire reserved slot. Pull
+      // only later, unresolved tasks forward; active/history rows never move.
+      dispatch({
+        type: 'SET_TASKS',
+        payload: compressed.filter((candidate) => candidate.id !== taskId),
+      });
     } catch (e) {
       void logger.error('AppContext', `deleteTask failed: ${String(e)}`);
       throw e;
@@ -1309,18 +1364,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // visible and a second tap would re-trigger the logic on an already-done task.
       if (task.status === 'completed') return;
       try {
-        const updated = updateTaskStatus(task, 'completed');
-        await dbUpdateTask(updated);
-        await cancelTaskReminders(taskId);
+        const completedAt = new Date().toISOString();
+        const keepUntilEnd =
+          stateRef.current.focusSession?.taskId === taskId &&
+          (stateRef.current.settings.keepFocusActiveUntilTaskEnd ?? false) &&
+          new Date(task.endTime).getTime() > Date.now();
+        const updated = {
+          ...updateTaskStatus(task, 'completed'),
+          updatedAt: completedAt,
+        };
+        const tasksWithUpdate = tasks.map((t) => (t.id === taskId ? updated : t));
+        // If focus is intentionally kept alive until the original end, its
+        // reserved time is still occupied. Otherwise reclaim an early finish.
+        const compressionTime = keepUntilEnd ? updated.endTime : completedAt;
+        const compressed = compressSchedule(updated, compressionTime, tasksWithUpdate);
+        const originalById = new Map(tasks.map((t) => [t.id, t]));
+        const changedTasks = compressed.filter((candidate) => {
+          const original = originalById.get(candidate.id);
+          return (
+            candidate.id === taskId ||
+            !original ||
+            candidate.startTime !== original.startTime ||
+            candidate.endTime !== original.endTime ||
+            candidate.status !== original.status
+          );
+        });
+        const shifted = changedTasks.filter((candidate) => candidate.id !== taskId);
+
+        await dbUpdateTasksBatch(changedTasks);
+        await cancelTaskRemindersBatch([taskId]);
+        await scheduleTaskRemindersBatch(shifted);
         // Dismiss the full-screen task-end alarm if it is currently ringing
         // for this task — keeps the alarm UI in sync with in-app resolution.
         void TaskAlarmModule.dismissAlarm(taskId);
-        dispatch({ type: 'UPDATE_TASK', payload: updated });
+        dispatch({ type: 'SET_TASKS', payload: compressed });
 
         // Record/refresh today's daily-completion row immediately so the
         // streak survives even if the user never opens the Stats tab today.
         try {
-          const refreshed = stateRef.current.tasks.map((t) => (t.id === taskId ? updated : t));
+           const refreshed = compressed;
           const today = getTodayTasks(refreshed);
           if (today.length > 0) {
             const done = today.filter((t) => t.status === 'completed').length;
@@ -1363,11 +1445,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const task = tasks.find((t) => t.id === taskId);
       if (!task) return;
       try {
+        const skippedAt =
+          Date.now() < new Date(task.startTime).getTime()
+            ? task.startTime
+            : new Date().toISOString();
         const updated = updateTaskStatus(task, 'skipped');
-        await dbUpdateTask(updated);
-        await cancelTaskReminders(taskId);
+        const tasksWithUpdate = tasks.map((t) => (t.id === taskId ? updated : t));
+        const compressed = compressSchedule(updated, skippedAt, tasksWithUpdate);
+        const originalById = new Map(tasks.map((t) => [t.id, t]));
+        const changedTasks = compressed.filter((candidate) => {
+          const original = originalById.get(candidate.id);
+          return (
+            candidate.id === taskId ||
+            !original ||
+            candidate.startTime !== original.startTime ||
+            candidate.endTime !== original.endTime ||
+            candidate.status !== original.status
+          );
+        });
+        const shifted = changedTasks.filter((candidate) => candidate.id !== taskId);
+
+        await dbUpdateTasksBatch(changedTasks);
+        await cancelTaskRemindersBatch([taskId]);
         void TaskAlarmModule.dismissAlarm(taskId);
-        dispatch({ type: 'UPDATE_TASK', payload: updated });
+        await scheduleTaskRemindersBatch(shifted);
+        dispatch({ type: 'SET_TASKS', payload: compressed });
       } catch (e) {
         void logger.error('AppContext', `skipTask failed: ${String(e)}`);
         throw e;
@@ -1390,7 +1492,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         const extended = extendTask(task, extraMinutes);
 
-        const { updatedSchedule, needsUserConfirm, skipped, shifted } = rebalanceAfterOverrun(extended, extraMinutes, tasks);
+        const { updatedSchedule, needsUserConfirm, skipped } = rebalanceAfterOverrun(extended, extraMinutes, tasks);
 
         await dbUpdateTasksBatch([extended, ...updatedSchedule.filter((t) => t.id !== extended.id)]);
 
@@ -1401,22 +1503,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         });
         dispatch({ type: 'SET_TASKS', payload: finalTasks });
 
-        // Reschedule the extended task at its new end time
-        await cancelTaskReminders(taskId);
-        await scheduleTaskReminders(extended);
-
-        // Reschedule every task that was shifted to new times — their old
-        // pre-start / mid-session / end notifications would fire at wrong times.
-        for (const t of shifted) {
-          await cancelTaskReminders(t.id);
-          await scheduleTaskReminders(t);
-        }
-
-        // Cancel notifications for tasks the scheduler auto-skipped — they
-        // are no longer going to run so their reminders should not fire.
-        for (const t of skipped) {
-          await cancelTaskReminders(t.id);
-        }
+        // Re-arm the extended schedule in one pass. Skipped tasks are included
+        // for cancellation but are filtered out from new scheduling.
+        await scheduleTaskRemindersBatch([
+          extended,
+          ...updatedSchedule.filter((t) => t.id !== extended.id),
+        ]);
 
         // Dismiss the full-screen task-end alarm only after the extension has
         // been persisted — keeps the alarm UI in sync with task state so a
@@ -1438,6 +1530,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           );
           // Also update the SharedPrefs task_end_ms so the widget and AccessibilityService
           // see the new end time immediately.
+          _updateCurrentFocusTask(extended);
           await SharedPrefsModule.setActiveTask(
             extended.id,
             extended.title,
@@ -1478,6 +1571,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const unsubNotifAction = EventBridge.subscribe('NOTIF_ACTION', (event) => {
       const { notifAction, taskId, minutes } = event;
       if (!taskId || !notifAction) return;
+      const actionKey = `${taskId}:${notifAction}`;
+      const now = Date.now();
+      const lastHandled = recentNotifActionsRef.current.get(actionKey);
+      if (lastHandled && now - lastHandled < 5000) return;
+      recentNotifActionsRef.current.set(actionKey, now);
       if (notifAction === 'COMPLETE') {
         void completeTask(taskId);
       } else if (notifAction === 'EXTEND') {
@@ -1518,15 +1616,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         };
         dispatch({ type: 'SET_FOCUS_SESSION', payload: session });
 
-        // Start VPN network blocking if the toggle is on.
-        // Focus sessions use only alwaysOnVpnPackages — standalone VPN packages
-        // belong to standalone block sessions and must not bleed into focus mode.
+        // Start VPN network blocking if the toggle is on. Include the
+        // standalone list when it is active so native and UI package state
+        // cannot diverge during an overlapping focus session.
         // Best-effort — a failure here does not abort focus mode.
-        const currentSettings = stateRef.current.settings;
-        if (currentSettings.vpnBlockEnabled) {
-          const alwaysOnVpnPkgs = currentSettings.alwaysOnVpnPackages ?? [];
-          if (alwaysOnVpnPkgs.length > 0) {
-            void NetworkBlockModule.startNetworkBlock(JSON.stringify(alwaysOnVpnPkgs)).catch((e) =>
+        if (state.settings.vpnBlockEnabled) {
+          const alwaysOnVpnPkgs = state.settings.alwaysOnVpnPackages ?? [];
+          const sessionVpnPkgs = state.settings.standaloneVpnPackages ?? [];
+          const mergedVpnPkgs = Array.from(new Set([...alwaysOnVpnPkgs, ...sessionVpnPkgs]));
+          if (mergedVpnPkgs.length > 0) {
+            void NetworkBlockModule.startNetworkBlock(JSON.stringify(mergedVpnPkgs)).catch((e) =>
               void logger.warn('AppContext', `network block start failed: ${String(e)}`),
             );
           }
@@ -1536,7 +1635,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         throw e;
       }
     },
-    [state.tasks, state.settings.allowedInFocus],
+    [
+      state.tasks,
+      state.settings.allowedInFocus,
+      state.settings.vpnBlockEnabled,
+      state.settings.alwaysOnVpnPackages,
+      state.settings.standaloneVpnPackages,
+    ],
   );
 
   const stopFocusMode = useCallback(async (pinHash: string | null = null) => {
@@ -1550,6 +1655,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       void logger.warn('AppContext', `stopFocusMode JS-layer failed: ${String(e)}`);
     }
     try {
+      await ForegroundServiceModule.stopService(pinHash);
+    } catch { /* already stopped */ }
+    try {
+      await SharedPrefsModule.setFocusActive(false, pinHash);
+      await SharedPrefsModule.setAllowedPackages([]);
+    } catch { /* best-effort */ }
+    try {
       await NetworkBlockModule.stopNetworkBlock(pinHash);
     } catch { /* best-effort — VPN may already be stopped */ }
     // After stopping the session VPN, restart it with always-on packages so
@@ -1561,9 +1673,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const settings = stateRef.current.settings;
       const alwaysOnVpnPkgs = settings.alwaysOnVpnPackages ?? [];
-      if ((settings.vpnBlockEnabled ?? false) && alwaysOnVpnPkgs.length > 0) {
+      const sessionVpnPkgs = settings.standaloneVpnPackages ?? [];
+      const mergedVpnPkgs = Array.from(new Set([...alwaysOnVpnPkgs, ...sessionVpnPkgs]));
+      if ((settings.vpnBlockEnabled ?? false) && mergedVpnPkgs.length > 0) {
         await new Promise<void>((resolve) => setTimeout(resolve, 400));
-        void NetworkBlockModule.startNetworkBlock(JSON.stringify(alwaysOnVpnPkgs)).catch((e) =>
+        void NetworkBlockModule.startNetworkBlock(JSON.stringify(mergedVpnPkgs)).catch((e) =>
           void logger.warn('AppContext', `always-on VPN restart after focus failed: ${String(e)}`),
         );
       }
@@ -1573,18 +1687,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // ── Settings ─────────────────────────────────────────────────────────────────
 
-  const updateSettings = useCallback(async (settings: AppSettings) => {
+  const updateSettings = useCallback(async (
+    settings: AppSettings,
+    options: { defensePinHash?: string | null } = {},
+  ) => {
     // Optimistic UI: dispatch first so toggles flip instantly. The DB write
     // and the half-dozen native bridge syncs below were previously awaited
     // serially before the dispatch, which made every Switch feel laggy.
-    //
-    // Bug fix: capture the previous state before dispatching so we can roll it
-    // back if the DB save fails. Without this, a failed save leaves the UI
-    // showing the new (unsaved) settings, which revert silently on next reload.
-    const prevSettings = stateRef.current.settings;
     dispatch({ type: 'SET_SETTINGS', payload: settings });
     try {
-      await dbSaveSettings(settings);
+      // Keep critical setup state recoverable even if SQLite is later wiped
+      // or replaced by the recovery database.
+      await Promise.all([
+        dbSaveSettings(settings),
+        persistSetupBackups(settings),
+      ]);
       // Run all native syncs concurrently — they are independent of each other.
       await Promise.all([
         state.focusSession !== null
@@ -1596,20 +1713,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         _syncDailyAllowance(settings),
         _syncAlwaysBlock(settings),
         _syncAversions(settings),
-        // Bug fix: _syncBlockedWords was missing here — backup restores and any
-        // other bulk updateSettings call would save blocked words to SQLite but
-        // never push them to SharedPrefs, so the AccessibilityService kept
-        // enforcing the old keyword list until the next dedicated setBlockedWords call.
         _syncBlockedWords(settings),
         GreyoutModule.setSchedule(_recurringSchedulesToGreyoutWindows(settings)).catch((e) =>
           void logger.warn('AppContext', `greyout sync failed: ${String(e)}`),
         ),
-        _syncSystemGuard(settings),
+        _syncSystemGuard(settings, options.defensePinHash ?? null),
       ]);
     } catch (e) {
-      // Rollback the optimistic dispatch so the UI doesn't permanently show
-      // settings that were never written to the database.
-      dispatch({ type: 'SET_SETTINGS', payload: prevSettings });
       void logger.error('AppContext', `updateSettings failed: ${String(e)}`);
       throw e;
     }
@@ -1649,7 +1759,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try { await dbSaveSettings(newSettings); } catch (e) { void logger.warn('AppContext', `setBlockedWords: dbSaveSettings non-fatal: ${String(e)}`); }
     dispatch({ type: 'SET_SETTINGS', payload: newSettings });
     await SharedPrefsModule.setBlockedWords(words);
-    await _syncAlwaysBlock(newSettings);
   }, [state.settings]);
 
   const setRecurringBlockSchedules = useCallback(async (schedules: RecurringBlockSchedule[]) => {
@@ -1670,32 +1779,44 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const setStandaloneBlock = useCallback(async (packages: string[], untilMs: number | null, pinHash: string | null = null) => {
     const untilIso = untilMs ? new Date(untilMs).toISOString() : null;
     let alwaysOnPackages = state.settings.alwaysOnPackages ?? [];
+    let autoCopiedAlwaysOnPackages = state.settings.autoCopiedAlwaysOnPackages ?? [];
     const autoCopy = state.settings.autoCopyToAlwaysOn ?? false;
-    const prevStandalone = state.settings.standaloneBlockPackages ?? [];
     if (autoCopy && packages.length > 0) {
-      // Auto-copy: first remove packages that were previously auto-copied but
-      // are no longer in the new list (user removed them from the session).
-      // Then merge the new list in. This prevents removed apps from staying
-      // permanently in the always-on block after a session list edit.
-      const removedFromSession = new Set(prevStandalone.filter((p) => !packages.includes(p)));
-      const cleaned = alwaysOnPackages.filter((p) => !removedFromSession.has(p));
-      const merged = new Set([...cleaned, ...packages]);
+      // Auto-copy: merge incoming packages into the always-on list
+      const alreadyAlwaysOn = new Set(alwaysOnPackages);
+      const newlyAutoCopied = packages.filter((pkg) => !alreadyAlwaysOn.has(pkg));
+      const merged = new Set([...alwaysOnPackages, ...packages]);
       alwaysOnPackages = Array.from(merged);
+      autoCopiedAlwaysOnPackages = Array.from(new Set([...autoCopiedAlwaysOnPackages, ...newlyAutoCopied]));
     } else if (autoCopy && packages.length === 0) {
-      // Block is being cleared — remove ALL previously auto-copied packages so
-      // a timed block doesn't silently become a permanent 24/7 block.
-      alwaysOnPackages = alwaysOnPackages.filter((p) => !prevStandalone.includes(p));
+      // Block is being cleared — remove the previously auto-copied packages so
+      // a 30-minute block doesn't silently become a permanent 24/7 block.
+      const prevStandalone = state.settings.standaloneBlockPackages ?? [];
+      const autoCopied = new Set(autoCopiedAlwaysOnPackages);
+      const toRemove = new Set(prevStandalone.filter((pkg) => autoCopied.has(pkg)));
+      alwaysOnPackages = alwaysOnPackages.filter((p) => !toRemove.has(p));
+      autoCopiedAlwaysOnPackages = autoCopiedAlwaysOnPackages.filter((p) => !toRemove.has(p));
     }
     const newSettings: AppSettings = {
       ...state.settings,
       standaloneBlockPackages: packages,
       standaloneBlockUntil: untilIso,
       alwaysOnPackages,
+      autoCopiedAlwaysOnPackages,
     };
     try { await dbSaveSettings(newSettings); } catch (e) { void logger.warn('AppContext', `setStandaloneBlock: dbSaveSettings non-fatal: ${String(e)}`); }
     dispatch({ type: 'SET_SETTINGS', payload: newSettings });
     const active = packages.length > 0 && untilMs !== null && untilMs > Date.now();
     await SharedPrefsModule.setStandaloneBlock(active, packages, untilMs ?? 0, pinHash);
+    const vpnPkgs = Array.from(new Set([
+      ...(newSettings.alwaysOnVpnPackages ?? []),
+      ...(newSettings.standaloneVpnPackages ?? []),
+    ]));
+    if ((newSettings.vpnBlockEnabled ?? false) && active && vpnPkgs.length > 0) {
+      void NetworkBlockModule.startNetworkBlock(JSON.stringify(vpnPkgs)).catch((e) =>
+        void logger.warn('AppContext', `standalone VPN start failed: ${String(e)}`),
+      );
+    }
     // Sync always-on enforcement using the dedicated alwaysOnPackages list
     const allowanceEntries = newSettings.dailyAllowanceEntries ?? [];
     const alwaysOnActive = (newSettings.alwaysOnEnforcementEnabled !== false) &&
@@ -1707,6 +1828,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } else {
       void cancelStandaloneBlockExpiry().catch(() => {});
     }
+  }, [state.settings]);
+
+  /**
+   * Adds one package to the existing timed Standalone Block without honoring
+   * autoCopyToAlwaysOn. Quick Block's temporary action must remain temporary.
+   */
+  const setQuickBlockTemporary = useCallback(async (packageName: string, requestedUntilMs: number) => {
+    const currentPackages = state.settings.standaloneBlockPackages ?? [];
+    const currentUntilMs = state.settings.standaloneBlockUntil
+      ? new Date(state.settings.standaloneBlockUntil).getTime()
+      : 0;
+    const untilMs = Math.max(requestedUntilMs, currentUntilMs > Date.now() ? currentUntilMs : 0);
+    const packages = Array.from(new Set([...currentPackages, packageName]));
+    const newSettings: AppSettings = {
+      ...state.settings,
+      standaloneBlockPackages: packages,
+      standaloneBlockUntil: new Date(untilMs).toISOString(),
+      // Deliberately preserve the user's existing Always-On list and its
+      // auto-copy bookkeeping.
+      alwaysOnPackages: state.settings.alwaysOnPackages ?? [],
+      autoCopiedAlwaysOnPackages: state.settings.autoCopiedAlwaysOnPackages ?? [],
+    };
+    try { await dbSaveSettings(newSettings); } catch (e) { void logger.warn('AppContext', `setQuickBlockTemporary: dbSaveSettings non-fatal: ${String(e)}`); }
+    dispatch({ type: 'SET_SETTINGS', payload: newSettings });
+    await SharedPrefsModule.setStandaloneBlock(true, packages, untilMs);
+    const allowanceEntries = newSettings.dailyAllowanceEntries ?? [];
+    const alwaysOnActive = (newSettings.alwaysOnEnforcementEnabled !== false) &&
+      ((newSettings.alwaysOnPackages ?? []).length > 0 || allowanceEntries.length > 0);
+    await SharedPrefsModule.setAlwaysBlockActive(alwaysOnActive, newSettings.alwaysOnPackages ?? []).catch(() => {});
+    void scheduleStandaloneBlockExpiry(untilMs, packages.length).catch(() => {});
   }, [state.settings]);
 
   /**
@@ -1727,20 +1878,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   ) => {
     const untilIso = untilMs ? new Date(untilMs).toISOString() : null;
     let alwaysOnPackages = state.settings.alwaysOnPackages ?? [];
+    let autoCopiedAlwaysOnPackages = state.settings.autoCopiedAlwaysOnPackages ?? [];
     const autoCopy = state.settings.autoCopyToAlwaysOn ?? false;
-    const prevStandalone = state.settings.standaloneBlockPackages ?? [];
     if (autoCopy && packages.length > 0) {
-      // Auto-copy: first remove packages that were previously auto-copied but
-      // are no longer in the new list (user removed them from the session).
-      // Then merge the new list in, preventing ghost always-on blocks.
-      const removedFromSession = new Set(prevStandalone.filter((p) => !packages.includes(p)));
-      const cleaned = alwaysOnPackages.filter((p) => !removedFromSession.has(p));
-      const merged = new Set([...cleaned, ...packages]);
+      // Auto-copy: merge incoming packages into the always-on list
+      const alreadyAlwaysOn = new Set(alwaysOnPackages);
+      const newlyAutoCopied = packages.filter((pkg) => !alreadyAlwaysOn.has(pkg));
+      const merged = new Set([...alwaysOnPackages, ...packages]);
       alwaysOnPackages = Array.from(merged);
+      autoCopiedAlwaysOnPackages = Array.from(new Set([...autoCopiedAlwaysOnPackages, ...newlyAutoCopied]));
     } else if (autoCopy && packages.length === 0) {
-      // Block is being cleared — remove ALL previously auto-copied packages so a
+      // Block is being cleared — remove previously auto-copied packages so a
       // timed block doesn't silently become a permanent 24/7 always-on block.
-      alwaysOnPackages = alwaysOnPackages.filter((p) => !prevStandalone.includes(p));
+      const prevStandalone = state.settings.standaloneBlockPackages ?? [];
+      const autoCopied = new Set(autoCopiedAlwaysOnPackages);
+      const toRemove = new Set(prevStandalone.filter((pkg) => autoCopied.has(pkg)));
+      alwaysOnPackages = alwaysOnPackages.filter((p) => !toRemove.has(p));
+      autoCopiedAlwaysOnPackages = autoCopiedAlwaysOnPackages.filter((p) => !toRemove.has(p));
     }
     // Preserve existing vpnPackages if not explicitly passed
     const resolvedVpnPackages = vpnPackages ?? state.settings.standaloneVpnPackages ?? [];
@@ -1750,7 +1904,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       standaloneBlockUntil: untilIso,
       dailyAllowanceEntries: allowanceEntries,
       alwaysOnPackages,
+      autoCopiedAlwaysOnPackages,
       standaloneVpnPackages: resolvedVpnPackages,
+      vpnBlockEnabled:
+        resolvedVpnPackages.length > 0 ||
+        (state.settings.alwaysOnVpnPackages ?? []).length > 0,
     };
     try { await dbSaveSettings(newSettings); } catch (e) { void logger.warn('AppContext', `setStandaloneBlockAndAllowance: dbSaveSettings non-fatal: ${String(e)}`); }
     dispatch({ type: 'SET_SETTINGS', payload: newSettings });
@@ -1758,6 +1916,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await SharedPrefsModule.setStandaloneBlock(active, packages, untilMs ?? 0, pinHash);
     await SharedPrefsModule.setDailyAllowanceConfig(allowanceEntries);
     await SharedPrefsModule.setVpnSelectedPackages(resolvedVpnPackages).catch(() => {});
+    const mergedVpnPkgs = Array.from(new Set([
+      ...(newSettings.alwaysOnVpnPackages ?? []),
+      ...(newSettings.standaloneVpnPackages ?? []),
+    ]));
+    if ((newSettings.vpnBlockEnabled ?? false) && active && mergedVpnPkgs.length > 0) {
+      void NetworkBlockModule.startNetworkBlock(JSON.stringify(mergedVpnPkgs)).catch((e) =>
+        void logger.warn('AppContext', `standalone VPN start failed: ${String(e)}`),
+      );
+    }
     // Sync always-on enforcement using the dedicated alwaysOnPackages list
     const alwaysOnActive2 = (newSettings.alwaysOnEnforcementEnabled !== false) &&
       ((newSettings.alwaysOnPackages ?? []).length > 0 || allowanceEntries.length > 0);
@@ -1793,6 +1960,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     stopFocusMode,
     updateSettings,
     setStandaloneBlock,
+    setQuickBlockTemporary,
     setStandaloneBlockAndAllowance,
     setDailyAllowanceEntries,
     setBlockedWords,
@@ -1802,7 +1970,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     state, todayTasks, activeTask, currentTask, activeTasks,
     addTask, updateTask, deleteTask, completeTask, skipTask,
     extendTaskTime, startFocusMode, stopFocusMode, updateSettings,
-    setStandaloneBlock, setStandaloneBlockAndAllowance, setDailyAllowanceEntries,
+    setStandaloneBlock, setQuickBlockTemporary, setStandaloneBlockAndAllowance, setDailyAllowanceEntries,
     setBlockedWords, setRecurringBlockSchedules, refreshTasks,
   ]);
 

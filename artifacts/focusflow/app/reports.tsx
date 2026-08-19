@@ -31,9 +31,14 @@ import {
   dbGetAllTimeFocusMinutes,
   dbGetAllTimeFocusSessions,
   dbGetTodayOverrideCount,
+  dbGetOverrideCountInRange,
   dbGetRecentDayCompletions,
+  dbGetTasksInDateRange,
 } from '@/data/database';
 import { GreyoutModule, type TemptationEntry } from '@/native-modules/GreyoutModule';
+import { UsageInsights } from '@/components/UsageInsights';
+import { QuickBlockSheet } from '@/components/QuickBlockSheet';
+import type { UsageApp, UsageSummary } from '@/native-modules/UsageStatsModule';
 import type { Task } from '@/data/types';
 
 type Range = 'yesterday' | 'today' | 'week' | 'alltime';
@@ -62,6 +67,9 @@ function ReportsScreen() {
   const { tasks } = state;
 
   const [range, setRange] = useState<Range>('yesterday');
+  const [quickBlockApp, setQuickBlockApp] = useState<UsageApp | null>(null);
+  const [usageSummary, setUsageSummary] = useState<UsageSummary | null>(null);
+  const [rangeOverrides, setRangeOverrides] = useState(0);
 
   // ── Data sources ───────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(true);
@@ -73,6 +81,7 @@ function ReportsScreen() {
   const [todayOverrides, setTodayOverrides] = useState(0);
   const [temptations, setTemptations] = useState<TemptationEntry[]>([]);
   const [dayCompletions, setDayCompletions] = useState<Array<{ date: string; completed: number; total: number }>>([]);
+  const [rangeTasks, setRangeTasks] = useState<Task[]>([]);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -119,9 +128,34 @@ function ReportsScreen() {
     return { startMs: 0, endMs: now.endOf('day').valueOf(), label: 'All time' };
   }, [range]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setRangeTasks([]);
+    void dbGetTasksInDateRange(
+      new Date(window.startMs).toISOString(),
+      new Date(window.endMs).toISOString(),
+    ).then((rows) => {
+      if (!cancelled) setRangeTasks(rows);
+    });
+    return () => { cancelled = true; };
+  }, [window.endMs, window.startMs]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void dbGetOverrideCountInRange(
+      new Date(window.startMs).toISOString(),
+      new Date(window.endMs).toISOString(),
+    ).then((count) => {
+      if (!cancelled) setRangeOverrides(count);
+    });
+    return () => { cancelled = true; };
+  }, [window.endMs, window.startMs]);
+
+  const reportTasks = rangeTasks.length > 0 ? rangeTasks : tasks;
+
   // ── Task breakdown for the selected window ─────────────────────────────
   const taskBreakdown = useMemo<TaskBreakdown>(() => {
-    const inWindow = tasks.filter((t) => {
+    const inWindow = reportTasks.filter((t) => {
       const start = new Date(t.startTime).getTime();
       return start >= window.startMs && start <= window.endMs;
     });
@@ -160,7 +194,7 @@ function ReportsScreen() {
       actualMins,
       diffMins: actualMins - scheduledMins,
     };
-  }, [tasks, window]);
+  }, [reportTasks, window]);
 
   // ── Distractions for the selected window ───────────────────────────────
   const distractionRows = useMemo<AppRow[]>(() => {
@@ -181,12 +215,12 @@ function ReportsScreen() {
   const focusMinsWindow = useMemo(() => {
     if (range === 'today') return focusMinsToday;
     // Approximate from completed focus tasks in window.
-    const inWindow = tasks.filter((t) => {
+    const inWindow = reportTasks.filter((t) => {
       const start = new Date(t.startTime).getTime();
       return start >= window.startMs && start <= window.endMs && t.status === 'completed' && t.focusMode;
     });
     return inWindow.reduce((s, t) => s + t.durationMinutes, 0);
-  }, [range, focusMinsToday, tasks, window]);
+  }, [range, focusMinsToday, reportTasks, window]);
 
   const completionRate = taskBreakdown.total > 0
     ? Math.round((taskBreakdown.completed / taskBreakdown.total) * 100)
@@ -194,6 +228,29 @@ function ReportsScreen() {
 
   const focusH = Math.floor(focusMinsWindow / 60);
   const focusM = focusMinsWindow % 60;
+  const focusTasksInWindow = useMemo(
+    () => reportTasks.filter((task) => {
+      const start = new Date(task.startTime).getTime();
+      return start >= window.startMs
+        && start <= window.endMs
+        && task.focusMode
+        && task.status === 'completed';
+    }),
+    [reportTasks, window],
+  );
+  const strongestFocusWindow = useMemo(
+    () => getStrongestFocusWindow(focusTasksInWindow),
+    [focusTasksInWindow],
+  );
+  const nextAction = getNextAction({
+    strongestFocusWindow,
+    topDistraction: distractionRows[0]?.appName,
+    topUsageApp: usageSummary?.apps[0]?.appName,
+    focusMinutes: focusMinsWindow,
+  });
+  const handleUsageSummaryChange = useCallback((summary: UsageSummary | null) => {
+    setUsageSummary(summary);
+  }, []);
 
   const canGoBack = navigation.canGoBack();
 
@@ -273,6 +330,32 @@ function ReportsScreen() {
               </Text>
             )}
           </View>
+
+          <UsageInsights
+            startMs={window.startMs}
+            endMs={window.endMs}
+            focusMinutes={focusMinsWindow}
+            blockedAttempts={totalAttempts}
+            standalonePackages={state.settings.standaloneBlockPackages ?? []}
+            standaloneUntil={state.settings.standaloneBlockUntil}
+            alwaysOnPackages={state.settings.alwaysOnPackages ?? []}
+            onAppPress={setQuickBlockApp}
+            showQuickBlockButton
+            onSummaryChange={handleUsageSummaryChange}
+          />
+
+          <AttentionBriefing
+            deviceMinutes={usageSummary?.totalMinutes ?? null}
+            focusMinutes={focusMinsWindow}
+            blockedAttempts={totalAttempts}
+            overrides={rangeOverrides}
+            focusSessions={focusTasksInWindow.length}
+            strongestFocusWindow={strongestFocusWindow}
+            topUsageApp={usageSummary?.apps[0]?.appName ?? null}
+            topDistraction={distractionRows[0]?.appName ?? null}
+            nextAction={nextAction}
+            theme={theme}
+          />
 
           {/* Task summary */}
           <View style={[styles.card, { backgroundColor: theme.card }]}>
@@ -407,11 +490,167 @@ function ReportsScreen() {
           </TouchableOpacity>
         </ScrollView>
       )}
+      <QuickBlockSheet
+        visible={quickBlockApp !== null}
+        app={quickBlockApp}
+        onClose={() => setQuickBlockApp(null)}
+      />
     </SafeAreaView>
   );
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
+
+function AttentionBriefing({
+  deviceMinutes,
+  focusMinutes,
+  blockedAttempts,
+  overrides,
+  focusSessions,
+  strongestFocusWindow,
+  topUsageApp,
+  topDistraction,
+  nextAction,
+  theme,
+}: {
+  deviceMinutes: number | null;
+  focusMinutes: number;
+  blockedAttempts: number;
+  overrides: number;
+  focusSessions: number;
+  strongestFocusWindow: string | null;
+  topUsageApp: string | null;
+  topDistraction: string | null;
+  nextAction: string;
+  theme: { card: string; border: string; text: string; muted: string; textSecondary: string };
+}) {
+  const summary = deviceMinutes === null
+    ? `You completed ${fmtMins(focusMinutes)} of FocusFlow focus time. Allow Usage Access to compare it with observed device time.`
+    : `You spent ${fmtMins(deviceMinutes)} on your device and completed ${fmtMins(focusMinutes)} of FocusFlow focus time.`;
+
+  return (
+    <View style={[styles.attentionCard, { backgroundColor: theme.card, borderColor: COLORS.blue + '33' }]}>
+      <View style={styles.cardHeader}>
+        <View style={styles.attentionTitleRow}>
+          <Ionicons name="sparkles-outline" size={18} color={COLORS.blue} />
+          <Text style={[styles.cardTitle, { color: theme.text }]}>Attention briefing</Text>
+        </View>
+        <Text style={[styles.cardBadge, { color: COLORS.blue, backgroundColor: COLORS.blue + '14' }]}>
+          Selected range
+        </Text>
+      </View>
+
+      <Text style={[styles.attentionSummary, { color: theme.textSecondary }]}>{summary}</Text>
+
+      <View style={styles.attentionGrid}>
+        <BriefingMetric label="Device time" value={deviceMinutes === null ? '—' : fmtMins(deviceMinutes)} color={COLORS.blue} theme={theme} />
+        <BriefingMetric label="Focus time" value={fmtMins(focusMinutes)} color={COLORS.primary} theme={theme} />
+        <BriefingMetric label="Blocked attempts" value={String(blockedAttempts)} color={blockedAttempts > 0 ? COLORS.orange : COLORS.green} theme={theme} />
+        <BriefingMetric label="Overrides" value={String(overrides)} color={overrides > 0 ? COLORS.red : COLORS.green} theme={theme} />
+        <BriefingMetric label="Focus sessions" value={String(focusSessions)} color={COLORS.purple} theme={theme} />
+        <BriefingMetric label="Strongest period" value={strongestFocusWindow ?? 'Not enough data'} color={COLORS.green} theme={theme} compact />
+      </View>
+
+      <View style={[styles.attentionDivider, { backgroundColor: theme.border }]} />
+      <Text style={[styles.subhead, { color: theme.muted }]}>WHERE ATTENTION WENT</Text>
+      <View style={styles.attentionFacts}>
+        <Text style={[styles.attentionFact, { color: theme.textSecondary }]}>
+          Most observed time: <Text style={{ color: theme.text, fontWeight: '800' }}>{topUsageApp ?? 'Unavailable'}</Text>
+        </Text>
+        <Text style={[styles.attentionFact, { color: theme.textSecondary }]}>
+          Most resisted app: <Text style={{ color: theme.text, fontWeight: '800' }}>{topDistraction ?? 'None recorded'}</Text>
+        </Text>
+      </View>
+
+      <View style={[styles.nextAction, { backgroundColor: COLORS.green + '10', borderColor: COLORS.green + '30' }]}>
+        <Ionicons name="arrow-forward-circle-outline" size={19} color={COLORS.green} />
+        <View style={styles.nextActionText}>
+          <Text style={[styles.nextActionLabel, { color: COLORS.green }]}>ONE NEXT ACTION</Text>
+          <Text style={[styles.nextActionCopy, { color: theme.text }]}>{nextAction}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function BriefingMetric({
+  label,
+  value,
+  color,
+  theme,
+  compact = false,
+}: {
+  label: string;
+  value: string;
+  color: string;
+  theme: { muted: string };
+  compact?: boolean;
+}) {
+  return (
+    <View style={[styles.briefingMetric, { borderColor: color + '25', backgroundColor: color + '0D' }]}>
+      <Text style={[styles.briefingMetricValue, { color }, compact && styles.briefingMetricValueCompact]} numberOfLines={1}>
+        {value}
+      </Text>
+      <Text style={[styles.briefingMetricLabel, { color: theme.muted }]} numberOfLines={2}>{label}</Text>
+    </View>
+  );
+}
+
+function getStrongestFocusWindow(tasks: Task[]): string | null {
+  const minutesByHour = Array.from({ length: 24 }, () => 0);
+
+  for (const task of tasks) {
+    const start = new Date(task.startTime).getTime();
+    const end = new Date(task.endTime).getTime();
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) continue;
+
+    let cursor = start;
+    while (cursor < end) {
+      const cursorDate = new Date(cursor);
+      const nextHour = new Date(cursorDate);
+      nextHour.setMinutes(0, 0, 0);
+      nextHour.setHours(nextHour.getHours() + 1);
+      const segmentEnd = Math.min(end, nextHour.getTime());
+      minutesByHour[cursorDate.getHours()] += (segmentEnd - cursor) / 60000;
+      cursor = segmentEnd;
+    }
+  }
+
+  const strongestHour = minutesByHour.reduce(
+    (best, minutes, hour) => minutes > best.minutes ? { hour, minutes } : best,
+    { hour: 0, minutes: 0 },
+  );
+  if (strongestHour.minutes <= 0) return null;
+
+  const formatHour = (hour: number) => new Date(2000, 0, 1, hour).toLocaleTimeString([], { hour: 'numeric' });
+  return `${formatHour(strongestHour.hour)}–${formatHour((strongestHour.hour + 1) % 24)}`;
+}
+
+function getNextAction({
+  strongestFocusWindow,
+  topDistraction,
+  topUsageApp,
+  focusMinutes,
+}: {
+  strongestFocusWindow: string | null;
+  topDistraction?: string;
+  topUsageApp?: string;
+  focusMinutes: number;
+}): string {
+  if (topDistraction) {
+    return `Add ${topDistraction} to a temporary block during ${strongestFocusWindow ?? 'your next focus window'}.`;
+  }
+  if (strongestFocusWindow) {
+    return `Schedule your hardest task during ${strongestFocusWindow}.`;
+  }
+  if (topUsageApp) {
+    return `Review whether ${topUsageApp} needs protection during your next focus session.`;
+  }
+  if (focusMinutes === 0) {
+    return 'Start one FocusFlow session to create a clear baseline for your next report.';
+  }
+  return 'Keep your next focus session at the same time and build on this baseline.';
+}
 
 function MiniStat({
   color,
@@ -507,6 +746,45 @@ const styles = StyleSheet.create({
   heroEmpty: { alignItems: 'center', gap: SPACING.xs, marginTop: SPACING.sm },
   heroEmptyText: { fontSize: FONT.sm },
   heroFooter: { fontSize: FONT.xs, marginTop: SPACING.xs, fontWeight: '700' },
+
+  attentionCard: {
+    padding: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    gap: SPACING.sm,
+  },
+  attentionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
+  attentionSummary: { fontSize: FONT.sm, lineHeight: 20 },
+  attentionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
+  briefingMetric: {
+    flexBasis: '30%',
+    flexGrow: 1,
+    minWidth: '29%',
+    minHeight: 64,
+    padding: SPACING.sm,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    justifyContent: 'center',
+    gap: 3,
+  },
+  briefingMetricValue: { fontSize: FONT.md, fontWeight: '900' },
+  briefingMetricValueCompact: { fontSize: FONT.xs, lineHeight: 15 },
+  briefingMetricLabel: { fontSize: FONT.xs, lineHeight: 14 },
+  attentionDivider: { height: StyleSheet.hairlineWidth, marginVertical: SPACING.xs },
+  attentionFacts: { gap: 4 },
+  attentionFact: { fontSize: FONT.sm, lineHeight: 19 },
+  nextAction: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+    padding: SPACING.sm,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    marginTop: SPACING.xs,
+  },
+  nextActionText: { flex: 1, gap: 2 },
+  nextActionLabel: { fontSize: FONT.xs, fontWeight: '800', letterSpacing: 0.7 },
+  nextActionCopy: { fontSize: FONT.sm, lineHeight: 19, fontWeight: '600' },
 
   card: {
     padding: SPACING.lg,

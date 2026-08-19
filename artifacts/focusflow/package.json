@@ -1,6 +1,6 @@
 {
   "name": "@workspace/focusflow",
-  "version": "0.0.0",
+  "version": "1.0.8",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -49,9 +49,6 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
-    "expo-localization": "~16.1.6",
-    "i18next": "^24.2.2",
-    "react-i18next": "^15.5.2",
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-navigation/bottom-tabs": "^7.3.14",
     "@react-navigation/native": "^7.1.14",
@@ -59,6 +56,7 @@
     "expo-background-fetch": "~14.0.9",
     "expo-build-properties": "~1.0.10",
     "expo-file-system": "^19.0.21",
+    "expo-mail-composer": "~14.1.6",
     "expo-notifications": "~0.32.16",
     "expo-sqlite": "~16.0.10",
     "expo-task-manager": "~14.0.9",

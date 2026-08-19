@@ -172,7 +172,8 @@ export function parseBackupJson(
 
 export interface RestoreCallbacks {
   updateSettings: (s: AppSettings) => Promise<void>;
-  addTask: (t: Task) => Promise<void>;
+  addTask: (t: Task, options?: { skipAlarms?: boolean }) => Promise<void>;
+  scheduleTasks: (tasks: Task[]) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   refreshTasks: () => Promise<void>;
   /** When true every existing task is deleted before restore. */
@@ -242,6 +243,7 @@ export async function restoreFromJson(
   const existingIds = cb.replaceTasks
     ? new Set<string>()
     : new Set(cb.currentTasks.map((t) => t.id));
+  const tasksToSchedule: Task[] = [];
 
   for (const t of env.tasks) {
     if (!t || typeof t !== 'object' || !t.id) {
@@ -253,11 +255,32 @@ export async function restoreFromJson(
       continue;
     }
     try {
-      await cb.addTask(t as Task);
+      const imported = t as Task;
+      const isPastScheduledTask =
+        imported.status === 'scheduled' &&
+        new Date(imported.endTime).getTime() < Date.now();
+      const taskToImport: Task = isPastScheduledTask
+        ? { ...imported, status: 'skipped', updatedAt: new Date().toISOString() }
+        : imported;
+
+      // Historical and already-resolved rows are restored as data only. They
+      // must not be routed through normal reminder/alarm scheduling.
+      await cb.addTask(taskToImport, { skipAlarms: true });
+      if (taskToImport.status === 'scheduled') {
+        tasksToSchedule.push(taskToImport);
+      }
       summary.tasksImported++;
     } catch (e) {
       summary.tasksSkipped++;
       summary.warnings.push(`Task "${(t as Task).title ?? t.id}" failed: ${String(e)}`);
+    }
+  }
+
+  if (tasksToSchedule.length > 0) {
+    try {
+      await cb.scheduleTasks(tasksToSchedule);
+    } catch (e) {
+      summary.warnings.push(`Some imported task reminders could not be scheduled: ${String(e)}`);
     }
   }
 
