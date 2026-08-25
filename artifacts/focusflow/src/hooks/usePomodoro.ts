@@ -20,6 +20,21 @@ function calcPomodoro(
   workSecs: number,
   breakSecs: number,
 ): PomodoroSnapshot {
+  if (breakSecs <= 0) {
+    const elapsed = Math.max(
+      0,
+      Math.floor((Date.now() - new Date(sessionStartedAt).getTime()) / 1000),
+    );
+    const cycleCount = Math.floor(elapsed / workSecs);
+    const pos = elapsed % workSecs;
+    return {
+      phase: 'work',
+      secondsLeft: workSecs - pos,
+      cycleCount,
+      phaseProgress: pos / workSecs,
+      isBreakActive: false,
+    };
+  }
   const cycleSecs = workSecs + breakSecs;
   const elapsed = Math.max(
     0,
@@ -42,6 +57,7 @@ export function usePomodoro(
   sessionStartedAt: string | null,
   workMinutes: number,
   breakMinutes: number,
+  onBreakStart?: (seconds: number) => void,
 ): PomodoroState {
   const workSecs = workMinutes * 60;
   const breakSecs = breakMinutes * 60;
@@ -81,19 +97,25 @@ export function usePomodoro(
     await SharedPrefsModule.clearFocusBreak();
   }, []);
 
-  const takeBreak = useCallback(async () => {
-    if (!enabled || pomState.phase !== 'break' || breakActiveRef.current) return;
-    const untilMs = Date.now() + Math.max(1, pomState.secondsLeft) * 1000;
+  const activateBreak = useCallback(async (secondsLeft: number) => {
+    if (breakActiveRef.current || breakSecs <= 0) return;
+    const untilMs = Date.now() + Math.max(1, secondsLeft) * 1000;
     breakActiveRef.current = true;
     breakUntilRef.current = untilMs;
     setPomState((current) => ({ ...current, isBreakActive: true }));
+    onBreakStart?.(Math.max(1, secondsLeft));
     await Promise.all([
-      // This is a deliberate break, not an attempt to end the focus session,
-      // so it bypasses the session-PIN gate used by setFocusActive(false).
       SharedPrefsModule.setFocusBreak(true, untilMs),
       ForegroundServiceModule.setBreak(untilMs),
     ]);
-  }, [enabled, pomState.phase, pomState.secondsLeft]);
+  }, [breakSecs, onBreakStart]);
+
+  const takeBreak = useCallback(async () => {
+    if (!enabled || pomState.phase !== 'break' || breakActiveRef.current) return;
+    // This is a break, not an attempt to end the focus session, so it bypasses
+    // the session-PIN gate used by setFocusActive(false).
+    await activateBreak(pomState.secondsLeft);
+  }, [activateBreak, enabled, pomState.phase, pomState.secondsLeft]);
 
   useEffect(() => {
     if (!enabled || !sessionStartedAt) {
@@ -113,6 +135,11 @@ export function usePomodoro(
 
     const tick = () => {
       const next = calcPomodoro(sessionStartedAt, workSecs, breakSecs);
+      if (next.phase === 'break' && !breakActiveRef.current) {
+        // Breaks start automatically when work time is exhausted. The user
+        // does not need to be using the phone for the restriction to lift.
+        void activateBreak(next.secondsLeft);
+      }
       if (breakActiveRef.current && Date.now() >= breakUntilRef.current) {
         void resumeBreak();
       }
@@ -126,7 +153,7 @@ export function usePomodoro(
             title: toWork ? '🎯 Back to Work' : '☕ Break Available',
             body: toWork
               ? `Focus up — ${workMinutes} min work session starting now.`
-              : `Great work! Tap Take Break in FocusFlow to unlock apps for ${breakMinutes} min.`,
+              : `Great work! Apps are unlocked for ${breakMinutes} min, then blocking resumes automatically.`,
           },
           trigger: null,
         }).catch(() => {});
@@ -141,7 +168,7 @@ export function usePomodoro(
       clearInterval(interval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, sessionStartedAt, workSecs, breakSecs, resumeBreak]);
+  }, [activateBreak, enabled, sessionStartedAt, workSecs, breakSecs, resumeBreak]);
 
   return { ...pomState, takeBreak };
 }

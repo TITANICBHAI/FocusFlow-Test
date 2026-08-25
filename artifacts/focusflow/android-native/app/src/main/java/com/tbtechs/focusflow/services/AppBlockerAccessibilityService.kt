@@ -8,9 +8,11 @@ import android.app.NotificationManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
+import android.content.BroadcastReceiver
 import android.app.PendingIntent
 import android.app.WallpaperManager
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -21,6 +23,7 @@ import android.net.VpnService
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.content.pm.PackageManager
 import android.provider.Settings
 import android.view.Gravity
 import android.view.WindowManager
@@ -29,6 +32,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import com.tbtechs.focusflow.modules.BlockOverlayModule
 import com.tbtechs.focusflow.modules.FocusDayBridgeModule
@@ -101,6 +105,11 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         const val PREF_ACTIVE_SESSION_END_MS = "active_session_end_ms"
         const val PREF_USAGE_STATS_SYNC = "daily_allowance_usage_stats_sync"
         const val ACTIVE_SESSION_CHECKPOINT_INTERVAL_MS = 15_000L
+        // UsageEvents around a local-day boundary can be delivered with a small
+        // delay. Include this probe so reconciliation can see an app that was
+        // already foreground immediately before midnight and avoid counting the
+        // continued session as today's launch.
+        const val COUNT_RECONCILIATION_PRE_MIDNIGHT_PROBE_MS = 30_000L
         // ForegroundTaskService syncs every 60 s. Two missed sync windows are
         // enough to distinguish a dead/paused AccessibilityService from normal
         // scheduling jitter without deferring UsageStats recovery forever.
@@ -143,6 +152,8 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         /** Notification channel used to launch the block overlay via full-screen intent. */
         private const val BLOCK_ALERT_CHANNEL  = "focusday_block_alert"
         private const val BLOCK_ALERT_NOTIF_ID = 9001
+        private const val INITIAL_OVERLAY_ACTION_DELAY_MS = 10_000L
+        private const val PREF_OVERLAY_ESCAPE_ATTEMPTS = "overlay_escape_attempts"
 
         /**
          * BLOCKABLE_AFTER_WARNING (formerly ALWAYS_ALLOWED).
@@ -456,6 +467,27 @@ class AppBlockerAccessibilityService : AccessibilityService() {
     private var wOverlayXBtn: TextView? = null
     private var wOverlayNavRow: LinearLayout? = null
     private var wOverlayXRevealed = false
+    private var wOverlayRevealScheduled = false
+    private var wOverlayRevealRunnable: Runnable? = null
+    private var wOverlayCountdownContainer: LinearLayout? = null
+    private var wOverlayCountdownLabel: TextView? = null
+    private var wOverlayCountdownProgress: ProgressBar? = null
+    private var wOverlayCountdownRunnable: Runnable? = null
+    private var wOverlayCountdownTotalMs = 0L
+    private var wOverlayCountdownStartedAt = 0L
+
+    private val windowOverlayCountdownTick = object : Runnable {
+        override fun run() {
+            if (wOverlayView == null || wOverlayXRevealed || wOverlayCountdownTotalMs <= 0L) return
+            val remaining = (wOverlayCountdownTotalMs -
+                (android.os.SystemClock.uptimeMillis() - wOverlayCountdownStartedAt))
+                .coerceAtLeast(0L)
+            updateWindowOverlayCountdown(remaining)
+            if (remaining > 0L) {
+                handler.postDelayed(this, 100L)
+            }
+        }
+    }
 
     // Handler for retry re-checks AND timed-allowance expiry — runs on main thread
     private val handler = Handler(Looper.getMainLooper())
@@ -479,6 +511,9 @@ class AppBlockerAccessibilityService : AccessibilityService() {
     private var textDebounceRunnable: Runnable? = null
     // Content-changed events fire on every layout pass — throttled per package.
     private val lastContentScanMs = mutableMapOf<String, Long>()
+    private var foregroundWatchdogRunnable: Runnable? = null
+    private var cachedHomePackages: Set<String> = emptySet()
+    private var homePackagesCachedAtMs: Long = 0L
 
     // ── Timed allowance tracking (time_budget / interval modes) ──────────────
     // Tracks the app currently open under a time-limited allowance so we can
@@ -487,6 +522,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
     private var currentTimedOpenAtMs: Long = 0L
     private var currentTimedSessionEndMs: Long = 0L
     private var timedExpireRunnable: Runnable? = null
+    private var screenStateReceiver: BroadcastReceiver? = null
     private val allowanceCheckpointRunnable: Runnable = object : Runnable {
         override fun run() {
             checkpointActiveTimedSession()
@@ -506,10 +542,263 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         // UsageEvents is used only as a conservative recovery source. Live
         // AccessibilityService events remain the immediate enforcement authority.
         reconcileCountAllowances()
+        registerScreenStateReceiver()
 
         // Start the VPN self-heal health check loop. The first check fires after
         // 10 s so we don't run anything during the cold-start window.
         vpnHealthHandler.postDelayed(vpnHealthRunnable, 10_000L)
+        startForegroundWatchdog()
+    }
+
+    /**
+     * Polls for the foreground package via UsageStats and enforces blocking
+     * when Android does not emit a window-state event, such as when an
+     * existing Activity returns through the recent-apps screen.
+     */
+    private fun checkForegroundNow() {
+        val now = System.currentTimeMillis()
+        val latestPkg = try {
+            val usm = getSystemService(UsageStatsManager::class.java) ?: return
+            val events = usm.queryEvents(now - 3_000L, now)
+            val event = UsageEvents.Event()
+            var foregroundPkg: String? = null
+            val foregroundEventType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                UsageEvents.Event.ACTIVITY_RESUMED
+            } else {
+                UsageEvents.Event.MOVE_TO_FOREGROUND
+            }
+
+            while (events.hasNextEvent()) {
+                events.getNextEvent(event)
+                if (event.eventType == foregroundEventType) {
+                    foregroundPkg = event.packageName
+                }
+            }
+            foregroundPkg
+        } catch (_: SecurityException) {
+            // Some OEMs deny UsageEvents foreground data despite the app having
+            // Usage Access, so leave event-driven AccessibilityService blocking
+            // as the authority and retry on the next watchdog tick.
+            return
+        } catch (_: Exception) {
+            return
+        } ?: return
+
+        val pkg = latestPkg
+        // Keep retry guards in sync even when UsageStats is the only foreground
+        // signal available (for example, returning to an existing Activity from
+        // the recent-apps screen).
+        lastSeenPkg = pkg
+        if (pkg == packageName) return
+        if (isHomePackage(pkg)) {
+            lastBlockedPkg = null
+            lastBlockedAtMs = 0L
+            return
+        }
+        if (NEVER_BLOCK.any { pkg.equals(it, ignoreCase = true) }) {
+            // Match the normal accessibility-event path: entering a safe package
+            // means the previous blocked package's cooldown must not carry over.
+            lastBlockedPkg = null
+            lastBlockedAtMs = 0L
+            return
+        }
+        if (BLOCKABLE_AFTER_WARNING.any { pkg.equals(it, ignoreCase = true) }) return
+
+        val focusActive = prefs.getBoolean(PREF_FOCUS_ON, false).let { on ->
+            if (!on) false
+            else prefs.getLong("task_end_ms", 0L).let { end -> end <= 0L || now < end }
+        }
+        val saActive = prefs.getBoolean(PREF_SA_ACTIVE, false).let { on ->
+            if (!on) false
+            else prefs.getLong(PREF_SA_UNTIL, 0L).let { until -> until <= 0L || now < until }
+        }
+        val alwaysBlockActive = prefs.getBoolean(PREF_ALWAYS_BLOCK, false)
+        if (isInGreyoutWindow(pkg)) {
+            val samePackage = pkg == lastBlockedPkg
+            val cooldownExpired = (now - lastBlockedAtMs) > 2_000L
+            if (!samePackage || cooldownExpired) {
+                lastBlockedPkg = pkg
+                lastBlockedAtMs = now
+                handleBlockedApp(pkg, "Blocked by your active block schedule")
+                scheduleGreyoutRetryCheck(pkg, 1)
+            }
+            return
+        }
+
+        if (!focusActive && !saActive && !alwaysBlockActive) {
+            // Do not carry a previous block's cooldown into a later session.
+            lastBlockedPkg = null
+            lastBlockedAtMs = 0L
+            return
+        }
+
+        val blocked = isPackageBlocked(pkg, focusActive, saActive, alwaysBlockActive)
+        if (blocked) {
+            val samePackage = pkg == lastBlockedPkg
+            val cooldownExpired = (now - lastBlockedAtMs) > 2_000L
+            if (!samePackage || cooldownExpired) {
+                lastBlockedPkg = pkg
+                lastBlockedAtMs = now
+                handleBlockedApp(
+                    pkg,
+                    explicitBlockReason(pkg, focusActive, saActive, alwaysBlockActive),
+                )
+                scheduleRetryCheck(pkg, 1, focusActive, saActive, alwaysBlockActive)
+            }
+            return
+        }
+
+        // The normal accessibility path checks allowance exhaustion after the
+        // explicit block decision. Keep the watchdog aligned so a missed window
+        // event cannot bypass a persisted count/time/interval allowance limit.
+        val allowanceEntry = findAllowanceEntry(pkg)
+        if (allowanceEntry != null && !isAllowanceAvailable(pkg, allowanceEntry)) {
+            val samePackage = pkg == lastBlockedPkg
+            val cooldownExpired = (now - lastBlockedAtMs) > 2_000L
+            if (!samePackage || cooldownExpired) {
+                lastBlockedPkg = pkg
+                lastBlockedAtMs = now
+                handleBlockedApp(pkg, allowanceExhaustedReason(pkg, allowanceEntry))
+                scheduleRetryCheck(pkg, 1, focusActive, saActive, alwaysBlockActive)
+            }
+        } else {
+            lastBlockedPkg = null
+            lastBlockedAtMs = 0L
+        }
+
+        // The watchdog cannot inspect the live AccessibilityNodeInfo tree
+        // and cannot force Android to emit a content event. If the user
+        // returns to a Shorts/Reels page via recents and sits completely
+        // still, no proactive re-scan is possible under this API. Reset
+        // the throttle so the next content event gets a fresh scan.
+        val blockYoutubeShorts = prefs.getBoolean(PREF_BLOCK_YT_SHORTS, false)
+        val blockInstagramReels = prefs.getBoolean(PREF_BLOCK_IG_REELS, false)
+        if (blockYoutubeShorts && pkg == "com.google.android.youtube") {
+            lastContentScanMs.remove(pkg)
+        }
+        if (blockInstagramReels && pkg == "com.instagram.android") {
+            lastContentScanMs.remove(pkg)
+        }
+    }
+
+    private fun startForegroundWatchdog() {
+        foregroundWatchdogRunnable?.let { handler.removeCallbacks(it) }
+        val runnable = object : Runnable {
+            override fun run() {
+                try {
+                    checkForegroundNow()
+                } catch (_: Exception) {
+                    // UsageStats may be unavailable while the service is reconnecting.
+                }
+                handler.postDelayed(this, 1_500L)
+            }
+        }
+        foregroundWatchdogRunnable = runnable
+        handler.postDelayed(runnable, 1_500L)
+    }
+
+    /**
+     * Returns whether [pkg] is one of the device's HOME handlers.
+     *
+     * The static NEVER_BLOCK list covers common OEM launchers, but custom
+     * launchers and less common OEM packages are not knowable in advance.
+     * Querying HOME handlers keeps the user from being trapped when the
+     * launcher is not in that list. Results are cached briefly because this
+     * method is reached from both accessibility events and the watchdog.
+     */
+    private fun isHomePackage(pkg: String): Boolean {
+        val now = System.currentTimeMillis()
+        if (now - homePackagesCachedAtMs > 10_000L) {
+            cachedHomePackages = try {
+                val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_HOME)
+                    addCategory(Intent.CATEGORY_DEFAULT)
+                }
+                packageManager.queryIntentActivities(
+                    homeIntent,
+                    PackageManager.MATCH_DEFAULT_ONLY,
+                ).mapNotNull { it.activityInfo?.packageName }.toSet()
+            } catch (_: Exception) {
+                emptySet()
+            }
+            homePackagesCachedAtMs = now
+        }
+        return cachedHomePackages.any { it.equals(pkg, ignoreCase = true) }
+    }
+
+    private fun registerScreenStateReceiver() {
+        screenStateReceiver?.let {
+            try { unregisterReceiver(it) } catch (_: Exception) { }
+        }
+
+        screenStateReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                val pkg = currentTimedPkg ?: return
+                val entry = findAllowanceEntry(pkg) ?: return
+                if (entry.mode != "time_budget" && entry.mode != "interval") return
+
+                when (intent.action) {
+                    Intent.ACTION_SCREEN_OFF -> {
+                        if (currentTimedOpenAtMs <= 0L) return
+                        accumulateTimedUsage(pkg, entry, currentTimedOpenAtMs)
+                        currentTimedOpenAtMs = 0L
+                        timedExpireRunnable?.let { handler.removeCallbacks(it) }
+                        timedExpireRunnable = null
+                        handler.removeCallbacks(allowanceCheckpointRunnable)
+                    }
+
+                    Intent.ACTION_USER_PRESENT -> {
+                        // Ignore duplicate unlock broadcasts unless the session
+                        // is actually paused.
+                        if (currentTimedOpenAtMs > 0L) return
+
+                        val now = System.currentTimeMillis()
+                        if (!isAllowanceAvailable(pkg, entry)) {
+                            clearActiveSessionSignal()
+                            currentTimedPkg = null
+                            currentTimedOpenAtMs = 0L
+                            currentTimedSessionEndMs = 0L
+                            performGlobalAction(GLOBAL_ACTION_HOME)
+                            return
+                        }
+
+                        val pkgUsed = loadUsedObject().optJSONObject(pkg)
+                        val usedMs = pkgUsed?.optLong("usedMs", 0L) ?: 0L
+                        val remainingMs = when (entry.mode) {
+                            "time_budget" -> (entry.budgetMs - usedMs).coerceAtLeast(0L)
+                            "interval" -> (entry.intervalMs - usedMs).coerceAtLeast(0L)
+                            else -> 0L
+                        }
+                        if (remainingMs <= 0L) {
+                            clearActiveSessionSignal()
+                            currentTimedPkg = null
+                            currentTimedOpenAtMs = 0L
+                            currentTimedSessionEndMs = 0L
+                            performGlobalAction(GLOBAL_ACTION_HOME)
+                            return
+                        }
+
+                        currentTimedOpenAtMs = now
+                        currentTimedSessionEndMs = now + remainingMs
+                        persistActiveSessionSignal(pkg, now, currentTimedSessionEndMs)
+                        startAllowanceCheckpointLoop()
+                        scheduleTimedExpiry(pkg, currentTimedSessionEndMs)
+                    }
+                }
+            }
+        }.also {
+            registerReceiver(it, IntentFilter().apply {
+                addAction(Intent.ACTION_SCREEN_OFF)
+                addAction(Intent.ACTION_USER_PRESENT)
+            })
+        }
+    }
+
+    private fun unregisterScreenStateReceiver() {
+        screenStateReceiver?.let {
+            try { unregisterReceiver(it) } catch (_: Exception) { }
+        }
+        screenStateReceiver = null
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -647,13 +936,23 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             postHomeScreenReminder()
         }
 
+        // Some OEM home-screen transitions are reported under a framework/SystemUI
+        // package instead of the launcher's package. These packages have no
+        // launchable app entry and are Android infrastructure, not user apps.
+        // Do not let the Focus Mode allow-list block the device home surface.
+        if (isNonLaunchableSystemPackage(pkg)) return
+
         // ── NEVER_BLOCK packages ──────────────────────────────────────────────
         // Phone dialers (all OEM variants) and WhatsApp are unconditionally
         // allowed. No user setting, standalone block, or focus session can
         // override this. This check runs before BLOCKABLE_AFTER_WARNING so
         // that even if a user somehow adds one of these packages to a block
         // list, the block is silently ignored.
-        if (NEVER_BLOCK.any { pkg.equals(it, ignoreCase = true) }) {
+        if (NEVER_BLOCK.any { pkg.equals(it, ignoreCase = true) } || isHomePackage(pkg)) {
+            // Visiting a safe/home package means the user has left the blocked
+            // app, so the next open must not inherit its de-duplication window.
+            lastBlockedPkg = null
+            lastBlockedAtMs = 0L
             return
         }
 
@@ -1131,9 +1430,17 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         currentTimedPkg = null
         currentTimedOpenAtMs = 0L
         currentTimedSessionEndMs = 0L
+        unregisterScreenStateReceiver()
         lastBlockedPkg = null
+        foregroundWatchdogRunnable?.let { handler.removeCallbacks(it) }
+        foregroundWatchdogRunnable = null
         dismissWindowOverlay()
         vpnHealthHandler.removeCallbacks(vpnHealthRunnable)
+    }
+
+    override fun onDestroy() {
+        unregisterScreenStateReceiver()
+        super.onDestroy()
     }
 
     // ─── VPN self-heal ────────────────────────────────────────────────────────
@@ -1231,16 +1538,24 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             val saActive     = prefs.getBoolean(PREF_SA_ACTIVE, false)
             val alwaysBlock  = prefs.getBoolean(PREF_ALWAYS_BLOCK, false)
             if (!focusActive && !saActive && !alwaysBlock) return@postDelayed
-            // Guard: only act if the blocked package is still in the foreground.
-            // Without this check, retries would press Home even after the user has
-            // already navigated to a legitimate allowed app, causing false kicks.
-            if (lastSeenPkg != pkg) return@postDelayed
             val isBlocked = isPackageBlocked(pkg, focusActive, saActive, alwaysBlock)
             val allowanceExhausted = run {
                 val entry = findAllowanceEntry(pkg)
                 entry != null && !isAllowanceAvailable(pkg, entry)
             }
-            if (isBlocked || allowanceExhausted) {
+            // Guard: only act if enforcement is still active and the blocked
+            // package still owns the foreground window. Without this check,
+            // retries could kick an allowed app after a process switch.
+            if (BlockedAppDismissalPolicy.shouldRetry(
+                    pkg,
+                    lastSeenPkg,
+                    focusActive,
+                    saActive,
+                    alwaysBlock,
+                    isBlocked,
+                    allowanceExhausted,
+                )
+            ) {
                 // Re-raise the overlay in case it was dismissed or never rendered,
                 // then kick the app out again.
                 launchBlockOverlay(pkg)
@@ -2006,8 +2321,14 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             set(java.util.Calendar.SECOND, 0)
             set(java.util.Calendar.MILLISECOND, 0)
         }
+        val midnightMs = calendar.timeInMillis
+        // Include a short pre-midnight probe so a package that was already
+        // foreground across midnight is not mistaken for a new open at 00:00.
+        // Events before midnight establish continuity but never count toward
+        // today's allowance.
+        val queryStart = (midnightMs - COUNT_RECONCILIATION_PRE_MIDNIGHT_PROBE_MS).coerceAtLeast(0L)
         val events = try {
-            usageManager.queryEvents(calendar.timeInMillis, System.currentTimeMillis())
+            usageManager.queryEvents(queryStart, System.currentTimeMillis())
         } catch (_: Exception) {
             return
         }
@@ -2025,7 +2346,9 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             events.getNextEvent(event)
             if (event.eventType != foregroundEventType) continue
             val eventPkg = event.packageName ?: continue
-            if (eventPkg != lastForegroundPackage && countPackages.any {
+            if (eventPkg != lastForegroundPackage &&
+                event.timeStamp >= midnightMs &&
+                countPackages.any {
                     it.equals(eventPkg, ignoreCase = true)
                 }) {
                 val matchingPkg = countPackages.first {
@@ -2380,13 +2703,28 @@ class AppBlockerAccessibilityService : AccessibilityService() {
 
     // ─── Block determination ──────────────────────────────────────────────────
 
+    private fun isNonLaunchableSystemPackage(pkg: String): Boolean {
+        return try {
+            val appInfo = packageManager.getApplicationInfo(pkg, 0)
+            val isSystemPackage = (appInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+            isSystemPackage && packageManager.getLaunchIntentForPackage(pkg) == null
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     private fun isPackageBlocked(
         pkg: String,
         focusActive: Boolean,
         saActive: Boolean,
         alwaysBlockActive: Boolean = false,
     ): Boolean {
-        if (focusActive || saActive || alwaysBlockActive) {
+        // Installer/package-manager protection belongs exclusively to the
+        // Protect system controls toggle. Focus, Standalone, and Always-On
+        // app blocking must not make Android package installation unusable.
+        if (prefs.getBoolean(PREF_SYSTEM_GUARD_ENABLED, false) &&
+            (focusActive || saActive || alwaysBlockActive)
+        ) {
             if (INSTALLER_PACKAGES.any { pkg.equals(it, ignoreCase = true) }) return true
         }
 
@@ -2465,7 +2803,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         //    own re-raise on slow phones via onPause(), so this service can back off.
         launchBlockOverlay(blockedPackage, fullReason)
 
-        // 4. Close the blocked app: BACK → HOME (150 ms) → BACK (160 ms).
+        // 4. Close the blocked app: immediate BACK → HOME (80 ms) → BACK (100 ms).
         //    These key presses act on the blocked app itself and do not affect the
         //    overlay, which is a system window that stays on top regardless.
         dismissPackage(blockedPackage)
@@ -2689,6 +3027,42 @@ class AppBlockerAccessibilityService : AccessibilityService() {
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply { bottomMargin = dp(48) }
         })
+        val countdownLabel = TextView(this).apply {
+            textSize = 12f
+            setTextColor(Color.parseColor("#AAAACC"))
+            gravity = Gravity.CENTER
+            letterSpacing = 0.04f
+        }
+        val countdownProgress = ProgressBar(
+            this, null, android.R.attr.progressBarStyleHorizontal
+        ).apply {
+            max = 1000
+            progress = 1000
+            isIndeterminate = false
+            progressTintList = android.content.res.ColorStateList.valueOf(
+                Color.parseColor("#7567D9")
+            )
+            progressBackgroundTintList = android.content.res.ColorStateList.valueOf(
+                Color.parseColor("#332E5A")
+            )
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(4)
+            ).apply { topMargin = dp(8) }
+        }
+        val countdownContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            visibility = android.view.View.GONE
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = dp(28) }
+            addView(countdownLabel)
+            addView(countdownProgress)
+        }
+        wOverlayCountdownContainer = countdownContainer
+        wOverlayCountdownLabel = countdownLabel
+        wOverlayCountdownProgress = countdownProgress
+        col.addView(countdownContainer)
         col.addView(TextView(this).apply {            // sub-label
             text = "Stay focused. You\u2019ve got this."
             textSize = 13f; setTextColor(Color.parseColor("#55556A")); gravity = Gravity.CENTER
@@ -2730,6 +3104,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             }
 
         navRow.addView(navBtn("\u21A9  Back") {
+             recordOverlayEscapeAttempt()
             prefs.edit()
                 .putBoolean(BlockOverlayActivity.PREF_OVERLAY_X_READY, false)
                 .putBoolean("block_cooldown_reset", true)
@@ -2738,6 +3113,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             performGlobalAction(GLOBAL_ACTION_BACK)
         })
         navRow.addView(navBtn("\u2302  Home") {
+             recordOverlayEscapeAttempt()
             prefs.edit()
                 .putBoolean(BlockOverlayActivity.PREF_OVERLAY_X_READY, false)
                 .putBoolean("block_cooldown_reset", true)
@@ -2794,15 +3170,61 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         wOverlayView = null
         wOverlayXBtn = null
         wOverlayNavRow = null
+        handler.removeCallbacks(windowOverlayCountdownTick)
+        wOverlayCountdownRunnable?.let { handler.removeCallbacks(it) }
+        wOverlayCountdownRunnable = null
+        wOverlayCountdownContainer = null
+        wOverlayCountdownLabel = null
+        wOverlayCountdownProgress = null
+        wOverlayCountdownTotalMs = 0L
+        wOverlayCountdownStartedAt = 0L
         wOverlayXRevealed = false
+        wOverlayRevealScheduled = false
+        wOverlayRevealRunnable?.let { handler.removeCallbacks(it) }
+        wOverlayRevealRunnable = null
     }
 
-    /** Fades in the ✕ button and the Back/Home nav row so the user can dismiss. */
+    private fun overlayActionDelayMs(): Long {
+        return when (prefs.getInt(PREF_OVERLAY_ESCAPE_ATTEMPTS, 0)) {
+            0 -> INITIAL_OVERLAY_ACTION_DELAY_MS
+            1 -> 15_000L
+            2 -> 20_000L
+            3 -> 30_000L
+            4 -> 40_000L
+            5 -> 50_000L
+            else -> 60_000L
+        }
+    }
+
+    private fun recordOverlayEscapeAttempt() {
+        val next = (prefs.getInt(PREF_OVERLAY_ESCAPE_ATTEMPTS, 0) + 1).coerceAtMost(6)
+        prefs.edit().putInt(PREF_OVERLAY_ESCAPE_ATTEMPTS, next).apply()
+    }
+
+    /** Fades in the ✕ button and the Back/Home nav row after the escape delay. */
     private fun revealWindowXButton() {
-        if (wOverlayXRevealed) return
-        wOverlayXRevealed = true
+        if (wOverlayXRevealed || wOverlayRevealScheduled) return
+        wOverlayRevealScheduled = true
         AversiveActionsManager.stopAll(this)
-        handler.post {
+        val delayMs = overlayActionDelayMs()
+        wOverlayCountdownTotalMs = delayMs
+        wOverlayCountdownStartedAt = android.os.SystemClock.uptimeMillis()
+        wOverlayCountdownContainer?.visibility = android.view.View.VISIBLE
+        updateWindowOverlayCountdown(delayMs)
+        wOverlayCountdownRunnable = windowOverlayCountdownTick
+        handler.post(windowOverlayCountdownTick)
+        val revealRunnable = Runnable {
+            wOverlayRevealScheduled = false
+            wOverlayRevealRunnable = null
+            if (wOverlayView == null || wOverlayXRevealed ||
+                !prefs.getBoolean(BlockOverlayActivity.PREF_OVERLAY_X_READY, false)
+            ) {
+                cancelWindowOverlayCountdown()
+                return@Runnable
+            }
+            wOverlayXRevealed = true
+            cancelWindowOverlayCountdown()
+            AversiveActionsManager.stopAll(this)
             // ✕ close button
             wOverlayXBtn?.let { btn ->
                 btn.isClickable = true
@@ -2822,6 +3244,30 @@ class AppBlockerAccessibilityService : AccessibilityService() {
                 }
             }
         }
+        wOverlayRevealRunnable = revealRunnable
+        handler.postDelayed(revealRunnable, delayMs)
+    }
+
+    private fun cancelWindowOverlayCountdown() {
+        handler.removeCallbacks(windowOverlayCountdownTick)
+        wOverlayCountdownRunnable?.let { handler.removeCallbacks(it) }
+        wOverlayCountdownRunnable = null
+        wOverlayCountdownContainer?.visibility = android.view.View.GONE
+        wOverlayCountdownTotalMs = 0L
+        wOverlayCountdownStartedAt = 0L
+    }
+
+    private fun updateWindowOverlayCountdown(remainingMs: Long) {
+        val label = wOverlayCountdownLabel ?: return
+        val progress = wOverlayCountdownProgress ?: return
+        val remainingSeconds = ((remainingMs + 999L) / 1000L).coerceAtLeast(0L)
+        label.text = "Back, Home, and close available in ${remainingSeconds}s"
+        val fraction = if (wOverlayCountdownTotalMs > 0L) {
+            (remainingMs.toDouble() / wOverlayCountdownTotalMs.toDouble()).coerceIn(0.0, 1.0)
+        } else {
+            0.0
+        }
+        progress.progress = (fraction * progress.max).toInt()
     }
 
     /** Picks a quote for the overlay (fixed → custom pool → defaults). */
@@ -3073,22 +3519,25 @@ class AppBlockerAccessibilityService : AccessibilityService() {
     /**
      * Kicks the user out of [blockedPackage] using both BACK and HOME.
      *
-     * BACK first — collapses any in-app dialog or deeplink navigation so the
-     * blocked app is fully dismissed from the task stack.
-     * HOME 150 ms later — forces the launcher to the foreground, which also
+     * BACK immediately — gives the blocked app a best-effort chance to collapse
+     * any in-app dialog or deeplink navigation before leaving it.
+     * HOME at 80 ms — forces the launcher to the foreground, which also
      * triggers the overlay X-button / Back+Home nav row reveal signal.
+     * BACK again at 100 ms — closes any remaining navigation layer after the
+     * launcher transition.
      *
      * Installer packages (Play Store, MIUI installer, etc.) only get BACK
      * because sending HOME during an install confirmation hides the dialog
      * without cancelling, leaving a stale install in the background.
      */
     private fun dismissPackage(blockedPackage: String) {
-        if (INSTALLER_PACKAGES.any { blockedPackage.equals(it, ignoreCase = true) }) {
-            performGlobalAction(GLOBAL_ACTION_BACK)
-        } else {
-            performGlobalAction(GLOBAL_ACTION_BACK)
-            handler.postDelayed({ performGlobalAction(GLOBAL_ACTION_HOME) }, 80L)
-            handler.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 100L)
+        for (dismissal in BlockedAppDismissalPolicy.actionsFor(blockedPackage, INSTALLER_PACKAGES)) {
+            val action = when (dismissal.action) {
+                BlockedAppDismissalPolicy.GlobalAction.BACK -> GLOBAL_ACTION_BACK
+                BlockedAppDismissalPolicy.GlobalAction.HOME -> GLOBAL_ACTION_HOME
+            }
+            if (dismissal.delayMs == 0L) performGlobalAction(action)
+            else handler.postDelayed({ performGlobalAction(action) }, dismissal.delayMs)
         }
     }
 
@@ -3932,10 +4381,21 @@ class AppBlockerAccessibilityService : AccessibilityService() {
                 }
                 if (!matchesPkg) continue
                 val days = entry.optJSONArray("days") ?: continue
-                val dayMatch = (0 until days.length()).any { days.optInt(it) == currentDay }
-                if (!dayMatch) continue
                 val startMins = entry.optInt("startHour") * 60 + entry.optInt("startMin")
                 val endMins   = entry.optInt("endHour")   * 60 + entry.optInt("endMin")
+                val overnight = startMins > endMins
+                val afterMidnight = overnight && currentMinutes < endMins
+                val dayForWindow = if (afterMidnight) {
+                    if (currentDay == java.util.Calendar.SUNDAY) {
+                        java.util.Calendar.SATURDAY
+                    } else {
+                        currentDay - 1
+                    }
+                } else {
+                    currentDay
+                }
+                val dayMatch = (0 until days.length()).any { days.optInt(it) == dayForWindow }
+                if (!dayMatch) continue
                 val inWindow = if (startMins <= endMins) {
                     currentMinutes in startMins until endMins   // normal: 09:00–18:00
                 } else {

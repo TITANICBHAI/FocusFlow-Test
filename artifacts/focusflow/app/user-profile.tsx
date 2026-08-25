@@ -319,6 +319,7 @@ export default function UserProfileScreen() {
         replaceTasks: false,
         currentTasks: state.tasks ?? [],
         currentSettings: state.settings,
+        currentFocusSession: state.focusSession,
       });
       if ('error' in result) {
         Alert.alert('Import failed', result.error);
@@ -419,7 +420,7 @@ export default function UserProfileScreen() {
               <View style={styles.statRow}>
                 <StatTile
                   icon="flame"
-                  iconColor={COLORS.orange}
+                  iconColor="#f97316"
                   label="Streak"
                   value={`${stats.streak}d`}
                   hint={stats.bestStreak > stats.streak ? `Best ${stats.bestStreak}d` : 'Keep going'}
@@ -438,7 +439,7 @@ export default function UserProfileScreen() {
               <View style={styles.statRow}>
                 <StatTile
                   icon="hourglass-outline"
-                  iconColor={COLORS.green}
+                  iconColor="#10b981"
                   label="All time"
                   value={formatHm(stats.allTimeMins)}
                   hint={`${stats.sessions} session${stats.sessions === 1 ? '' : 's'}`}
@@ -446,7 +447,7 @@ export default function UserProfileScreen() {
                 />
                 <StatTile
                   icon="ribbon-outline"
-                  iconColor={COLORS.purple}
+                  iconColor="#8b5cf6"
                   label="Best streak"
                   value={`${stats.bestStreak}d`}
                   hint={stats.bestStreak === stats.streak && stats.streak > 0 ? 'Personal best!' : 'Personal record'}

@@ -11,6 +11,7 @@
 
 import React, { useMemo, useEffect, useState, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
+import { ActiveHeaderButton } from '@/components/ActiveHeaderButton';
 import { withScreenErrorBoundary } from '@/components/withScreenErrorBoundary';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
@@ -40,6 +41,7 @@ import type { UsageApp } from '@/native-modules/UsageStatsModule';
 import type { Task } from '@/data/types';
 
 type Filter = 'yesterday' | 'today' | 'week' | 'alltime';
+const FILTER_PILL_ORDER: Filter[] = ['today', 'yesterday', 'week', 'alltime'];
 
 interface AppStat  { pkg: string; appName: string; count: number }
 interface DayStat  { day: string; date: string; count: number }
@@ -80,7 +82,7 @@ function StatsScreen() {
   const { theme }       = useTheme();
   const { width }       = useWindowDimensions();
 
-  const [filter, setFilter] = useState<Filter>('yesterday');
+  const [filter, setFilter] = useState<Filter>('today');
   const [quickBlockApp, setQuickBlockApp] = useState<UsageApp | null>(null);
 
   // ── TODAY DB data ─────────────────────────────────────────────────────────
@@ -412,11 +414,12 @@ function StatsScreen() {
            :                         'All time'}
           </Text>
         </View>
+        <ActiveHeaderButton />
       </View>
 
       {/* ── Tab pills (sticky, high-contrast) ────────────────────────── */}
       <View style={[styles.filterRow, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-        {(['yesterday', 'today', 'week', 'alltime'] as const).map((f) => {
+        {FILTER_PILL_ORDER.map((f) => {
           const isActive = filter === f;
           return (
             <TouchableOpacity
@@ -428,7 +431,9 @@ function StatsScreen() {
                   borderColor: isActive ? COLORS.primary : COLORS.primary + '33',
                 },
               ]}
-              onPress={() => setFilter(f)}
+              onPress={() => {
+                setFilter(f);
+              }}
               activeOpacity={0.8}
             >
               <Text style={[styles.filterLabel, { color: isActive ? '#fff' : COLORS.primary }]}>

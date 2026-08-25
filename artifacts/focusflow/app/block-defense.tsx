@@ -6,7 +6,7 @@
  *   /block-defense?tab=keywords   → scroll to Keyword Blocker
  *   /block-defense?tab=system     → scroll to System Protection
  *   /block-defense?tab=aversion   → scroll to Aversion Deterrents
- *   /block-defense?tab=greyout    → scroll to Greyout Schedule
+ *   /block-defense?tab=greyout    → scroll to Block Schedules
  *
  * PIN Protection section manages both passwords:
  *   Focus Session password — gates ending any focus session (native SessionPinModule)
@@ -41,6 +41,7 @@ import { PinSetupModal } from '@/components/PinSetupModal';
 import { PinRotationModal } from '@/components/PinRotationModal';
 import { VpnConsentModal } from '@/components/VpnConsentModal';
 import type { GreyoutWindow } from '@/data/types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type PinModalState =
   | { type: 'none' }
@@ -75,6 +76,7 @@ export default function BlockDefenseScreen() {
     system: useRef<View>(null),
     aversion: useRef<View>(null),
     greyout: useRef<View>(null),
+    network: useRef<View>(null),
   };
 
   const focusActive = state.focusSession?.isActive === true;
@@ -129,6 +131,9 @@ export default function BlockDefenseScreen() {
           'Enter your defense password to add, edit, or remove schedule batches.',
           () => setGreyoutModalVisible(true),
         );
+      }
+      if (tab === 'network') {
+        router.push('/vpn-block-list');
       }
     }, 400);
     return () => clearTimeout(timeout);
@@ -418,6 +423,22 @@ export default function BlockDefenseScreen() {
             theme={theme}
           />
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <TouchableOpacity
+              style={styles.cardButton}
+              onPress={() => router.push('/password-protection')}
+              accessibilityRole="button"
+              accessibilityLabel="Open Password Protection"
+            >
+              <View style={styles.cardButtonContent}>
+                <Text style={[styles.cardButtonLabel, { color: theme.text }]}>Manage passwords</Text>
+                <Text style={[styles.cardButtonDesc, { color: theme.muted }]}>
+                  Focus Session Password and Defense Password
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={theme.border} />
+            </TouchableOpacity>
+          </View>
+          {false && <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <PinRow
               icon="hourglass-outline"
               label="Focus Session Password"
@@ -498,31 +519,7 @@ export default function BlockDefenseScreen() {
               }
               theme={theme}
             />
-          </View>
-        </View>
-
-        {/* ── Focus Session Behaviour ──────────────────────────────── */}
-        <View collapsable={false}>
-          <SectionHeader
-            icon="hourglass-outline"
-            title="Focus Session Behaviour"
-            description="Controls what happens to a running focus session when you finish or skip a task early."
-            theme={theme}
-          />
-          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <SwitchRow
-              label="Keep focus active for the full duration"
-              description={
-                (settings.keepFocusActiveUntilTaskEnd ?? false)
-                  ? 'On — completing a task early keeps app-blocking running until the original end time'
-                  : 'Off — completing a task immediately ends the focus session (default)'
-              }
-              value={settings.keepFocusActiveUntilTaskEnd ?? false}
-              onValueChange={(v) => void update({ keepFocusActiveUntilTaskEnd: v })}
-              theme={theme}
-              isLast
-            />
-          </View>
+          </View>}
         </View>
 
         {/* ── System Protection ────────────────────────────────────── */}
@@ -570,34 +567,6 @@ export default function BlockDefenseScreen() {
               disabled={blockProtectionActive && (settings.blockInstagramReelsEnabled ?? false)}
               theme={theme}
             />
-            <SwitchRow
-              label="Network blocking (VPN)"
-              description={
-                blockProtectionActive && (settings.vpnBlockEnabled ?? false)
-                  ? 'Locked on — active block in progress'
-                  : 'Tunnels blocked apps through a local VPN to cut their internet access — nothing leaves your device'
-              }
-              value={settings.vpnBlockEnabled ?? false}
-              onValueChange={(v) => void handleVpnToggle(v)}
-              disabled={blockProtectionActive && (settings.vpnBlockEnabled ?? false)}
-              theme={theme}
-            />
-            <SwitchRow
-              label="VPN self-healing"
-              description={
-                blockProtectionActive && (settings.vpnSelfHealEnabled ?? false)
-                  ? 'Locked on — active block in progress'
-                  : 'Automatically restarts the VPN if you disconnect it from quick settings mid-session'
-              }
-              value={settings.vpnSelfHealEnabled ?? false}
-              onValueChange={(v) => void update({ vpnSelfHealEnabled: v })}
-              disabled={
-                !(settings.vpnBlockEnabled ?? false) ||
-                (blockProtectionActive && (settings.vpnSelfHealEnabled ?? false))
-              }
-              theme={theme}
-              isLast
-            />
           </View>
         </View>
 
@@ -635,6 +604,31 @@ export default function BlockDefenseScreen() {
           </View>
         </View>
 
+        {/* ── Focus Session Behaviour ──────────────────────────────── */}
+        <View collapsable={false}>
+          <SectionHeader
+            icon="hourglass-outline"
+            title="Focus Session Behaviour"
+            description="Controls what happens to a running focus session when you finish or skip a task early."
+            theme={theme}
+          />
+          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <SwitchRow
+              label="Keep focus active for the full duration"
+              description={
+                (settings.keepFocusActiveUntilTaskEnd ?? false)
+                  ? 'On — completing a task early keeps app-blocking running until the original end time'
+                  : 'Off — completing a task immediately ends the focus session (default)'
+              }
+              value={settings.keepFocusActiveUntilTaskEnd ?? false}
+              onValueChange={(v) => void update({ keepFocusActiveUntilTaskEnd: v })}
+              theme={theme}
+              isLast
+            />
+          </View>
+        </View>
+
+        {/* ── Student recommendation ───────────────────────────────── */}
         {/* ── Always-On Enforcement ───────────────────────────────── */}
         <View collapsable={false}>
           <SectionHeader
@@ -675,6 +669,58 @@ export default function BlockDefenseScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* ── Network Protection ──────────────────────────────────── */}
+        <View ref={sectionRefs.network} collapsable={false}>
+          <SectionHeader
+            icon="globe-outline"
+            title="Network Protection"
+            description="A separate local VPN layer cuts internet access for selected apps. Nothing is sent to an external VPN server."
+            theme={theme}
+          />
+          <View style={[styles.card, styles.networkCard, { backgroundColor: theme.card, borderColor: '#14b8a6' + '66' }]}>
+            <SwitchRow
+              label="Network blocking (VPN)"
+              description={
+                blockProtectionActive && (settings.vpnBlockEnabled ?? false)
+                  ? 'Locked on — active block in progress'
+                  : 'Cut internet access for selected apps through FocusFlow’s local VPN'
+              }
+              value={settings.vpnBlockEnabled ?? false}
+              onValueChange={(v) => void handleVpnToggle(v)}
+              disabled={blockProtectionActive && (settings.vpnBlockEnabled ?? false)}
+              theme={theme}
+            />
+            <SwitchRow
+              label="VPN self-healing"
+              description={
+                blockProtectionActive && (settings.vpnSelfHealEnabled ?? false)
+                  ? 'Locked on — active block in progress'
+                  : 'Restart the VPN if it is disconnected during an active block'
+              }
+              value={settings.vpnSelfHealEnabled ?? false}
+              onValueChange={(v) => void update({ vpnSelfHealEnabled: v })}
+              disabled={
+                !(settings.vpnBlockEnabled ?? false) ||
+                (blockProtectionActive && (settings.vpnSelfHealEnabled ?? false))
+              }
+              theme={theme}
+            />
+            <TouchableOpacity style={styles.cardButton} onPress={() => router.push('/vpn-block-list')}>
+              <View style={styles.cardButtonContent}>
+                <Text style={[styles.cardButtonLabel, { color: theme.text }]}>Manage VPN app list</Text>
+                <Text style={[styles.cardButtonDesc, { color: theme.muted }]}>
+                  {(settings.alwaysOnVpnPackages ?? []).length === 0
+                    ? 'Choose apps whose internet access should be blocked'
+                    : `${(settings.alwaysOnVpnPackages ?? []).length} app${(settings.alwaysOnVpnPackages ?? []).length === 1 ? '' : 's'} selected`}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={theme.border} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <StudentHint theme={theme} />
 
         {/* ── Home Launcher ────────────────────────────────────────── */}
         <View collapsable={false}>
@@ -748,7 +794,7 @@ export default function BlockDefenseScreen() {
         <View ref={sectionRefs.greyout} collapsable={false}>
           <SectionHeader
             icon="time-outline"
-            title="Block Schedules"
+            title="Block Schedule"
             description="Create one or more batches — each batch picks a group of apps and the hours/days they should be blocked. Set once, runs forever, no focus session needed."
             theme={theme}
           />
@@ -938,6 +984,41 @@ function SectionHeader({
   );
 }
 
+function StudentHint({ theme }: { theme: ReturnType<typeof useTheme>['theme'] }) {
+  const [visible, setVisible] = useState(false);
+  const key = '@focusflow/studentBlockScheduleHintDismissed';
+
+  useEffect(() => {
+    void AsyncStorage.getItem(key).then((dismissed) => {
+      if (!dismissed) setVisible(true);
+    });
+  }, []);
+
+  if (!visible) return null;
+  return (
+    <View style={[styles.studentHint, { backgroundColor: COLORS.primary + '0D', borderColor: COLORS.primary + '35' }]}>
+      <Ionicons name="school-outline" size={19} color={COLORS.primary} />
+      <View style={{ flex: 1, gap: 3 }}>
+        <Text style={[styles.studentHintTitle, { color: theme.text }]}>Exam-time tip</Text>
+        <Text style={[styles.studentHintText, { color: theme.muted }]}>
+          Students can use a Block Schedule to block distracting apps during an exam or study window while keeping the phone available for essential study tools. For important exams, we recommend Accessibility access and a Defense Password.
+        </Text>
+      </View>
+      <TouchableOpacity
+        onPress={() => {
+          setVisible(false);
+          void AsyncStorage.setItem(key, '1');
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Dismiss exam-time tip"
+        hitSlop={8}
+      >
+        <Ionicons name="close" size={18} color={theme.muted} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 function SwitchRow({
   label,
   description,
@@ -1019,6 +1100,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   hintBannerText: { flex: 1, fontSize: FONT.xs, lineHeight: 17 },
+  studentHint: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+  },
+  studentHintTitle: { fontSize: FONT.sm, fontWeight: '700' },
+  studentHintText: { fontSize: FONT.xs, lineHeight: 17 },
 
   sectionHeader: { gap: 4, marginBottom: 2 },
   sectionHeaderRow: {
@@ -1040,6 +1131,9 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
+  },
+  networkCard: {
+    borderWidth: 1,
   },
   switchRow: {
     flexDirection: 'row',

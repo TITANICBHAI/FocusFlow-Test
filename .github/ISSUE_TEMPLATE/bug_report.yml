@@ -1,0 +1,45 @@
+name: Bug report
+description: Report a reproducible problem in FocusFlow
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please search existing issues first. Do not include passwords, API keys, signing keys, or private user data.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected to happen.
+      placeholder: Tell us what went wrong and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: List the smallest reliable set of steps.
+      placeholder: |
+        1. Open ...
+        2. Enable ...
+        3. Tap ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: FocusFlow version
+      placeholder: e.g. 1.0.9
+  - type: input
+    id: device
+    attributes:
+      label: Device and Android version
+      placeholder: e.g. Pixel 8, Android 15
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or screenshots
+      description: Remove sensitive information before attaching anything.
+      render: text

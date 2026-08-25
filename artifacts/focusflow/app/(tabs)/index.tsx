@@ -11,11 +11,11 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActiveHeaderButton } from '@/components/ActiveHeaderButton';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import { useApp } from '@/context/AppContext';
 import TaskCard from '@/components/TaskCard';
-import FocusFlowLogo from '@/components/FocusFlowLogo';
 
 import QuickAddModal from '@/components/QuickAddModal';
 import ExtendModal from '@/components/ExtendModal';
@@ -88,42 +88,13 @@ function ScheduleScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top']}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-        <View style={styles.brandRow}>
-          <FocusFlowLogo size={34} glow />
-          <View>
-            <Text style={[styles.brandName, { color: theme.text }]}>FocusFlow</Text>
-            <Text style={[styles.dateText, { color: theme.text }]}>{dayjs().format('dddd, MMMM D')}</Text>
-            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-              {totalCount === 0 ? 'No tasks today' : `${completedCount}/${totalCount} tasks done`}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Non-blocking schedule quality signal. The existing analyzer catches
-          conflicts and unusually large gaps; keep it visible without turning
-          it into another modal or interruptive workflow. */}
-      <View
-        style={[
-          styles.scheduleHealth,
-          { backgroundColor: healthColor + '12', borderColor: healthColor + '35' },
-        ]}
-      >
-        <Ionicons
-          name={healthWarning ? 'warning-outline' : 'checkmark-circle-outline'}
-          size={16}
-          color={healthColor}
-        />
-        <View style={styles.scheduleHealthCopy}>
-          <Text style={[styles.scheduleHealthTitle, { color: healthColor }]}>
-            {healthWarning ?? 'Schedule looks clean'}
-          </Text>
-          <Text style={[styles.scheduleHealthDetail, { color: theme.textSecondary }]}>
-            {healthWarning
-              ? 'Review the affected task times below.'
-              : `${Math.round(scheduleHealth.totalScheduledMinutes)} minutes scheduled today`}
+        <View>
+          <Text style={[styles.dateText, { color: theme.text }]}>{dayjs().format('dddd, MMMM D')}</Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            {totalCount === 0 ? 'No tasks today' : `${completedCount}/${totalCount} tasks done`}
           </Text>
         </View>
+        <ActiveHeaderButton />
       </View>
 
       {/* Active / Time's-up Banner — surfaces ended-but-undecided tasks too. */}
@@ -272,8 +243,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.border,
   },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  brandName: { fontSize: FONT.sm, fontWeight: '800', letterSpacing: 0.3, marginBottom: 1 },
   dateText: { fontSize: FONT.xl, fontWeight: '700', color: COLORS.text },
   subtitle: { fontSize: FONT.sm, color: COLORS.muted, marginTop: 2 },
   activeBanner: {

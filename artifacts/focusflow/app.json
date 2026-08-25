@@ -2,7 +2,7 @@
   "expo": {
     "name": "FocusFlow",
     "slug": "focusflow",
-    "version": "1.0.8",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "focusflow",
@@ -11,7 +11,7 @@
     "splash": {
       "image": "./src/assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0A0A14"
+      "backgroundColor": "#6366f1"
     },
     "android": {
       "adaptiveIcon": {
@@ -57,7 +57,7 @@
         "com.huawei.android.launcher.permission.READ_SETTINGS",
         "com.huawei.android.launcher.permission.WRITE_SETTINGS"
       ],
-      "versionCode": 9
+      "versionCode": 11
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -75,7 +75,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#4F8EF7",
+          "color": "#6366f1",
           "androidMode": "default",
           "androidCollapsedTitle": "FocusFlow"
         }

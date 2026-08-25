@@ -9,6 +9,8 @@ import {
   StyleSheet,
   Alert,
   Platform,
+  Keyboard,
+  KeyboardAvoidingView,
 } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -35,9 +37,12 @@ const PRIORITY_COLORS: Record<TaskPriority, string> = {
   high: COLORS.orange,
   critical: COLORS.red,
 };
-const COLORS_OPTIONS = [
-  COLORS.primary, COLORS.orange, COLORS.green, COLORS.red,
-  COLORS.purple, '#22D3EE', '#14B8A6', COLORS.blueLight,
+const DURATION_PRESETS = [
+  { label: '25m', minutes: 25 },
+  { label: '45m', minutes: 45 },
+  { label: '1h', minutes: 60 },
+  { label: '1h 30m', minutes: 90 },
+  { label: '2h', minutes: 120 },
 ];
 
 export default function EditTaskModal({ task, visible, onClose, onSave, onDelete }: Props) {
@@ -51,28 +56,36 @@ export default function EditTaskModal({ task, visible, onClose, onSave, onDelete
   const [showPicker, setShowPicker] = useState(false);
   const [durationStr, setDurationStr] = useState(String(task.durationMinutes));
   const [priority, setPriority] = useState<TaskPriority>(task.priority);
-  const [tags, setTags] = useState(task.tags.join(', '));
-  const [color, setColor] = useState(task.color);
+  const [localTags, setLocalTags] = useState<string[]>(task.tags);
+  const [tagInput, setTagInput] = useState('');
+  const [color, setColor] = useState(PRIORITY_COLORS[task.priority]);
   const [focusMode, setFocusMode] = useState(task.focusMode);
-  // undefined = use global setting; [] = all apps allowed (explicit override)
-  const [useGlobalApps, setUseGlobalApps] = useState<boolean>(
-    task.focusAllowedPackages === undefined,
-  );
   const [focusAllowedPackages, setFocusAllowedPackages] = useState<string[]>(
     task.focusAllowedPackages ?? [],
   );
   const [showAppPicker, setShowAppPicker] = useState(false);
+  const [showNotes, setShowNotes] = useState(Boolean(description.trim()));
   const [saving, setSaving] = useState(false);
 
   const globalAllowedCount = (state.settings.allowedInFocus ?? []).length;
-
-  const allowedAppsLabel = useGlobalApps
+  const usesGlobalApps = task.focusAllowedPackages === undefined;
+  const allowedAppsDescription = usesGlobalApps && focusAllowedPackages.length === 0
     ? globalAllowedCount > 0
-      ? `Using global setting (${globalAllowedCount} app${globalAllowedCount !== 1 ? 's' : ''})`
-      : 'Using global setting (all apps allowed)'
+      ? `Using your global list (${globalAllowedCount} app${globalAllowedCount !== 1 ? 's' : ''})`
+      : 'Using your global list (all apps allowed)'
     : focusAllowedPackages.length === 0
-      ? 'All apps allowed'
-      : `${focusAllowedPackages.length} app${focusAllowedPackages.length !== 1 ? 's' : ''} allowed`;
+      ? 'All apps allowed for this task'
+      : `${focusAllowedPackages.length} custom app${focusAllowedPackages.length !== 1 ? 's' : ''} allowed`;
+
+  const addTag = () => {
+    const nextTag = tagInput.trim().replace(/^#/, '');
+    if (!nextTag || localTags.includes(nextTag)) {
+      setTagInput('');
+      return;
+    }
+    setLocalTags((current) => [...current, nextTag]);
+    setTagInput('');
+  };
 
   const handleSavePreset = async (preset: AllowedAppPreset) => {
     const newPresets = [...presets, preset];
@@ -108,10 +121,12 @@ export default function EditTaskModal({ task, visible, onClose, onSave, onDelete
       endTime: newEnd.toISOString(),
       durationMinutes: duration,
       priority,
-      tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
+      tags: localTags,
       color,
       focusMode,
-      focusAllowedPackages: focusMode ? (useGlobalApps ? undefined : focusAllowedPackages) : undefined,
+      focusAllowedPackages: focusMode
+        ? (usesGlobalApps && focusAllowedPackages.length === 0 ? undefined : focusAllowedPackages)
+        : undefined,
       updatedAt: new Date().toISOString(),
     };
 
@@ -147,6 +162,10 @@ export default function EditTaskModal({ task, visible, onClose, onSave, onDelete
   return (
     <>
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
@@ -161,11 +180,15 @@ export default function EditTaskModal({ task, visible, onClose, onSave, onDelete
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          style={styles.body}
+          contentContainerStyle={styles.bodyContent}
+          keyboardShouldPersistTaps="never"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          onScrollBeginDrag={Keyboard.dismiss}
+        >
 
-          {/* Title */}
           <View style={styles.field}>
-            <Text style={[styles.label, { color: theme.muted }]}>Title</Text>
             <TextInput
               style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.text }]}
               value={title}
@@ -173,27 +196,36 @@ export default function EditTaskModal({ task, visible, onClose, onSave, onDelete
               placeholder="Task title"
               placeholderTextColor={theme.muted}
               returnKeyType="next"
-              autoFocus
             />
           </View>
 
-          {/* Description */}
           <View style={styles.field}>
-            <Text style={[styles.label, { color: theme.muted }]}>Notes (optional)</Text>
-            <TextInput
-              style={[styles.input, styles.textArea, { backgroundColor: theme.card, borderColor: theme.border, color: theme.text }]}
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Add notes..."
-              placeholderTextColor={theme.muted}
-              multiline
-              numberOfLines={3}
-            />
+            <TouchableOpacity
+              style={[styles.notesToggle, { borderColor: theme.border }]}
+              onPress={() => setShowNotes((current) => !current)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.notesToggleInfo}>
+                <Ionicons name="document-text-outline" size={18} color={theme.muted} />
+                <Text style={[styles.notesToggleText, { color: theme.text }]}>Notes</Text>
+                {!description.trim() && <Text style={[styles.optionalText, { color: theme.muted }]}>Optional</Text>}
+              </View>
+              <Ionicons name={showNotes ? 'chevron-up' : 'chevron-down'} size={18} color={theme.muted} />
+            </TouchableOpacity>
+            {showNotes && (
+              <TextInput
+                style={[styles.input, styles.textArea, { backgroundColor: theme.card, borderColor: theme.border, color: theme.text }]}
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Add notes..."
+                placeholderTextColor={theme.muted}
+                multiline
+                numberOfLines={3}
+              />
+            )}
           </View>
 
-          {/* Start time */}
           <View style={styles.field}>
-            <Text style={[styles.label, { color: theme.muted }]}>Start Time</Text>
             <TouchableOpacity
               style={[styles.input, styles.timePickerRow, { backgroundColor: theme.card, borderColor: theme.border }]}
               onPress={() => setShowPicker(true)}
@@ -218,22 +250,36 @@ export default function EditTaskModal({ task, visible, onClose, onSave, onDelete
             )}
           </View>
 
-          {/* Duration */}
           <View style={styles.field}>
-            <Text style={[styles.label, { color: theme.muted }]}>Duration (minutes)</Text>
-            <TextInput
-              style={[styles.input, { width: 120, backgroundColor: theme.card, borderColor: theme.border, color: theme.text }]}
-              value={durationStr}
-              onChangeText={setDurationStr}
-              keyboardType="number-pad"
-              placeholder="60"
-              placeholderTextColor={theme.muted}
-            />
+            <View style={styles.durationRow}>
+              {DURATION_PRESETS.map((preset) => (
+                <TouchableOpacity
+                  key={preset.minutes}
+                  style={[
+                    styles.durationChip,
+                    { borderColor: theme.border },
+                    Number(durationStr) === preset.minutes && {
+                      backgroundColor: COLORS.primary,
+                      borderColor: COLORS.primary,
+                    },
+                  ]}
+                  onPress={() => setDurationStr(String(preset.minutes))}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[
+                    styles.durationChipText,
+                    { color: theme.text },
+                    Number(durationStr) === preset.minutes && { color: '#fff' },
+                  ]}>
+                    {preset.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
           {/* Priority */}
           <View style={styles.field}>
-            <Text style={[styles.label, { color: theme.muted }]}>Priority</Text>
             <View style={styles.chipRow}>
               {PRIORITIES.map((p) => (
                 <TouchableOpacity
@@ -243,7 +289,10 @@ export default function EditTaskModal({ task, visible, onClose, onSave, onDelete
                     { borderColor: theme.border },
                     priority === p && { backgroundColor: PRIORITY_COLORS[p], borderColor: PRIORITY_COLORS[p] },
                   ]}
-                  onPress={() => setPriority(p)}
+                  onPress={() => {
+                    setPriority(p);
+                    setColor(PRIORITY_COLORS[p]);
+                  }}
                 >
                   <Text style={[styles.chipText, { color: theme.text }, priority === p && { color: '#fff' }]}>
                     {p.charAt(0).toUpperCase() + p.slice(1)}
@@ -253,32 +302,29 @@ export default function EditTaskModal({ task, visible, onClose, onSave, onDelete
             </View>
           </View>
 
-          {/* Tags */}
           <View style={styles.field}>
-            <Text style={[styles.label, { color: theme.muted }]}>Tags (comma separated)</Text>
+            {localTags.length > 0 && (
+              <View style={styles.tagsRow}>
+                {localTags.map((tag) => (
+                  <View key={tag} style={[styles.tagChip, { backgroundColor: COLORS.primary + '16', borderColor: COLORS.primary + '44' }]}>
+                    <Text style={[styles.tagChipText, { color: COLORS.primary }]}>#{tag}</Text>
+                    <TouchableOpacity onPress={() => setLocalTags((current) => current.filter((item) => item !== tag))} hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}>
+                      <Ionicons name="close-circle" size={16} color={COLORS.primary} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
             <TextInput
               style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.text }]}
-              value={tags}
-              onChangeText={setTags}
-              placeholder="work, deep-focus, health"
+              value={tagInput}
+              onChangeText={setTagInput}
+              onSubmitEditing={addTag}
+              placeholder="Add a tag"
               placeholderTextColor={theme.muted}
+              returnKeyType="done"
             />
-          </View>
-
-          {/* Color */}
-          <View style={styles.field}>
-            <Text style={[styles.label, { color: theme.muted }]}>Color</Text>
-            <View style={styles.colorRow}>
-              {COLORS_OPTIONS.map((c) => (
-                <TouchableOpacity
-                  key={c}
-                  style={[styles.colorDot, { backgroundColor: c }, color === c && styles.colorDotSelected]}
-                  onPress={() => setColor(c)}
-                >
-                  {color === c && <Ionicons name="checkmark" size={14} color="#fff" />}
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Text style={[styles.helperText, { color: theme.muted }]}>Press return to add each tag.</Text>
           </View>
 
           {/* Focus mode toggle */}
@@ -293,63 +339,23 @@ export default function EditTaskModal({ task, visible, onClose, onSave, onDelete
               </View>
             </TouchableOpacity>
 
-            {/* Pomodoro toggle — shown when focus mode is on */}
-            {focusMode && (
-              <TouchableOpacity
-                style={[styles.toggleRow, { backgroundColor: theme.card, borderColor: theme.border }]}
-                onPress={() => { void updateSettings({ ...state.settings, pomodoroEnabled: !state.settings.pomodoroEnabled }); }}
-              >
-                <View style={styles.toggleInfo}>
-                  <Text style={[styles.toggleTitle, { color: theme.text }]}>Pomodoro Mode</Text>
-                  <Text style={[styles.toggleSub, { color: theme.muted }]}>
-                    {state.settings.pomodoroEnabled
-                      ? `On — ${state.settings.pomodoroDuration ?? 25}m work / ${state.settings.pomodoroBreak ?? 5}m break`
-                      : 'Off — one continuous session (global setting)'}
-                  </Text>
-                </View>
-                <View style={[styles.toggle, state.settings.pomodoroEnabled && styles.toggleOn]}>
-                  <View style={[styles.toggleThumb, state.settings.pomodoroEnabled && styles.toggleThumbOn]} />
-                </View>
-              </TouchableOpacity>
-            )}
-
             {/* Allowed apps — shown when focus mode is on */}
             {focusMode && (
-              <>
+              <View style={[styles.allowedAppsSection, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                <View style={styles.allowedAppsInfo}>
+                  <Text style={[styles.allowedAppsLabel, { color: theme.text }]}>Allowed apps</Text>
+                  <Text style={[styles.allowedAppsDescription, { color: theme.muted }]}>{allowedAppsDescription}</Text>
+                </View>
                 <TouchableOpacity
-                  style={[styles.toggleRow, { backgroundColor: theme.card, borderColor: theme.border }]}
-                  onPress={() => setUseGlobalApps((v) => !v)}
+                  style={[styles.customizeRow, { borderColor: COLORS.primary + '44' }]}
+                  onPress={() => setShowAppPicker(true)}
+                  activeOpacity={0.7}
                 >
-                  <View style={styles.toggleInfo}>
-                    <Text style={[styles.toggleTitle, { color: theme.text }]}>Use Global Allowed List</Text>
-                    <Text style={[styles.toggleSub, { color: theme.muted }]}>
-                      {globalAllowedCount > 0
-                        ? `${globalAllowedCount} app${globalAllowedCount !== 1 ? 's' : ''} from Settings → Allowed In Focus`
-                        : 'All apps (configure in Settings → Allowed In Focus)'}
-                    </Text>
-                  </View>
-                  <View style={[styles.toggle, useGlobalApps && styles.toggleOn]}>
-                    <View style={[styles.toggleThumb, useGlobalApps && styles.toggleThumbOn]} />
-                  </View>
+                  <Ionicons name="options-outline" size={18} color={COLORS.primary} />
+                  <Text style={[styles.customizeText, { color: COLORS.primary }]}>Customize</Text>
+                  <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
                 </TouchableOpacity>
-
-                {!useGlobalApps && (
-                  <TouchableOpacity
-                    style={[styles.allowedAppsRow, { backgroundColor: theme.card }]}
-                    onPress={() => setShowAppPicker(true)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.allowedAppsIcon}>
-                      <Ionicons name="shield-checkmark-outline" size={20} color={COLORS.primary} />
-                    </View>
-                    <View style={styles.allowedAppsInfo}>
-                      <Text style={[styles.allowedAppsLabel, { color: theme.text }]}>Allowed Apps</Text>
-                      <Text style={styles.allowedAppsValue}>{allowedAppsLabel}</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={18} color={theme.muted} />
-                  </TouchableOpacity>
-                )}
-              </>
+              </View>
             )}
           </View>
         </ScrollView>
@@ -360,6 +366,7 @@ export default function EditTaskModal({ task, visible, onClose, onSave, onDelete
           <Text style={styles.deleteBtnText}>Delete Task</Text>
         </TouchableOpacity>
       </SafeAreaView>
+      </KeyboardAvoidingView>
     </Modal>
 
     {/* Nested app picker sheet — rendered outside the main Modal to avoid z-index issues */}
@@ -396,7 +403,6 @@ const styles = StyleSheet.create({
   body: { flex: 1 },
   bodyContent: { padding: SPACING.lg, gap: SPACING.lg, paddingBottom: 40 },
   field: { gap: SPACING.xs },
-  label: { fontSize: FONT.xs, fontWeight: '700', color: COLORS.muted, textTransform: 'uppercase', letterSpacing: 0.8 },
   input: {
     backgroundColor: COLORS.card,
     borderRadius: RADIUS.md,
@@ -408,8 +414,28 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   textArea: { minHeight: 80, textAlignVertical: 'top', paddingTop: SPACING.sm },
+  notesToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1.5,
+  },
+  notesToggleInfo: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  notesToggleText: { fontSize: FONT.md, fontWeight: '600' },
+  optionalText: { fontSize: FONT.xs, marginLeft: SPACING.xs },
   timePickerRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   timePickerText: { fontSize: FONT.md, color: COLORS.text },
+  durationRow: { flexDirection: 'row', gap: SPACING.xs, flexWrap: 'wrap' },
+  durationChip: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+    borderWidth: 1.5,
+  },
+  durationChipText: { fontSize: FONT.sm, fontWeight: '700' },
   chipRow: { flexDirection: 'row', gap: SPACING.xs, flexWrap: 'wrap' },
   chip: {
     paddingHorizontal: SPACING.md,
@@ -419,15 +445,18 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   chipText: { fontSize: FONT.sm, fontWeight: '600', color: COLORS.text },
-  colorRow: { flexDirection: 'row', gap: SPACING.sm, flexWrap: 'wrap' },
-  colorDot: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  tagsRow: { flexDirection: 'row', gap: SPACING.xs, flexWrap: 'wrap' },
+  tagChip: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
   },
-  colorDotSelected: { borderWidth: 3, borderColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 4 },
+  tagChipText: { fontSize: FONT.sm, fontWeight: '600' },
+  helperText: { fontSize: FONT.xs, marginTop: 2 },
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, backgroundColor: COLORS.card, borderRadius: RADIUS.md, padding: SPACING.md, borderWidth: 1.5, borderColor: COLORS.border },
   toggleInfo: { flex: 1 },
   toggleTitle: { fontSize: FONT.md, fontWeight: '600', color: COLORS.text },
@@ -449,26 +478,23 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.red + '08',
   },
   deleteBtnText: { color: COLORS.red, fontSize: FONT.md, fontWeight: '600' },
-  allowedAppsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  allowedAppsSection: {
     backgroundColor: COLORS.card,
     borderRadius: RADIUS.md,
     padding: SPACING.md,
     marginTop: SPACING.sm,
     borderWidth: 1.5,
-    borderColor: COLORS.primary + '44',
     gap: SPACING.sm,
-  },
-  allowedAppsIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: RADIUS.md,
-    backgroundColor: COLORS.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   allowedAppsInfo: { flex: 1 },
   allowedAppsLabel: { fontSize: FONT.md, fontWeight: '600', color: COLORS.text },
-  allowedAppsValue: { fontSize: FONT.sm, color: COLORS.primary, marginTop: 2 },
+  allowedAppsDescription: { fontSize: FONT.xs, marginTop: 2 },
+  customizeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    borderTopWidth: 1,
+  },
+  customizeText: { flex: 1, fontSize: FONT.sm, fontWeight: '700' },
 });

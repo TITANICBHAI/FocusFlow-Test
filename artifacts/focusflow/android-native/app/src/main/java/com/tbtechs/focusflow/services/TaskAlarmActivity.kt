@@ -240,7 +240,7 @@ class TaskAlarmActivity : Activity() {
         })
 
         col.addView(buildButton("\u2713  Done",      "#22C55E") { onDoneTapped() })
-        col.addView(buildButton("+15m  Extend",     "#4F8EF7") { onExtendTapped() })
+        col.addView(buildButton("+15m  Extend",     "#6366F1") { onExtendTapped() })
         col.addView(buildButton("Skip",              "#444466") { onSkipTapped() })
 
         root.addView(col)

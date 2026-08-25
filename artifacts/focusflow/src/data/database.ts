@@ -1,7 +1,8 @@
 import * as SQLite from 'expo-sqlite';
-import { Appearance, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import type { Task, AppSettings, FocusSession, DailyAllowanceEntry } from './types';
 import { logger } from '@/services/startupLogger';
+import { DEFAULT_SETTINGS } from './defaultSettings';
 
 let db: SQLite.SQLiteDatabase | null = null;
 const PRIMARY_DB_NAME = 'focusday.db';
@@ -36,56 +37,6 @@ let _writeTail: Promise<void> = Promise.resolve();
  * handle is invalidated by the OS.
  */
 let _dbUnrecoverable = false;
-
-const DEFAULT_SETTINGS: AppSettings = {
-  darkMode: Appearance.getColorScheme() === 'dark',
-  defaultDuration: 60,
-  defaultReminderOffsets: [-10, -5, 0],
-  focusModeEnabled: true,
-  allowedInFocus: [],
-  allowedAppPresets: [],
-  blockPresets: [],
-  pomodoroEnabled: false,
-  pomodoroDuration: 25,
-  pomodoroBreak: 5,
-  notificationsEnabled: true,
-  privacyAccepted: false,
-  protectionMode: 'standard',
-  standaloneBlockPackages: [],
-  standaloneBlockUntil: null,
-  alwaysOnPackages: [],
-  autoCopyToAlwaysOn: false,
-  dailyAllowanceEntries: [],
-  onboardingComplete: false,
-  blockedWords: [],
-  aversionDimmerEnabled: false,
-  aversionVibrateEnabled: false,
-  aversionSoundEnabled: false,
-  weeklyReportEnabled: false,
-  greyoutSchedule: [],
-  systemGuardEnabled: false,
-  blockInstallActionsEnabled: false,
-  blockYoutubeShortsEnabled: false,
-  blockInstagramReelsEnabled: false,
-  keepFocusActiveUntilTaskEnd: false,
-  recurringBlockSchedules: [],
-  beginnerMode: true,
-  tipsCardDismissed: false,
-  alwaysOnEnforcementEnabled: false,
-  lastShownStreakMilestone: 0,
-  vpnBlockEnabled: false,
-  standaloneVpnPackages: [],
-  launcherEnabled: false,
-  launcherHiddenPackages: [],
-  launcherPinnedPackages: [],
-  launcherDockPackages: [],
-  launcherWallpaperUri: null,
-  launcherClockStyle: 'digital',
-  launcherBlockUninstall: false,
-  launcherLockDuringStandalone: true,
-  overlayWallpaper: '',
-  overlayQuotes: [],
-};
 
 /**
  * Counts getDb() IIFEs currently in flight (i.e. actively trying to open the
@@ -439,7 +390,7 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
       priority TEXT NOT NULL DEFAULT 'medium',
       tags TEXT NOT NULL DEFAULT '[]',
       reminders TEXT NOT NULL DEFAULT '[]',
-      color TEXT NOT NULL DEFAULT '#4F8EF7',
+      color TEXT NOT NULL DEFAULT '#6366f1',
       focus_mode INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
@@ -1019,6 +970,13 @@ export async function dbPruneOldData(daysToKeep = 90): Promise<void> {
 export async function dbDeleteAllTasks(): Promise<void> {
   return runWithDbWrite('dbDeleteAllTasks', (database) =>
     database.runAsync('DELETE FROM tasks').then(() => undefined),
+  );
+}
+
+/** Deletes every task except the task currently running in focus mode. */
+export async function dbDeleteAllTasksExcept(taskId: string): Promise<void> {
+  return runWithDbWrite('dbDeleteAllTasksExcept', (database) =>
+    database.runAsync('DELETE FROM tasks WHERE id != ?', [taskId]).then(() => undefined),
   );
 }
 

@@ -20,6 +20,7 @@ import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
 import { useTheme } from '@/hooks/useTheme';
 import type { DailyAllowanceEntry, AllowanceMode } from '@/data/types';
 import { PinVerifyModal } from '@/components/PinVerifyModal';
+import { getAllowanceUsageSnapshot, invalidateAllowanceUsageCache } from '@/services/allowanceUsageCache';
 
 interface Props {
   visible: boolean;
@@ -113,25 +114,20 @@ export function DailyAllowanceModal({
         .catch(() => {})
         .finally(() => setLoading(false));
     }
-    // Load live usage data so we can show remaining time/opens per app
-    SharedPrefsModule.getString('daily_allowance_used')
-      .then((raw) => {
-        if (!raw) return;
-        try {
-          const parsed = JSON.parse(raw) as Record<string, {
-            mode?: string; date?: string; count?: number;
-            usedMs?: number; windowStartMs?: number;
-          }>;
-          const today = getLocalDateKey();
-          // Zero out stale entries (different date = fresh day)
-          const fresh: typeof parsed = {};
-          for (const [pkg, val] of Object.entries(parsed)) {
-            fresh[pkg] = val.date === today ? val : {};
-          }
-          setUsageMap(fresh);
-        } catch { /* ignore parse errors */ }
-      })
-      .catch(() => {});
+    // Keep the settings view aligned with native checkpoint updates while open.
+    let mounted = true;
+    const refreshUsage = async (force = false) => {
+      try {
+        const snapshot = await getAllowanceUsageSnapshot(force);
+        if (mounted) setUsageMap(snapshot.usage);
+      } catch { /* keep the last known usage */ }
+    };
+    void refreshUsage(true);
+    const usageTimer = setInterval(() => { void refreshUsage(); }, 5_000);
+    return () => {
+      mounted = false;
+      clearInterval(usageTimer);
+    };
   }, [visible]);
 
   const filtered = useMemo(() => {
@@ -224,6 +220,7 @@ export function DailyAllowanceModal({
     setSaving(true);
     try {
       await onSave(Array.from(entriesMap.values()));
+      invalidateAllowanceUsageCache();
       onClose();
     } catch (e) {
       console.error('[DailyAllowanceModal] save failed', e);

@@ -626,7 +626,6 @@ Keep all of these in `AndroidManifest.xml`:
 - [ ] `TaskRepository.kt` — CRUD for tasks, UPSERT settings
 - [ ] `FocusRepository.kt` — start/stop/extend session, write SharedPrefs for native layer
 - [ ] `SchedulerEngine.kt` — port `schedulerEngine.ts` logic (conflict detection, rebalance after overrun)
-- [ ] `SchedulerEngine.parseQuickInput()` — port the NLP quick-add parser
 - [ ] `InstalledAppsRepository.kt` — `PackageManager` + Coil icon loading
 - [ ] `PermissionRepository.kt` — all permission status checks
 - [ ] `StatsRepository.kt` — aggregation queries (completion rate, temptation log summary)
@@ -889,7 +888,6 @@ dependencies {
 | **Min SDK 26** | `java.time` API available from API 26. No need for ThreeTen backport. | Use `java.time.*` directly |
 | **Device Admin protection** | During a focus session, the app is registered as Device Admin. Unregistering requires navigating to Settings. Do NOT auto-deregister on session end (user can choose). | |
 | **Temptation log cap** | Keep at 500 entries max. | `TemptationLogDao`: after insert, `DELETE FROM temptation_log WHERE id NOT IN (SELECT id FROM temptation_log ORDER BY blockedAt DESC LIMIT 500)` |
-| **NLP parser (parseQuickInput)** | The JS version uses regex to parse "Gym at 3pm for 1h". Port exactly or it breaks the quick-add feature. | Port regex patterns from `taskService.ts` to Kotlin Regex |
 | **Dark mode** | System dark mode + manual toggle must both work. | `AppViewModel` exposes `isDarkMode: StateFlow<Boolean>`. Pass to `AppTheme(darkTheme = isDarkMode)`. Persist in Room `settings` table with key `"darkMode"`. |
 
 ---

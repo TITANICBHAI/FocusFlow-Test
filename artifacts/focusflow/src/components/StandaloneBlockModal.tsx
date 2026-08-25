@@ -14,7 +14,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerAndroid, type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import { InstalledAppsModule, InstalledApp } from '@/native-modules/InstalledAppsModule';
@@ -58,7 +58,7 @@ const APP_CATEGORIES: AppCategory[] = [
     id: 'social',
     label: 'Social',
     icon: 'people-outline',
-    color: COLORS.primary,
+    color: '#3b82f6',
     packages: [
       'com.facebook.katana',
       'com.instagram.android',
@@ -118,7 +118,7 @@ const APP_CATEGORIES: AppCategory[] = [
     id: 'news',
     label: 'News',
     icon: 'newspaper-outline',
-    color: COLORS.purple,
+    color: '#8b5cf6',
     packages: [
       'com.google.android.apps.magazines',
       'com.nytimes.android',
@@ -136,7 +136,7 @@ const APP_CATEGORIES: AppCategory[] = [
     id: 'games',
     label: 'Games',
     icon: 'game-controller-outline',
-    color: COLORS.green,
+    color: '#10b981',
     packages: [
       'com.king.candycrushsaga',
       'com.supercell.clashofclans',
@@ -549,28 +549,69 @@ export function StandaloneBlockModal({
     }
   };
 
-  const onDateChange = (_: DateTimePickerEvent, date?: Date) => {
+  const onDateChange = (event: DateTimePickerEvent, date?: Date) => {
     setShowDatePicker(false);
-    if (date) {
-      const merged = dayjs(date)
-        .hour(untilDate.getHours())
-        .minute(untilDate.getMinutes())
+    if (event.type !== 'set' || !date) return;
+    setUntilDate((current) =>
+      dayjs(date)
+        .hour(current.getHours())
+        .minute(current.getMinutes())
         .second(0)
-        .toDate();
-      setUntilDate(merged);
-    }
+        .toDate(),
+    );
   };
 
-  const onTimeChange = (_: DateTimePickerEvent, date?: Date) => {
+  const onTimeChange = (event: DateTimePickerEvent, date?: Date) => {
     setShowTimePicker(false);
-    if (date) {
-      const merged = dayjs(untilDate)
+    if (event.type !== 'set' || !date) return;
+    setUntilDate((current) =>
+      dayjs(current)
         .hour(date.getHours())
         .minute(date.getMinutes())
         .second(0)
-        .toDate();
-      setUntilDate(merged);
-    }
+        .toDate(),
+    );
+  };
+
+  // Android's inline DateTimePicker mounts/unmounts a native dialog whenever
+  // its controlling React state changes. In a Modal this can cause the dialog
+  // to briefly show the selected value and then re-open with the old value.
+  // Use the imperative Android API so the picker owns its lifecycle and only
+  // commit the merged value after the user confirms.
+  const openAndroidDatePicker = () => {
+    const current = untilDate;
+    DateTimePickerAndroid.open({
+      value: current,
+      mode: 'date',
+      minimumDate: new Date(),
+      onChange: (event, date) => {
+        if (event.type !== 'set' || !date) return;
+        const merged = dayjs(date)
+          .hour(current.getHours())
+          .minute(current.getMinutes())
+          .second(0)
+          .toDate();
+        setUntilDate(merged);
+      },
+    });
+  };
+
+  const openAndroidTimePicker = () => {
+    const current = untilDate;
+    DateTimePickerAndroid.open({
+      value: current,
+      mode: 'time',
+      is24Hour: false,
+      onChange: (event, date) => {
+        if (event.type !== 'set' || !date) return;
+        const merged = dayjs(current)
+          .hour(date.getHours())
+          .minute(date.getMinutes())
+          .second(0)
+          .toDate();
+        setUntilDate(merged);
+      },
+    });
   };
 
   const allowanceSummary = (entry: DailyAllowanceEntry) => {
@@ -793,7 +834,11 @@ export function StandaloneBlockModal({
           <View style={styles.expiryRow}>
             <TouchableOpacity
               style={[styles.expiryBtn, locked && styles.expiryBtnLocked]}
-              onPress={() => { if (!locked) setShowDatePicker(true); }}
+              onPress={() => {
+                if (locked) return;
+                if (Platform.OS === 'android') openAndroidDatePicker();
+                else setShowDatePicker(true);
+              }}
               activeOpacity={locked ? 1 : 0.7}
             >
               <Ionicons name={locked ? 'lock-closed-outline' : 'calendar-outline'} size={16} color={locked ? COLORS.muted : COLORS.primary} />
@@ -803,7 +848,11 @@ export function StandaloneBlockModal({
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.expiryBtn, locked && styles.expiryBtnLocked]}
-              onPress={() => { if (!locked) setShowTimePicker(true); }}
+              onPress={() => {
+                if (locked) return;
+                if (Platform.OS === 'android') openAndroidTimePicker();
+                else setShowTimePicker(true);
+              }}
               activeOpacity={locked ? 1 : 0.7}
             >
               <Ionicons name={locked ? 'lock-closed-outline' : 'time-outline'} size={16} color={locked ? COLORS.muted : COLORS.primary} />
@@ -831,7 +880,7 @@ export function StandaloneBlockModal({
           )}
         </View>
 
-        {showDatePicker && (
+        {showDatePicker && Platform.OS !== 'android' && (
           <DateTimePicker
             value={untilDate}
             mode="date"
@@ -840,7 +889,7 @@ export function StandaloneBlockModal({
             onChange={onDateChange}
           />
         )}
-        {showTimePicker && (
+        {showTimePicker && Platform.OS !== 'android' && (
           <DateTimePicker
             value={untilDate}
             mode="time"
@@ -985,6 +1034,21 @@ export function StandaloneBlockModal({
                   )}
                 </>
               )}
+
+              {/* ── Stronger blocking hint ── */}
+              <View style={[styles.strongerBlockHint, { backgroundColor: COLORS.primary + '10', borderColor: COLORS.primary + '35' }]}>
+                <Ionicons name="shield-checkmark-outline" size={18} color={COLORS.primary} />
+                <View style={styles.strongerBlockHintContent}>
+                  <Text style={[styles.strongerBlockHintTitle, { color: theme.text }]}>
+                    Want a stronger block?
+                  </Text>
+                  <Text style={[styles.strongerBlockHintText, { color: theme.textSecondary }]}>
+                    1. Select <Text style={styles.strongerBlockHintEmphasis}>Settings</Text> in this app list.
+                    {'\n'}
+                    2. In the <Text style={styles.strongerBlockHintEmphasis}>Defense</Text> tab, scroll down a little and turn on <Text style={styles.strongerBlockHintEmphasis}>Protect system controls</Text>.
+                  </Text>
+                </View>
+              </View>
 
               {/* Search and installed apps header */}
               <View style={[styles.searchContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -1552,6 +1616,30 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: FONT.sm,
     fontWeight: '600',
+  },
+  strongerBlockHint: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+    marginTop: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    padding: SPACING.md,
+  },
+  strongerBlockHintContent: {
+    flex: 1,
+    gap: 3,
+  },
+  strongerBlockHintTitle: {
+    fontSize: FONT.sm,
+    fontWeight: '700',
+  },
+  strongerBlockHintText: {
+    fontSize: FONT.xs,
+    lineHeight: 18,
+  },
+  strongerBlockHintEmphasis: {
+    fontWeight: '700',
   },
 
   // ── Category styles ────────────────────────────────────────────────────────

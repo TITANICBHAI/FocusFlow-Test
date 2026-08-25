@@ -877,7 +877,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  layoutZoneLabel: { fontSize: FONT.xs, fontWeight: '700', color: '#F5F7FF', textAlign: 'center' },
+  layoutZoneLabel: { fontSize: FONT.xs, fontWeight: '700', color: '#FFFFFF', textAlign: 'center' },
   layoutZoneDesc: { fontSize: 10, color: '#888', textAlign: 'center', lineHeight: 14 },
   layoutHint: { fontSize: FONT.xs, lineHeight: 17 },
   previewCard: {
@@ -900,8 +900,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: 24,
     borderWidth: 5,
-    borderColor: '#242A3A',
-    backgroundColor: '#111421',
+    borderColor: '#111827',
+    backgroundColor: '#1F2937',
     position: 'relative',
   },
   previewWallpaper: {
@@ -909,11 +909,11 @@ const styles = StyleSheet.create({
   },
   previewWallpaperFallback: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#172B4D',
+    backgroundColor: '#28365D',
   },
   previewScrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#0A0A14CC',
+    backgroundColor: '#33000000',
   },
   previewContent: {
     flex: 1,
@@ -923,13 +923,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   previewDate: {
-    color: '#B3B8CA',
+    color: '#D7DDF0',
     fontSize: 8,
     textAlign: 'center',
     letterSpacing: 0.8,
   },
   previewClock: {
-    color: '#F5F7FF',
+    color: '#FFFFFF',
     fontSize: 30,
     fontWeight: '800',
     textAlign: 'center',
@@ -965,12 +965,12 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   previewIconFallback: {
-    backgroundColor: '#242A3A',
+    backgroundColor: '#55627A',
     alignItems: 'center',
     justifyContent: 'center',
   },
   previewEmpty: {
-    color: '#B3B8CA',
+    color: '#D7DDF0',
     fontSize: 10,
     textAlign: 'center',
     paddingHorizontal: SPACING.md,

@@ -1,33 +1,33 @@
 import { moderateScale, scale, verticalScale } from 'react-native-size-matters';
 
 export const COLORS = {
-  primary: '#4F8EF7',
-  primaryLight: '#1A2B4A',
-  orange: '#F59E0B',
-  orangeLight: '#3A2A10',
-  green: '#22C55E',
-  greenLight: '#12351F',
-  red: '#EF4444',
-  redLight: '#3A1518',
-  blue: '#4F8EF7',
-  blueLight: '#172B4D',
-  purple: '#7C5CFF',
-  purpleLight: '#241D4A',
+  primary: '#6366f1',
+  primaryLight: '#e0e7ff',
+  orange: '#f59e0b',
+  orangeLight: '#fef3c7',
+  green: '#10b981',
+  greenLight: '#d1fae5',
+  red: '#ef4444',
+  redLight: '#fee2e2',
+  blue: '#3b82f6',
+  blueLight: '#dbeafe',
+  purple: '#8b5cf6',
+  purpleLight: '#ede9fe',
 
-  text: '#F5F7FF',
-  textSecondary: '#B3B8CA',
-  muted: '#7F879C',
-  card: '#111421',
-  surface: '#171A27',
-  background: '#0A0A14',
-  border: '#242A3A',
+  text: '#1e1b4b',
+  textSecondary: '#6b7280',
+  muted: '#9ca3af',
+  card: '#ffffff',
+  surface: '#f5f5f5',
+  background: '#f0f2ff',
+  border: '#e5e7eb',
 
   // Dark
-  darkText: '#F5F7FF',
-  darkCard: '#111421',
-  darkSurface: '#171A27',
-  darkBackground: '#0A0A14',
-  darkBorder: '#242A3A',
+  darkText: '#f3f4f6',
+  darkCard: '#1f2937',
+  darkSurface: '#374151',
+  darkBackground: '#111827',
+  darkBorder: '#374151',
 };
 
 /**
@@ -40,8 +40,7 @@ export const FONT = {
   md: moderateScale(15, 0.3),
   lg: moderateScale(18, 0.3),
   xl: moderateScale(22, 0.3),
-  xxl: moderateScale(32, 0.3),
-  hero: moderateScale(44, 0.3),
+  xxl: moderateScale(28, 0.3),
 };
 
 /**
@@ -71,18 +70,20 @@ export const SPACING = {
 };
 
 export const SHADOW = {
-  sm: { elevation: 1 },
-  md: { elevation: 2 },
-  lg: { elevation: 4 },
+  sm: { elevation: 2 },
+  md: { elevation: 4 },
+  lg: { elevation: 8 },
 };
 
 export const TASK_COLORS = [
-  '#4F8EF7', // brand blue
-  '#F59E0B', // amber
-  '#22C55E', // protected
-  '#EF4444', // breach
-  '#4F8EF7', // blue
-  '#7C5CFF', // violet
-  '#22D3EE', // cyan
-  '#14B8A6', // teal
+  '#6366f1', // indigo
+  '#f59e0b', // amber
+  '#10b981', // emerald
+  '#ef4444', // red
+  '#3b82f6', // blue
+  '#8b5cf6', // violet
+  '#ec4899', // pink
+  '#14b8a6', // teal
+  '#f97316', // orange
+  '#84cc16', // lime
 ];

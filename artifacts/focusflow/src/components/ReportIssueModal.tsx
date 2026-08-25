@@ -32,12 +32,14 @@ export default function ReportIssueModal({ visible, onClose, error }: Props) {
   const [status, setStatus] = useState<string | null>(null);
   const [logs, setLogs] = useState('');
   const [reportType, setReportType] = useState<DiagnosticsReportType>('bug');
+  const [includeLogs, setIncludeLogs] = useState(true);
 
   useEffect(() => {
     if (!visible) return;
     setStatus(null);
     setDescription('');
     setReportType('bug');
+    setIncludeLogs(true);
     void formatLogsForShare().then(setLogs).catch(() => setLogs('(logs unavailable)'));
   }, [visible]);
 
@@ -51,7 +53,7 @@ export default function ReportIssueModal({ visible, onClose, error }: Props) {
       : '';
     const result = await sendDiagnosticsReport({
       description,
-      logs: `${errorDetails}${logs}`,
+      logs: includeLogs ? `${errorDetails}${logs}` : '',
       type: reportType,
     });
 
@@ -93,7 +95,7 @@ export default function ReportIssueModal({ visible, onClose, error }: Props) {
         >
           <View style={[styles.header, { borderBottomColor: theme.border }]}>
             <View style={styles.headerTitle}>
-              <Ionicons name="paper-plane-outline" size={20} color="#4F8EF7" />
+              <Ionicons name="paper-plane-outline" size={20} color="#6366F1" />
               <Text style={[styles.title, { color: theme.text }]}>Report this issue</Text>
             </View>
             <Pressable onPress={onClose} style={styles.closeButton} accessibilityLabel="Close report form">
@@ -110,12 +112,12 @@ export default function ReportIssueModal({ visible, onClose, error }: Props) {
               style={[
                 styles.notice,
                 {
-                  backgroundColor: isDark ? 'rgba(79,142,247,0.14)' : '#172B4D',
-                  borderColor: isDark ? 'rgba(79,142,247,0.35)' : '#C7D2FE',
+                  backgroundColor: isDark ? 'rgba(99,102,241,0.14)' : '#EEF2FF',
+                  borderColor: isDark ? 'rgba(129,140,248,0.35)' : '#C7D2FE',
                 },
               ]}
             >
-              <Ionicons name="information-circle-outline" size={21} color="#4F8EF7" />
+              <Ionicons name="information-circle-outline" size={21} color="#6366F1" />
               <Text style={[styles.noticeText, { color: theme.text }]}>
                 This opens your email app with a draft addressed to tbtechsdev@gmail.com and a sanitized .txt attachment. Review it and tap Send yourself—nothing is sent automatically.
               </Text>
@@ -138,12 +140,12 @@ export default function ReportIssueModal({ visible, onClose, error }: Props) {
                       {
                         backgroundColor: selected
                           ? isDark
-                            ? 'rgba(79,142,247,0.2)'
-                            : '#172B4D'
+                            ? 'rgba(99,102,241,0.2)'
+                            : '#EEF2FF'
                           : isDark
-                            ? '#111421'
-                            : '#171A27',
-                        borderColor: selected ? '#4F8EF7' : theme.border,
+                            ? '#1C1C1E'
+                            : '#F2F2F7',
+                        borderColor: selected ? '#6366F1' : theme.border,
                       },
                     ]}
                     accessibilityRole="radio"
@@ -153,12 +155,12 @@ export default function ReportIssueModal({ visible, onClose, error }: Props) {
                     <Ionicons
                       name={icon}
                       size={16}
-                      color={selected ? '#4F8EF7' : theme.textSecondary ?? '#888'}
+                      color={selected ? '#6366F1' : theme.textSecondary ?? '#888'}
                     />
                     <Text
                       style={[
                         styles.typeOptionText,
-                        { color: selected ? '#4F8EF7' : theme.text },
+                        { color: selected ? '#6366F1' : theme.text },
                       ]}
                     >
                       {label}
@@ -188,14 +190,33 @@ export default function ReportIssueModal({ visible, onClose, error }: Props) {
                 styles.input,
                 {
                   color: theme.text,
-                  backgroundColor: isDark ? '#111421' : '#171A27',
+                  backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7',
                   borderColor: theme.border,
                 },
               ]}
             />
 
+            <Pressable
+              style={styles.logsOption}
+              onPress={() => setIncludeLogs((current) => !current)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: includeLogs }}
+            >
+              <View style={[styles.checkbox, includeLogs && styles.checkboxChecked]}>
+                {includeLogs && <Ionicons name="checkmark" size={15} color="#fff" />}
+              </View>
+              <View style={styles.logsOptionCopy}>
+                <Text style={[styles.logsOptionTitle, { color: theme.text }]}>
+                  Include diagnostic logs
+                </Text>
+                <Text style={[styles.logsOptionDescription, { color: theme.textSecondary ?? '#888' }]}>
+                  Add recent sanitized logs as an attachment when available.
+                </Text>
+              </View>
+            </Pressable>
+
             <Text style={[styles.included, { color: theme.textSecondary ?? '#888' }]}>
-              Attached: the error details, app version, OS version, and recent diagnostic logs in a .txt file. Personal files, contacts, installed-app lists, and location are not included.
+              Your message stays in the email for easy review. If selected and available, sanitized diagnostic logs are attached separately. Personal files, contacts, installed-app lists, and location are not included.
             </Text>
 
             {status ? (
@@ -209,8 +230,8 @@ export default function ReportIssueModal({ visible, onClose, error }: Props) {
                   size={18}
                   color={
                     status.startsWith('Email composer closed') || status.startsWith('Draft saved')
-                      ? '#22C55E'
-                      : '#F59E0B'
+                      ? '#34C759'
+                      : '#FF9500'
                   }
                 />
                 <Text style={[styles.statusText, { color: theme.text }]}>{status}</Text>
@@ -310,6 +331,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  logsOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 4,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: '#A1A1AA',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#6366F1',
+    borderColor: '#6366F1',
+  },
+  logsOptionCopy: { flex: 1, gap: 2 },
+  logsOptionTitle: { fontSize: 14, fontWeight: '600' },
+  logsOptionDescription: { fontSize: 12, lineHeight: 17 },
   included: {
     fontSize: 12,
     lineHeight: 17,
@@ -346,7 +389,7 @@ const styles = StyleSheet.create({
   sendButton: {
     minHeight: 48,
     borderRadius: 12,
-    backgroundColor: '#4F8EF7',
+    backgroundColor: '#6366F1',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

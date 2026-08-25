@@ -21,7 +21,6 @@ import { ForegroundLaunchModule } from '@/native-modules/ForegroundLaunchModule'
 import { NetworkBlockModule } from '@/native-modules/NetworkBlockModule';
 import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
 import { TroubleshootModal } from '@/components/TroubleshootModal';
-import FocusFlowLogo from '@/components/FocusFlowLogo';
 import { RestrictedSettingsBanner } from '@/components/RestrictedSettingsBanner';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -375,10 +374,7 @@ export default function PermissionsScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
         </TouchableOpacity>
-        <View style={styles.headerBrand}>
-          <FocusFlowLogo size={30} />
-          <Text style={[styles.title, { color: theme.text }]}>Permissions</Text>
-        </View>
+        <Text style={[styles.title, { color: theme.text }]}>Permissions</Text>
         {!isLocked && (
           <TouchableOpacity onPress={checkAll} style={styles.refreshBtn} disabled={checking}>
             {checking ? (
@@ -622,7 +618,6 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   backBtn: { padding: 4 },
-  headerBrand: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   title: { flex: 1, fontSize: FONT.xl, fontWeight: '800', color: COLORS.text },
   refreshBtn: { padding: 4 },
   scroll: { flex: 1 },

@@ -28,7 +28,7 @@ function buildReport(input: DiagnosticsReportInput): string {
   const version = Constants.expoConfig?.version ?? 'unknown';
   const type = input.type ?? 'bug';
   const description = sanitize(input.description.trim(), MAX_DESCRIPTION_LENGTH) || '(no description provided)';
-  const logs = sanitize(input.logs, MAX_LOG_LENGTH) || '(no diagnostic logs provided)';
+  const logs = sanitize(input.logs, MAX_LOG_LENGTH);
   const typeLabel = type === 'review' ? 'App review' : type === 'feedback' ? 'Feedback / opinion' : 'Bug report';
 
   return [
@@ -42,9 +42,7 @@ function buildReport(input: DiagnosticsReportInput): string {
     'User description:',
     description,
     '',
-    'Diagnostic details:',
-    logs,
-    '',
+    ...(logs ? ['Diagnostic details:', logs, ''] : []),
   ].join('\n');
 }
 
@@ -70,7 +68,8 @@ export async function sendDiagnosticsReport(
   }
 
   const directory = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
-  if (!directory) {
+  const sanitizedLogs = sanitize(input.logs, MAX_LOG_LENGTH);
+  if (sanitizedLogs && !directory) {
     return {
       ok: false,
       error: 'FocusFlow could not create the diagnostic attachment on this device.',
@@ -92,18 +91,29 @@ export async function sendDiagnosticsReport(
         : 'I am reporting an issue with FocusFlow.';
 
   try {
-    await FileSystem.writeAsStringAsync(attachmentUri, buildReport(input));
+    const attachments: string[] = [];
+    if (sanitizedLogs) {
+      await FileSystem.writeAsStringAsync(attachmentUri, buildReport(input));
+      attachments.push(attachmentUri);
+    }
+    const userMessage = sanitize(input.description.trim(), MAX_DESCRIPTION_LENGTH);
     const result = await MailComposer.composeAsync({
       recipients: [SUPPORT_EMAIL],
       subject,
       body: [
         'Hello FocusFlow team,',
         '',
-        `${messageIntro} The sanitized diagnostic details are attached as a .txt file.`,
+        messageIntro,
+        '',
+        'User message:',
+        userMessage || '(no description provided)',
+        ...(sanitizedLogs
+          ? ['', 'Sanitized diagnostic logs are attached as a .txt file for additional context.']
+          : []),
         '',
         'Please review this draft and tap Send when you are ready.',
       ].join('\n'),
-      attachments: [attachmentUri],
+      ...(attachments.length > 0 ? { attachments } : {}),
     });
 
     return { ok: true, status: result.status };

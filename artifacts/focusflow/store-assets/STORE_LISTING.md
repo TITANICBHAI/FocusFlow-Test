@@ -9,7 +9,7 @@
 |---|---|
 | **App Title** | FocusFlow — Focus & App Blocker |
 | **Package Name** | com.tbtechs.focusflow |
-| **Version** | 1.0.8 |
+| **Version** | 1.0.9 |
 | **Version Code** | 9 |
 | **Developer / Company Name** | TB Techs |
 | **Category** | Productivity |
@@ -185,21 +185,25 @@ Build your focus. Protect your time.
 
 ---
 
-## RELEASE NOTES (v1.0.8)
+## RELEASE NOTES (v1.0.9)
 
 ```
-FocusFlow v1.0.8 — Onboarding and Reliability Improvements
+FocusFlow v1.0.9 — Navigation, Import, and Reliability Improvements
 
-This update makes first-run setup clearer while continuing to improve
-blocking reliability and consistency.
+This update makes navigation, backup handling, diagnostics, and blocking
+workflows clearer while continuing to improve reliability and consistency.
 
 What's new:
-• New two-mode onboarding lets users choose Standard Mode or Iron Mode
-• Standard Mode keeps first-run setup focused on essential app-blocking access
-• Iron Mode adds layered setup for VPN, Device Admin, and Defense Password protection
-• Iron Mode activation includes a live protection-layer counter
-• Permission checkmarks reflect real Android permission state changes
-• Reduced-motion preferences are respected during onboarding feedback
+• Bottom navigation is organized into Focus, Schedule, Defense, Stats, and Settings
+• Persistent blocking controls now have a dedicated Defense tab with one-time guidance
+• Stats opens on Today, followed by Yesterday, with synchronized swipe navigation
+• New Task and Edit Task forms no longer trap the keyboard above the lower controls
+• Backup imports now handle task ID collisions explicitly in Add and Replace modes
+• Standalone Block runtime state is preserved during backup imports
+• Exported backups include named feature preset sections without live activation state
+• Imported task Focus Mode behavior is preserved without automatically starting sessions
+• Diagnostic logs are optional, and empty text attachments are avoided
+• Reported feedback and reviews remain visible in the email body for user review
 • Standalone timed block now applies correctly even when the app database 
   is slow to initialise — the block always goes through
 • Daily allowance entries now save reliably on all devices
@@ -227,7 +231,7 @@ fixes that.
 
 | Field | Fill With |
 |---|---|
-| **Version** | 1.0.8 |
+| **Version** | 1.0.9 |
 | **License** | Free |
 | **Development Stage** | Final Release |
 | **Min SDK Version** | 8.0 (Android 8.0) |

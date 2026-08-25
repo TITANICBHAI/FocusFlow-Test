@@ -51,22 +51,29 @@ class UsageStatsModule(private val reactContext: ReactApplicationContext) :
 
     /**
      * Returns the package name of the current foreground app.
-     * Queries the last 10 seconds of usage data and picks the most-recently-used entry.
+     * Queries the last 10 seconds of usage events and returns the latest
+     * foreground transition.
      */
     @ReactMethod
     fun getForegroundApp(promise: Promise) {
         try {
             val usm = reactContext.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
             val now = System.currentTimeMillis()
-            val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, now - 10_000, now)
-
-            if (stats.isNullOrEmpty()) {
-                promise.resolve(null)
-                return
+            val events = usm.queryEvents(now - 10_000L, now)
+            val event = UsageEvents.Event()
+            val foregroundType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                UsageEvents.Event.ACTIVITY_RESUMED
+            } else {
+                UsageEvents.Event.MOVE_TO_FOREGROUND
             }
-
-            val foreground = stats.maxByOrNull { it.lastTimeUsed }?.packageName
-            promise.resolve(foreground)
+            var latest: String? = null
+            while (events.hasNextEvent()) {
+                events.getNextEvent(event)
+                if (event.eventType == foregroundType) {
+                    latest = event.packageName
+                }
+            }
+            promise.resolve(latest)
         } catch (e: Exception) {
             promise.reject("USAGE_STATS_ERROR", e.message, e)
         }
@@ -108,12 +115,15 @@ class UsageStatsModule(private val reactContext: ReactApplicationContext) :
             val foregroundMs = mutableMapOf<String, Long>()   // clipped foreground duration
             val launchCounts = mutableMapOf<String, Int>()
             val lastUsedAt   = mutableMapOf<String, Long>()
+            val lastCountedLaunchAt = mutableMapOf<String, Long>()
             var lastFgPkg: String? = null
+            val launchDebounceMs = 30_000L
 
-            // Query 24h before `start` so sessions already in progress at the boundary
+            // Query 6h before `start` so sessions already in progress at the boundary
             // (e.g. an app open at midnight) are captured. The maxOf(fgStart, start)
-            // clamp below clips their pre-boundary portion correctly.
-            val queryStart = start - 24L * 60 * 60 * 1000L
+            // clamp below clips their pre-boundary portion correctly. No realistic
+            // foreground session needs a full day's look-back.
+            val queryStart = start - 6L * 60 * 60 * 1000L
             val events = usageManager.queryEvents(queryStart, end)
             val event  = UsageEvents.Event()
 
@@ -126,11 +136,21 @@ class UsageStatsModule(private val reactContext: ReactApplicationContext) :
 
                 when (event.eventType) {
                     foregroundType -> {
-                        fgStartMs[pkg] = event.timeStamp  // may be before `start` — intentional
-                        if (pkg != lastFgPkg) {
+                        // Samsung can emit another RESUMED event while the same
+                        // app is still open. Do not reset its original start.
+                        if (!fgStartMs.containsKey(pkg)) {
+                            fgStartMs[pkg] = event.timeStamp  // may be before `start`
                             // Only count as a launch if the foreground event is inside the window
-                            if (event.timeStamp >= start) {
+                            if (pkg != lastFgPkg &&
+                                event.timeStamp >= start &&
+                                // Keep the first launch exempt from the debounce window.
+                                // Subtracting Long.MIN_VALUE can overflow and suppress the
+                                // first launch on the device.
+                                (lastCountedLaunchAt[pkg] == null ||
+                                    event.timeStamp - lastCountedLaunchAt.getValue(pkg) >= launchDebounceMs)
+                            ) {
                                 launchCounts[pkg] = (launchCounts[pkg] ?: 0) + 1
+                                lastCountedLaunchAt[pkg] = event.timeStamp
                             }
                             lastFgPkg = pkg
                         }
@@ -157,9 +177,18 @@ class UsageStatsModule(private val reactContext: ReactApplicationContext) :
                 }
             }
 
+            // Remove system/invisible packages and sub-500ms foreground blips
+            // from both the app list and total so the displayed values agree.
+            val displayForegroundMs = foregroundMs.filter { (pkg, ms) ->
+                ms >= 500L && try {
+                    packageManager.getLaunchIntentForPackage(pkg) != null
+                } catch (_: Exception) {
+                    false
+                }
+            }
+
             // Build the app list sorted by foreground time descending
-            val apps = foregroundMs.entries
-                .filter { it.value > 0L }
+            val apps = displayForegroundMs.entries
                 .map { (pkg, ms) ->
                     val appName = try {
                         packageManager.getApplicationLabel(
@@ -177,7 +206,7 @@ class UsageStatsModule(private val reactContext: ReactApplicationContext) :
                 }
                 .sortedByDescending { it.getInt("foregroundMinutes") }
 
-            val totalMs      = foregroundMs.values.sumOf { it }
+            val totalMs      = displayForegroundMs.values.sumOf { it }
             val totalMinutes = (totalMs / 60_000L).toInt()
 
             val appArray = Arguments.createArray()

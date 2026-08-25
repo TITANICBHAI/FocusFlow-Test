@@ -179,7 +179,7 @@ export default function VpnBlockListScreen() {
         style={[
           styles.appRow,
           { borderBottomColor: theme.border },
-          checked && { backgroundColor: COLORS.primary + '14' },
+          checked && { backgroundColor: COLORS.primary + '0D' },
         ]}
         onPress={() => toggle(item.packageName)}
         activeOpacity={0.7}
@@ -248,7 +248,7 @@ export default function VpnBlockListScreen() {
       </View>
 
       {/* Info banner */}
-      <View style={[styles.banner, { backgroundColor: COLORS.primary + '14', borderColor: COLORS.primary + '2E' }]}>
+      <View style={[styles.banner, { backgroundColor: COLORS.primary + '12', borderColor: COLORS.primary + '33' }]}>
         <Ionicons name="shield-checkmark-outline" size={16} color={COLORS.primary} />
         <Text style={[styles.bannerText, { color: theme.text }]}>
           Ticked apps have their internet access cut via a local VPN — 24/7, no session needed.

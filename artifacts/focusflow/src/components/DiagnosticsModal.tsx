@@ -29,10 +29,10 @@ interface Props {
 }
 
 const LEVEL_COLORS: Record<string, string> = {
-  DEBUG: '#4F8EF7',
-  INFO: '#22C55E',
-  WARN: '#F59E0B',
-  ERROR: '#EF4444',
+  DEBUG: '#5AC8FA',
+  INFO: '#34C759',
+  WARN: '#FF9500',
+  ERROR: '#FF3B30',
 };
 
 function LogRow({ item, monoFont }: { item: LogEntry; monoFont: string }) {
@@ -143,7 +143,7 @@ export default function DiagnosticsModal({ visible, onClose }: Props) {
               <Ionicons name="copy-outline" size={20} color={theme.text} />
             </Pressable>
             <Pressable onPress={handleClear} style={styles.headerBtn} accessibilityLabel="Clear logs">
-              <Ionicons name="trash-outline" size={20} color="#EF4444" />
+              <Ionicons name="trash-outline" size={20} color="#FF3B30" />
             </Pressable>
             <Pressable onPress={onClose} style={styles.headerBtn} accessibilityLabel="Close">
               <Ionicons name="close" size={22} color={theme.text} />
@@ -151,7 +151,7 @@ export default function DiagnosticsModal({ visible, onClose }: Props) {
           </View>
         </View>
 
-        <View style={[styles.legend, { backgroundColor: isDark ? '#111421' : '#171A27' }]}>
+        <View style={[styles.legend, { backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7' }]}>
           {Object.entries(LEVEL_COLORS).map(([level, color]) => (
             <View key={level} style={styles.legendItem}>
               <View style={[styles.dot, { backgroundColor: color }]} />
@@ -167,13 +167,13 @@ export default function DiagnosticsModal({ visible, onClose }: Props) {
           style={[
             styles.reportCard,
             {
-              backgroundColor: isDark ? '#111421' : '#17152A',
-              borderColor: isDark ? 'rgba(79,142,247,0.35)' : '#172B4D',
+              backgroundColor: isDark ? '#1C1C2E' : '#F5F3FF',
+              borderColor: isDark ? 'rgba(129,140,248,0.35)' : '#DDD6FE',
             },
           ]}
         >
           <View style={styles.reportCopy}>
-            <Ionicons name="paper-plane-outline" size={19} color="#4F8EF7" />
+            <Ionicons name="paper-plane-outline" size={19} color="#6366F1" />
             <View style={styles.reportText}>
               <Text style={[styles.reportTitle, { color: theme.text }]}>Help us fix this</Text>
               <Text style={[styles.reportDescription, { color: theme.textSecondary ?? '#888' }]}>
@@ -209,7 +209,7 @@ export default function DiagnosticsModal({ visible, onClose }: Props) {
           />
         )}
 
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 8, backgroundColor: isDark ? '#111421' : '#171A27' }]}>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 8, backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7' }]}>
           <Pressable onPress={load} style={styles.refreshBtn}>
             <Ionicons name="refresh" size={16} color={theme.text} />
             <Text style={[styles.refreshText, { color: theme.text }]}>Refresh</Text>
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
   },
   reportButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#4F8EF7',
+    backgroundColor: '#6366F1',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,

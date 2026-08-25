@@ -15,6 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 ANDROID_DIR="$ROOT_DIR/android"
 PKG_DIR="$ANDROID_DIR/app/src/main/java/com/tbtechs/focusflow"
+TEST_DIR="$ANDROID_DIR/app/src/test/java/com/tbtechs/focusflow"
 RES_DIR="$ANDROID_DIR/app/src/main/res"
 MANIFEST="$ANDROID_DIR/app/src/main/AndroidManifest.xml"
 APP_GRADLE="$ANDROID_DIR/app/build.gradle"
@@ -50,6 +51,13 @@ if ls "$SCRIPT_DIR/app/src/main/java/com/tbtechs/focusflow/modules/"*.kt 2>/dev/
   echo "   ✓ modules/ Kotlin files copied"
 else
   echo "   ⚠ modules/ — no .kt files found, skipping"
+fi
+
+# JVM tests — keep native policy tests durable across Expo prebuild regeneration.
+if [ -d "$SCRIPT_DIR/app/src/test" ]; then
+  mkdir -p "$TEST_DIR"
+  cp -R "$SCRIPT_DIR/app/src/test/"* "$TEST_DIR/"
+  echo "   ✓ JVM test sources copied"
 fi
 
 # Services

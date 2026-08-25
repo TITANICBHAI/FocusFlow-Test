@@ -22,9 +22,9 @@
  */
 
 import { Platform } from 'react-native';
-import { dbGetAllTasks } from '@/data/database';
+import { dbGetActiveFocusSession, dbGetAllTasks } from '@/data/database';
 import { NativeFilePickerModule } from '@/native-modules/NativeFilePickerModule';
-import type { AppSettings, Task } from '@/data/types';
+import type { AppSettings, FocusSession, Task } from '@/data/types';
 
 // ─── Envelope ────────────────────────────────────────────────────────────────
 
@@ -40,7 +40,7 @@ export interface BackupEnvelope {
   exportedAt: string;
   /** Human-readable export date for display in file managers. */
   exportedAtHuman: string;
-  /** App version string, e.g. "c1.0.8". */
+  /** App version string, e.g. "c1.0.9". */
   appVersion?: string;
   /** Platform info for diagnostics. */
   platform: {
@@ -50,6 +50,12 @@ export interface BackupEnvelope {
   settings: AppSettings;
   /** All tasks (scheduled, completed, skipped). */
   tasks: Task[];
+  /**
+   * Human-readable, sectioned preset inventory. These sections describe
+   * configured lists and presets for portability; they intentionally contain
+   * no live enabled/disabled state and are not used to activate protections.
+   */
+  presetSections: BackupPresetSection[];
   /** Summary counts so a restore preview can be shown without parsing. */
   summary: {
     taskCount: number;
@@ -59,11 +65,167 @@ export interface BackupEnvelope {
   };
 }
 
+export interface BackupPresetSection {
+  id:
+    | 'focus-mode'
+    | 'standalone-block'
+    | 'always-on'
+    | 'daily-allowance'
+    | 'keyword-blocker'
+    | 'block-schedules'
+    | 'defense';
+  name: string;
+  configured: boolean;
+  appPackages?: string[];
+  vpnPackages?: string[];
+  itemCount?: number;
+  details?: Record<string, unknown>;
+}
+
 export interface ImportSummary {
   settings: boolean;
   tasksImported: number;
   tasksSkipped: number;
   warnings: string[];
+}
+
+/**
+ * Backups carry reusable configuration and presets, not device-local live
+ * enforcement state. The current device decides which protections are active
+ * when a backup is imported.
+ */
+function getPortableSettings(settings: AppSettings): AppSettings {
+  const {
+    // Standalone blocking is an independent, device-local runtime state.
+    standaloneBlockPackages,
+    standaloneBlockUntil,
+    standaloneVpnPackages,
+    autoCopiedAlwaysOnPackages,
+
+    // These are live enforcement switches, not portable presets.
+    focusModeEnabled,
+    pomodoroEnabled,
+    notificationsEnabled,
+    weeklyReportEnabled,
+    launcherEnabled,
+    alwaysOnEnforcementEnabled,
+    aversionDimmerEnabled,
+    aversionVibrateEnabled,
+    aversionSoundEnabled,
+    systemGuardEnabled,
+    blockInstallActionsEnabled,
+    blockYoutubeShortsEnabled,
+    blockInstagramReelsEnabled,
+    vpnBlockEnabled,
+    autoCopyToAlwaysOn,
+    vpnSelfHealEnabled,
+    pinProtectionEnabled,
+
+    ...portable
+  } = settings;
+
+  // Keep the full AppSettings shape in the versioned envelope for backwards
+  // compatibility. Omitted fields are restored from the importing device's
+  // current settings during merge.
+  void standaloneBlockPackages;
+  void standaloneBlockUntil;
+  void standaloneVpnPackages;
+  void autoCopiedAlwaysOnPackages;
+  void alwaysOnEnforcementEnabled;
+  void focusModeEnabled;
+  void pomodoroEnabled;
+  void notificationsEnabled;
+  void weeklyReportEnabled;
+  void launcherEnabled;
+  void aversionDimmerEnabled;
+  void aversionVibrateEnabled;
+  void aversionSoundEnabled;
+  void systemGuardEnabled;
+  void blockInstallActionsEnabled;
+  void blockYoutubeShortsEnabled;
+  void blockInstagramReelsEnabled;
+  void vpnBlockEnabled;
+  void autoCopyToAlwaysOn;
+  void vpnSelfHealEnabled;
+  void pinProtectionEnabled;
+
+  return portable as AppSettings;
+}
+
+function buildPresetSections(settings: AppSettings): BackupPresetSection[] {
+  const allowedApps = settings.allowedInFocus ?? [];
+  const standaloneApps = settings.standaloneBlockPackages ?? [];
+  const standaloneVpnApps = settings.standaloneVpnPackages ?? [];
+  const alwaysOnApps = settings.alwaysOnPackages ?? [];
+  const alwaysOnVpnApps = settings.alwaysOnVpnPackages ?? [];
+  const allowances = settings.dailyAllowanceEntries ?? [];
+  const keywords = settings.blockedWords ?? [];
+  const schedules = settings.greyoutSchedule ?? [];
+  const blockPresets = settings.blockPresets ?? [];
+  const allowedAppPresets = settings.allowedAppPresets ?? [];
+
+  return [
+    {
+      id: 'focus-mode',
+      name: 'Focus Mode',
+      configured: allowedApps.length > 0 || allowedAppPresets.length > 0,
+      appPackages: allowedApps,
+      itemCount: allowedAppPresets.length,
+      details: { allowedAppPresets },
+    },
+    {
+      id: 'standalone-block',
+      name: 'Standalone Block',
+      configured: standaloneApps.length > 0 || standaloneVpnApps.length > 0,
+      appPackages: standaloneApps,
+      vpnPackages: standaloneVpnApps,
+      details: {
+        // The list is portable as a named preset inventory, but its active
+        // timer/state is deliberately not imported.
+        runtimeState: 'local-only',
+      },
+    },
+    {
+      id: 'always-on',
+      name: 'Always-On Blocking',
+      configured: alwaysOnApps.length > 0 || alwaysOnVpnApps.length > 0,
+      appPackages: alwaysOnApps,
+      vpnPackages: alwaysOnVpnApps,
+    },
+    {
+      id: 'daily-allowance',
+      name: 'Daily Allowance',
+      configured: allowances.length > 0,
+      itemCount: allowances.length,
+      details: { entries: allowances },
+    },
+    {
+      id: 'keyword-blocker',
+      name: 'Keyword Blocker',
+      configured: keywords.length > 0,
+      itemCount: keywords.length,
+      details: { keywords },
+    },
+    {
+      id: 'block-schedules',
+      name: 'Block Schedules',
+      configured: schedules.length > 0,
+      itemCount: schedules.length,
+      details: { windows: schedules },
+    },
+    {
+      id: 'defense',
+      name: 'Defense',
+      configured: blockPresets.length > 0,
+      itemCount: blockPresets.length,
+      details: {
+        blockPresets,
+        // These are configuration choices, not activation flags.
+        overlayQuotes: settings.overlayQuotes ?? [],
+        overlayWallpaper: settings.overlayWallpaper ?? '',
+      },
+    },
+  ];
 }
 
 // ─── Build envelope ──────────────────────────────────────────────────────────
@@ -79,8 +241,9 @@ export async function buildBackupJson(settings: AppSettings, appVersion?: string
     exportedAtHuman: now.toLocaleString(),
     appVersion,
     platform: { os: Platform.OS },
-    settings,
+    settings: getPortableSettings(settings),
     tasks,
+    presetSections: buildPresetSections(settings),
     summary: {
       taskCount: tasks.length,
       blockedWordCount: (settings.blockedWords ?? []).length,
@@ -180,6 +343,8 @@ export interface RestoreCallbacks {
   replaceTasks: boolean;
   currentTasks: Task[];
   currentSettings: AppSettings;
+  /** Optional in-memory session snapshot; the database is also checked. */
+  currentFocusSession?: FocusSession | null;
 }
 
 export async function pickAndImportBackup(
@@ -217,6 +382,15 @@ export async function restoreFromJson(
   if (!parsed.ok) return { error: parsed.error };
   const env = parsed.envelope;
 
+  if (cb.replaceTasks) {
+    const databaseSession = await dbGetActiveFocusSession();
+    if (cb.currentFocusSession?.isActive || databaseSession?.isActive) {
+      return {
+        error: 'Cannot replace tasks while a Focus Session is running. Stop the current session, then try importing the backup again.',
+      };
+    }
+  }
+
   const summary: ImportSummary = {
     settings: false,
     tasksImported: 0,
@@ -235,14 +409,18 @@ export async function restoreFromJson(
   }
 
   // ── Tasks ─────────────────────────────────────────────────────────────────
+  // state.tasks can be a partial in-memory view (for example after startup),
+  // so replacement and collision checks must use the complete database set.
+  const existingTasks = await dbGetAllTasks().catch(() => cb.currentTasks);
+
   if (cb.replaceTasks) {
-    for (const t of cb.currentTasks) {
+    for (const t of existingTasks) {
       try { await cb.deleteTask(t.id); } catch { /* keep going */ }
     }
   }
   const existingIds = cb.replaceTasks
     ? new Set<string>()
-    : new Set(cb.currentTasks.map((t) => t.id));
+    : new Set(existingTasks.map((t) => t.id));
   const tasksToSchedule: Task[] = [];
 
   for (const t of env.tasks) {

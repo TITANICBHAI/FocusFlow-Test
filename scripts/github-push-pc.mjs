@@ -6,8 +6,8 @@ const TOKEN =
   process.env.GITHUB_PAT ||
   process.env.GH_PAT ||
   process.env.PAT;
-const OWNER = 'TITANICBHAI';
-const REPO = 'FocusFlow-Test';
+const OWNER = 'TITANICBHAI-Test';
+const REPO = 'FocusFlow';
 const BRANCH = 'main';
 const BASE = '/home/runner/workspace';
 // GitHub's secondary rate limit triggers around ~10 parallel POSTs to /git/blobs.
@@ -104,6 +104,20 @@ async function createBlob(content, encoding) {
   return data.sha;
 }
 
+function isExcludedRelativePath(path) {
+  return EXCLUDE_PATTERNS.some(pattern => pattern.test(path));
+}
+
+async function getRemoteFilePaths(treeSha) {
+  const tree = await ghFetch(`/repos/${OWNER}/${REPO}/git/trees/${treeSha}?recursive=1`);
+  if (tree.truncated) {
+    throw new Error('GitHub returned a truncated repository tree; refusing to calculate deletions from an incomplete file list.');
+  }
+  return (tree.tree || [])
+    .filter(entry => entry.type === 'blob')
+    .map(entry => entry.path);
+}
+
 async function processInBatches(items, concurrency, fn) {
   const results = [];
   for (let i = 0; i < items.length; i += concurrency) {
@@ -179,22 +193,37 @@ async function run() {
   const latestSha = refData.object.sha;
   console.log('Base commit:', latestSha);
 
+  const baseCommit = await ghFetch(`/repos/${OWNER}/${REPO}/git/commits/${latestSha}`);
+  const remotePaths = await getRemoteFilePaths(baseCommit.tree.sha);
+  const localPaths = new Set(fileMetas.map(meta => meta.path));
+  const deletionItems = remotePaths
+    .filter(path => !localPaths.has(path) && !isExcludedRelativePath(path))
+    .map(path => ({ path, mode: '100644', type: 'blob', sha: null }));
+
+  if (deletionItems.length > 0) {
+    console.log(`Found ${deletionItems.length} deleted managed file(s) to remove from GitHub:`);
+    for (const item of deletionItems.slice(0, 20)) console.log(`  DELETE: ${item.path}`);
+    if (deletionItems.length > 20) console.log(`  ... and ${deletionItems.length - 20} more`);
+  } else {
+    console.log('No deleted managed files found.');
+  }
+
   // GitHub's tree API times out on huge replacement trees (~400+ entries).
   // Build the tree incrementally in chunks, each layered on top of the
-  // previous tree via base_tree. We start from the existing branch tree so
-  // unchanged files (e.g. files we excluded) stay intact.
-  const baseCommit = await ghFetch(`/repos/${OWNER}/${REPO}/git/commits/${latestSha}`);
+  // previous tree via base_tree. Deletion entries use sha: null; excluded
+  // paths are intentionally left untouched.
   let currentTreeSha = baseCommit.tree.sha;
   const TREE_CHUNK = 100;
-  console.log(`Layering ${treeItems.length} entries in chunks of ${TREE_CHUNK}...`);
-  for (let i = 0; i < treeItems.length; i += TREE_CHUNK) {
-    const chunk = treeItems.slice(i, i + TREE_CHUNK);
+  const syncItems = [...treeItems, ...deletionItems];
+  console.log(`Layering ${syncItems.length} additions/updates/deletions in chunks of ${TREE_CHUNK}...`);
+  for (let i = 0; i < syncItems.length; i += TREE_CHUNK) {
+    const chunk = syncItems.slice(i, i + TREE_CHUNK);
     const layered = await ghFetch(`/repos/${OWNER}/${REPO}/git/trees`, 'POST', {
       base_tree: currentTreeSha,
       tree: chunk,
     });
     currentTreeSha = layered.sha;
-    console.log(`  Layered ${Math.min(i + TREE_CHUNK, treeItems.length)}/${treeItems.length}`);
+    console.log(`  Layered ${Math.min(i + TREE_CHUNK, syncItems.length)}/${syncItems.length}`);
   }
   const newTree = { sha: currentTreeSha };
 

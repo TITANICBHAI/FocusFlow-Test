@@ -18,6 +18,7 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import com.tbtechs.focusflow.MainActivity
 import org.json.JSONArray
@@ -39,7 +40,9 @@ import org.json.JSONArray
  *      fades in the ✕ button in the top-right corner.
  *   5. User taps ✕ → overlay finishes.  No navigation — they're already at home.
  *
- * Back button: intentionally swallowed — overlay cannot be dismissed by back press.
+ * Back button: opens FocusFlow so the user can return to the app without
+ * dismissing the active block itself. The overlay's re-raise guard treats
+ * MainActivity as a trusted FocusFlow screen.
  * onPause re-raise: kept from the original for slow-device protection.
  *
  * SharedPrefs keys read:
@@ -58,7 +61,9 @@ class BlockOverlayActivity : Activity() {
 
         /** Written by AccessibilityService after HOME press is confirmed. */
         const val PREF_OVERLAY_X_READY = "overlay_x_ready"
+        const val PREF_OVERLAY_ESCAPE_ATTEMPTS = "overlay_escape_attempts"
         private const val X_POLL_INTERVAL_MS = 300L
+        private const val INITIAL_ACTION_DELAY_MS = 10_000L
 
         /**
          * Specific FocusFlow activity class name suffixes that are allowed to be in
@@ -103,16 +108,38 @@ class BlockOverlayActivity : Activity() {
     private var blockedName: String = ""
     private var blockReason: String = ""
     private var intentionalFinish = false
+    private var revealScheduled = false
 
     // ✕ button — hidden until AccessibilityService confirms user is at home
     private lateinit var xButton: TextView
     private var xButtonRevealed = false
+    private lateinit var countdownContainer: LinearLayout
+    private lateinit var countdownLabel: TextView
+    private lateinit var countdownProgress: ProgressBar
+    private var countdownTotalMs = 0L
+    private var countdownStartedAt = 0L
+
+    /**
+     * Visual-only countdown for the escape delay. It deliberately has no
+     * connection to the x-button's clickability or reveal gate.
+     */
+    private val countdownRunnable = object : Runnable {
+        override fun run() {
+            if (isFinishing || isDestroyed || xButtonRevealed || countdownTotalMs <= 0L) return
+            val remaining = (countdownTotalMs - (android.os.SystemClock.uptimeMillis() - countdownStartedAt))
+                .coerceAtLeast(0L)
+            updateCountdown(remaining)
+            if (remaining > 0L) {
+                handler.postDelayed(this, 100L)
+            }
+        }
+    }
 
     private val pollRunnable = object : Runnable {
         override fun run() {
             if (isFinishing || isDestroyed || xButtonRevealed) return
             if (prefs.getBoolean(PREF_OVERLAY_X_READY, false)) {
-                revealXButton()
+                scheduleXButtonReveal()
             } else {
                 handler.postDelayed(this, X_POLL_INTERVAL_MS)
             }
@@ -148,7 +175,7 @@ class BlockOverlayActivity : Activity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        // Intentionally do nothing — back is completely ignored
+        // Intentionally do nothing — back is completely ignored.
     }
 
     // ─── Power button: block power-off menu during session ────────────────────
@@ -375,6 +402,7 @@ class BlockOverlayActivity : Activity() {
             col.addView(buildReasonLabel())
         }
         col.addView(buildQuoteView())
+        col.addView(buildCountdownView())
         col.addView(buildSubLabel())
         root.addView(col)
 
@@ -449,6 +477,44 @@ class BlockOverlayActivity : Activity() {
         ).apply { bottomMargin = dp(48) }
     }
 
+    private fun buildCountdownView(): LinearLayout {
+        countdownLabel = TextView(this).apply {
+            textSize = 12f
+            setTextColor(Color.parseColor("#AAAACC"))
+            gravity = Gravity.CENTER
+            letterSpacing = 0.04f
+        }
+
+        countdownProgress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+            max = 1000
+            progress = 1000
+            isIndeterminate = false
+            progressTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#7567D9"))
+            progressBackgroundTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#332E5A"))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(4)
+            ).apply {
+                topMargin = dp(8)
+            }
+        }
+
+        countdownContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            visibility = View.GONE
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(28)
+            }
+            addView(countdownLabel)
+            addView(countdownProgress)
+        }
+        return countdownContainer
+    }
+
     private fun buildSubLabel(): TextView = TextView(this).apply {
         text = "Stay focused. You\u2019ve got this."
         textSize = 13f
@@ -489,11 +555,49 @@ class BlockOverlayActivity : Activity() {
         setOnClickListener { dismissOverlay() }
     }
 
-    // ─── X button reveal (runs after home confirmed) ──────────────────────────
+    // ─── Escape-action delay ──────────────────────────────────────────────────
+
+    private fun actionDelayMs(): Long {
+        val attempt = prefs.getInt(PREF_OVERLAY_ESCAPE_ATTEMPTS, 0)
+        return when (attempt) {
+            0 -> INITIAL_ACTION_DELAY_MS
+            1 -> 15_000L
+            2 -> 20_000L
+            3 -> 30_000L
+            4 -> 40_000L
+            5 -> 50_000L
+            else -> 60_000L
+        }
+    }
+
+    private fun recordEscapeAttempt() {
+        val next = (prefs.getInt(PREF_OVERLAY_ESCAPE_ATTEMPTS, 0) + 1).coerceAtMost(6)
+        prefs.edit().putInt(PREF_OVERLAY_ESCAPE_ATTEMPTS, next).apply()
+    }
+
+    private fun scheduleXButtonReveal() {
+        if (revealScheduled || xButtonRevealed) return
+        revealScheduled = true
+        countdownTotalMs = actionDelayMs()
+        countdownStartedAt = android.os.SystemClock.uptimeMillis()
+        countdownContainer.visibility = View.VISIBLE
+        updateCountdown(countdownTotalMs)
+        handler.post(countdownRunnable)
+        handler.postDelayed({
+            revealScheduled = false
+            if (!isFinishing && !isDestroyed && prefs.getBoolean(PREF_OVERLAY_X_READY, false)) {
+                revealXButton()
+            }
+        }, countdownTotalMs)
+    }
+
+    // ─── X button reveal (runs after home confirmed and the escape delay) ─────
 
     private fun revealXButton() {
         if (xButtonRevealed) return
         xButtonRevealed = true
+        handler.removeCallbacks(countdownRunnable)
+        countdownContainer.visibility = View.GONE
         prefs.edit().putBoolean(PREF_OVERLAY_X_READY, false).apply()
         xButton.isClickable = true
         xButton.isFocusable = true
@@ -508,6 +612,7 @@ class BlockOverlayActivity : Activity() {
 
     private fun dismissOverlay() {
         intentionalFinish = true
+        recordEscapeAttempt()
         AversiveActionsManager.stopAll(applicationContext)
         prefs.edit()
             .putBoolean(PREF_OVERLAY_X_READY, false)
@@ -515,6 +620,37 @@ class BlockOverlayActivity : Activity() {
             // open of the same blocked app is caught immediately (no 2 s gap).
             .putBoolean("block_cooldown_reset", true)
             .apply()
+        finish()
+    }
+
+    /**
+     * Opens the main FocusFlow activity while leaving the current block active.
+     *
+     * MainActivity is included in TRUSTED_FOCUSFLOW_CLASSES, so onPause() will
+     * not re-raise the blocking overlay after this navigation. The block
+     * remains enforced by the accessibility service and the user can use
+     * FocusFlow's in-app controls to review the active session.
+     */
+    private fun launchFocusFlow() {
+        intentionalFinish = true
+        recordEscapeAttempt()
+        AversiveActionsManager.stopAll(applicationContext)
+        prefs.edit()
+            .putBoolean(PREF_OVERLAY_X_READY, false)
+            .putBoolean("block_cooldown_reset", true)
+            .apply()
+
+        try {
+            val focusFlowIntent = android.content.Intent(this, MainActivity::class.java).apply {
+                flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+            startActivity(focusFlowIntent)
+        } catch (_: Exception) {
+            // If the main activity cannot be resolved, keep the overlay active.
+            intentionalFinish = false
+            return
+        }
         finish()
     }
 
@@ -534,6 +670,18 @@ class BlockOverlayActivity : Activity() {
         } else DEFAULT_QUOTES
 
         return pool.random()
+    }
+
+    private fun updateCountdown(remainingMs: Long) {
+        if (!::countdownLabel.isInitialized || !::countdownProgress.isInitialized) return
+        val remainingSeconds = ((remainingMs + 999L) / 1000L).coerceAtLeast(0L)
+        countdownLabel.text = "Close button available in ${remainingSeconds}s"
+        val fraction = if (countdownTotalMs > 0L) {
+            (remainingMs.toDouble() / countdownTotalMs.toDouble()).coerceIn(0.0, 1.0)
+        } else {
+            0.0
+        }
+        countdownProgress.progress = (fraction * countdownProgress.max).toInt()
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────

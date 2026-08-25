@@ -1,6 +1,7 @@
 package com.tbtechs.focusflow.services
 
 import android.app.*
+import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.media.AudioAttributes
@@ -210,6 +211,7 @@ class ForegroundTaskService : Service() {
     private lateinit var blockPrefs: SharedPreferences
     private var fallbackLastBlockedPkg: String? = null
     private var fallbackLastBlockedAtMs: Long   = 0L
+    private var allowanceExpiryRunnable: Runnable? = null
 
     private val handler = Handler(Looper.getMainLooper())
 
@@ -322,6 +324,8 @@ class ForegroundTaskService : Service() {
             org.json.JSONObject()
         }
 
+        var foregroundBudgetExpiry: Pair<String, Long>? = null
+        val foregroundPkg = getFallbackForegroundPackage()
         for ((pkg, budgetMs) in timeBudgetPkgs) {
             // AccessibilityService owns the live session while this signal is
             // fresh. Its checkpoint is already an absolute accumulated total;
@@ -335,11 +339,14 @@ class ForegroundTaskService : Service() {
 
             val actualMs = (statsMap[pkg]?.totalTimeInForeground ?: 0L)
                 .coerceAtMost(budgetMs)
-            if (actualMs <= 0L) continue
 
             val pkgUsed    = allUsed.optJSONObject(pkg) ?: org.json.JSONObject()
             val storedDate = pkgUsed.optString("date", "")
             val storedMs   = if (storedDate == today) pkgUsed.optLong("usedMs", 0L) else 0L
+            val effectiveMs = maxOf(actualMs, storedMs)
+            if (pkg.equals(foregroundPkg, ignoreCase = true) && effectiveMs < budgetMs) {
+                foregroundBudgetExpiry = pkg to (now + budgetMs - effectiveMs)
+            }
 
             // Only raise — never lower — so an event-based write that is more recent
             // than the last 60-second snapshot is never clobbered.
@@ -364,6 +371,40 @@ class ForegroundTaskService : Service() {
                 )
                 .apply()
         }
+        foregroundBudgetExpiry?.let { (pkg, expiryMs) ->
+            scheduleAllowanceExpiry(pkg, expiryMs, timeBudgetPkgs[pkg] ?: return@let)
+        } ?: run {
+            allowanceExpiryRunnable?.let { handler.removeCallbacks(it) }
+            allowanceExpiryRunnable = null
+        }
+    }
+
+    /**
+     * UsageStats is refreshed periodically, but a foreground app should not wait
+     * for the next minute-long refresh once its already-known budget is due.
+     * The callback only promotes the allowance to exhausted after re-checking
+     * that the same app is still foreground, then wakes the normal blocker.
+     */
+    private fun scheduleAllowanceExpiry(pkg: String, expiryMs: Long, budgetMs: Long) {
+        allowanceExpiryRunnable?.let { handler.removeCallbacks(it) }
+        val delayMs = (expiryMs - System.currentTimeMillis()).coerceAtLeast(0L)
+        val runnable = Runnable {
+            allowanceExpiryRunnable = null
+            if (!pkg.equals(getFallbackForegroundPackage(), ignoreCase = true)) return@Runnable
+            val usedJson = blockPrefs.getString("daily_allowance_used", "{}") ?: "{}"
+            val allUsed = try { org.json.JSONObject(usedJson) } catch (_: Exception) { return@Runnable }
+            val used = allUsed.optJSONObject(pkg) ?: org.json.JSONObject()
+            used.put("mode", "time_budget")
+            used.put("date", java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getDefault()
+            }.format(java.util.Date()))
+            used.put("usedMs", budgetMs)
+            allUsed.put(pkg, used)
+            blockPrefs.edit().putString("daily_allowance_used", allUsed.toString()).apply()
+            handler.post(fallbackPollRunnable)
+        }
+        allowanceExpiryRunnable = runnable
+        handler.postDelayed(runnable, delayMs)
     }
 
     private fun hasFreshActiveAllowanceSession(pkg: String, nowMs: Long): Boolean {
@@ -477,8 +518,12 @@ class ForegroundTaskService : Service() {
             }
             val greyoutJson = blockPrefs.getString("greyout_schedule", "[]") ?: "[]"
             val hasGreyout = greyoutJson != "[]" && greyoutJson.isNotEmpty()
+            val alwaysBlockActive = blockPrefs.getBoolean("always_block_active", false)
+            val hasAllowanceConfig = blockPrefs.getString("daily_allowance_config", null)
+                ?.let { it.isNotBlank() && it != "null" && it != "[]" } == true
 
-            if (!focusActive && !saActive && !hasGreyout) {
+            if (!focusActive && !saActive && !hasGreyout &&
+                !alwaysBlockActive && !hasAllowanceConfig) {
                 // Nothing to enforce — reset cooldown and poll lightly
                 fallbackLastBlockedPkg = null
                 handler.postDelayed(this, FALLBACK_POLL_MS)
@@ -677,6 +722,7 @@ class ForegroundTaskService : Service() {
         handler.removeCallbacks(fallbackPollRunnable)
         handler.removeCallbacks(vpnHealthRunnable)
         handler.removeCallbacks(allowanceSyncRunnable)
+        allowanceExpiryRunnable?.let { handler.removeCallbacks(it) }
         WakeLockManager.release()
         super.onDestroy()
     }
@@ -1099,27 +1145,36 @@ class ForegroundTaskService : Service() {
      * UsageStatsManager.  Returns null if the permission is not granted or the
      * query returns no results.
      *
-     * A 5-second look-back window is used so the most-recently-used app is
-     * reliably the one currently on screen.
+     * A 5-second look-back window is used to find the latest foreground event,
+     * rather than treating the most-recently-used app for the day as current.
      */
     private fun getFallbackForegroundPackage(): String? {
         return try {
             val usm = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
             val now = System.currentTimeMillis()
-            val stats = usm.queryUsageStats(
-                UsageStatsManager.INTERVAL_DAILY,
-                now - 5_000L,
-                now
-            )
-            stats?.maxByOrNull { it.lastTimeUsed }?.packageName
+            val events = usm.queryEvents(now - 5_000L, now)
+            val event = UsageEvents.Event()
+            val foregroundType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                UsageEvents.Event.ACTIVITY_RESUMED
+            } else {
+                UsageEvents.Event.MOVE_TO_FOREGROUND
+            }
+            var latest: String? = null
+            while (events.hasNextEvent()) {
+                events.getNextEvent(event)
+                if (event.eventType == foregroundType) {
+                    latest = event.packageName
+                }
+            }
+            latest
         } catch (_: Exception) { null }
     }
 
     /**
      * Mirrors the core blocking logic from AppBlockerAccessibilityService using
-     * the same SharedPreferences.  Only covers the primary enforcement paths
-     * (task focus, standalone block, greyout schedule) — advanced daily-
-     * allowance time-budget tracking stays in the accessibility service.
+     * the same SharedPreferences. The AccessibilityService owns allowance
+     * accounting; this service only reads the persisted result and enforces it
+     * when the primary service is unavailable.
      */
     private fun isFallbackBlocked(
         pkg: String,
@@ -1160,15 +1215,102 @@ class ForegroundTaskService : Service() {
                     val entry = arr.optJSONObject(i) ?: continue
                     if (!entry.optString("pkg").equals(pkg, ignoreCase = true)) continue
                     val days = entry.optJSONArray("days") ?: continue
-                    val dayMatch = (0 until days.length()).any { days.optInt(it) == currentDay }
-                    if (!dayMatch) continue
                     val startMins = entry.optInt("startHour") * 60 + entry.optInt("startMin")
                     val endMins   = entry.optInt("endHour")   * 60 + entry.optInt("endMin")
+                    val overnight = startMins > endMins
+                    val afterMidnight = overnight && currentMins < endMins
+                    val dayForWindow = if (afterMidnight) {
+                        if (currentDay == java.util.Calendar.SUNDAY) {
+                            java.util.Calendar.SATURDAY
+                        } else {
+                            currentDay - 1
+                        }
+                    } else {
+                        currentDay
+                    }
+                    val dayMatch = (0 until days.length()).any { days.optInt(it) == dayForWindow }
+                    if (!dayMatch) continue
                     val inWindow  = if (startMins <= endMins)
                         currentMins in startMins until endMins
                     else
                         currentMins >= startMins || currentMins < endMins
                     if (inWindow) return true
+                }
+            } catch (_: Exception) { }
+        }
+
+        // ── Always-on enforcement ─────────────────────────────────────────
+        val alwaysBlockActive = blockPrefs.getBoolean("always_block_active", false)
+        if (alwaysBlockActive) {
+            val alwaysJson = blockPrefs.getString("always_block_packages", "[]") ?: "[]"
+            try {
+                val arr = JSONArray(alwaysJson)
+                for (i in 0 until arr.length()) {
+                    if (pkg.equals(arr.getString(i), ignoreCase = true)) return true
+                }
+            } catch (_: Exception) { }
+        }
+
+        // ── Daily allowance exhaustion (read-only mirror of A11y state) ────
+        val configJson = blockPrefs.getString("daily_allowance_config", null)
+        if (!configJson.isNullOrBlank() && configJson != "null") {
+            try {
+                val today = java.text.SimpleDateFormat(
+                    "yyyy-MM-dd",
+                    java.util.Locale.US,
+                ).apply {
+                    timeZone = java.util.TimeZone.getDefault()
+                }.format(java.util.Date())
+                val now = System.currentTimeMillis()
+                val arr = JSONArray(configJson)
+                for (i in 0 until arr.length()) {
+                    val entry = arr.optJSONObject(i) ?: continue
+                    if (!entry.optString("packageName", "")
+                            .equals(pkg, ignoreCase = true)) continue
+
+                    val usedJson = blockPrefs.getString("daily_allowance_used", "{}") ?: "{}"
+                    val pkgUsed = try {
+                        org.json.JSONObject(usedJson).optJSONObject(pkg)
+                    } catch (_: Exception) {
+                        null
+                    } ?: break
+
+                    when (entry.optString("mode", "count")) {
+                        "count" -> {
+                            val usedDate = pkgUsed.optString("date", "")
+                            val count = if (usedDate == today) {
+                                pkgUsed.optInt("count", 0)
+                            } else {
+                                0
+                            }
+                            if (count >= entry.optInt("countPerDay", 1).coerceAtLeast(1)) {
+                                return true
+                            }
+                        }
+                        "time_budget" -> {
+                            val usedDate = pkgUsed.optString("date", "")
+                            val usedMs = if (usedDate == today) {
+                                pkgUsed.optLong("usedMs", 0L)
+                            } else {
+                                0L
+                            }
+                            val budgetMs = entry.optInt("budgetMinutes", 30)
+                                .toLong() * 60_000L
+                            if (usedMs >= budgetMs) return true
+                        }
+                        "interval" -> {
+                            val windowStartMs = pkgUsed.optLong("windowStartMs", 0L)
+                            val windowMs = entry.optInt("intervalHours", 1)
+                                .toLong() * 3_600_000L
+                            if (now <= windowStartMs + windowMs) {
+                                val usedMs = pkgUsed.optLong("usedMs", 0L)
+                                val intervalMs = entry.optInt("intervalMinutes", 5)
+                                    .toLong() * 60_000L
+                                if (usedMs >= intervalMs) return true
+                            }
+                        }
+                    }
+                    break
                 }
             } catch (_: Exception) { }
         }

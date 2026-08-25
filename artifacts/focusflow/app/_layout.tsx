@@ -24,7 +24,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
-import { StyleSheet, View, Text, Animated, Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import { Alert, Linking, StyleSheet, View, Text, Animated, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONT, SPACING } from '@/styles/theme';
 
@@ -38,6 +39,8 @@ import { VpnPermissionLostBanner } from '@/components/VpnPermissionLostBanner';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ErrorAlertBanner } from '@/components/ErrorAlertBanner';
 import { logger } from '@/services/startupLogger';
+import { scheduleTaskRemindersBatch } from '@/services/notificationService';
+import { parseBackupJson, restoreFromJson, type ImportSummary } from '@/services/backupService';
 
 // ─── Deferred notification action store ──────────────────────────────────────
 // Stores action from background notification tap so the app can handle it on resume.
@@ -359,6 +362,113 @@ function VpnPermissionHost() {
   );
 }
 
+// ─── Incoming .focusflow backup host ───────────────────────────────────────────
+// Handles files opened from Android file managers and cloud-storage apps.
+// Import is always merge-only and requires confirmation after validation.
+function FileImportHost() {
+  const { state, addTask, deleteTask, updateSettings, refreshTasks } = useApp();
+  const handledUris = useRef(new Set<string>());
+
+  useEffect(() => {
+    let mounted = true;
+
+    const isSupportedUri = (uri: string): boolean => {
+      const lower = uri.toLowerCase();
+      if (lower.startsWith('content://')) return true;
+      return lower.startsWith('file://') && lower.split('?')[0].endsWith('.focusflow');
+    };
+
+    const showImportResult = (summary: ImportSummary) => {
+      const warningText = summary.warnings.length > 0
+        ? `\n\nWarnings:\n${summary.warnings.join('\n')}`
+        : '';
+      Alert.alert(
+        'Backup imported',
+        `${summary.tasksImported} task${summary.tasksImported === 1 ? '' : 's'} added. ` +
+        `${summary.tasksSkipped} skipped.${warningText}`,
+      );
+    };
+
+    const handleUri = async (uri: string) => {
+      if (!mounted || !isSupportedUri(uri) || handledUris.current.has(uri)) return;
+      handledUris.current.add(uri);
+
+      let text: string;
+      try {
+        text = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+      } catch (error) {
+        Alert.alert('Could not read backup', `FocusFlow could not read this file.\n\n${String(error)}`);
+        return;
+      }
+
+      const parsed = parseBackupJson(text);
+      if (!parsed.ok) {
+        Alert.alert('Invalid backup file', parsed.error);
+        return;
+      }
+
+      const { envelope } = parsed;
+      const taskCount = envelope.summary?.taskCount ?? envelope.tasks.length;
+      const blockedWordCount = envelope.summary?.blockedWordCount ?? envelope.settings.blockedWords?.length ?? 0;
+      const message =
+        `This backup contains ${taskCount} task${taskCount === 1 ? '' : 's'} and ` +
+        `${blockedWordCount} blocked word${blockedWordCount === 1 ? '' : 's'}.\n\n` +
+        'Importing will merge new tasks and settings with your current FocusFlow data. ' +
+        'Existing tasks and settings will not be deleted.';
+
+      Alert.alert('Import FocusFlow backup?', message, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Import',
+          onPress: () => {
+            void (async () => {
+              try {
+                const result = await restoreFromJson(text, {
+                  updateSettings,
+                  addTask,
+                  scheduleTasks: scheduleTaskRemindersBatch,
+                  deleteTask,
+                  refreshTasks,
+                  replaceTasks: false,
+                  currentTasks: state.tasks,
+                  currentSettings: state.settings,
+                  currentFocusSession: state.focusSession,
+                });
+                if ('error' in result) {
+                  Alert.alert('Import failed', result.error);
+                } else {
+                  showImportResult(result);
+                }
+              } catch (error) {
+                Alert.alert('Import failed', String(error));
+              }
+            })();
+          },
+        },
+      ]);
+    };
+
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      void handleUri(url);
+    });
+
+    void Linking.getInitialURL().then((uri) => {
+      if (uri) void handleUri(uri);
+    }).catch((error) => {
+      void logger.warn('FileImportHost', `Initial link read failed: ${String(error)}`);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.remove();
+    };
+  }, [addTask, deleteTask, refreshTasks, state.settings, state.tasks, updateSettings]);
+
+  return null;
+}
+
 // ─── React component ──────────────────────────────────────────────────────────
 
 export default function RootLayout() {
@@ -401,6 +511,7 @@ export default function RootLayout() {
             <OnboardingGuard />
             <AchievementCelebrationHost />
             <VpnPermissionHost />
+            <FileImportHost />
             <ErrorAlertBanner />
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

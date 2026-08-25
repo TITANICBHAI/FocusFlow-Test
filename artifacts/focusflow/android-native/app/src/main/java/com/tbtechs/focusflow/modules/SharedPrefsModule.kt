@@ -5,6 +5,7 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableArray
+import com.facebook.react.bridge.WritableNativeMap
 import com.tbtechs.focusflow.services.AppBlockerAccessibilityService
 import com.tbtechs.focusflow.widget.FocusFlowWidget
 
@@ -151,7 +152,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
     }
 
     /**
-     * Writes the active task's accent color (hex string, e.g. "#4F8EF7") so the
+     * Writes the active task's accent color (hex string, e.g. "#6366f1") so the
      * widget can tint its header / sub-line to match the task. Pass an empty
      * string to clear (widget falls back to the default indigo accent).
      */
@@ -476,6 +477,29 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
     @ReactMethod
     fun getString(key: String, promise: Promise) {
         promise.resolve(prefs().getString(key, null))
+    }
+
+    /**
+     * Reads a long numeric value from SharedPreferences by key.
+     * Returns zero when the key is absent.
+     */
+    @ReactMethod
+    fun getLong(key: String, promise: Promise) {
+        promise.resolve(prefs().getLong(key, 0L).toDouble())
+    }
+
+    /**
+     * Reads the allowance usage and active-session markers together so the UI
+     * cannot observe values from two different native checkpoints.
+     */
+    @ReactMethod
+    fun getAllowanceSnapshot(promise: Promise) {
+        val current = prefs()
+        promise.resolve(WritableNativeMap().apply {
+            putString("usageJson", current.getString("daily_allowance_used", null))
+            putString("activeSessionPackage", current.getString("active_session_pkg", null))
+            putDouble("activeSessionEndMs", current.getLong("active_session_end_ms", 0L).toDouble())
+        })
     }
 
     /**

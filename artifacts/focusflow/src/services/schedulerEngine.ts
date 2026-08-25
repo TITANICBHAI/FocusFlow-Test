@@ -283,39 +283,6 @@ export function compressSchedule(
   });
 }
 
-/**
- * Remove the reserved time of a deleted future task from the schedule.
- * Only later, unresolved tasks move; completed/history rows stay immutable.
- */
-export function compressDeletedTaskGap(
-  deletedTask: Task,
-  allTasks: Task[],
-): Task[] {
-  const deletedStart = dayjs(deletedTask.startTime);
-  const deletedEnd = dayjs(deletedTask.endTime);
-  const savedMinutes = deletedEnd.diff(deletedStart, 'minute');
-
-  if (savedMinutes <= 0) return allTasks;
-
-  return allTasks.map((task) => {
-    if (
-      task.id === deletedTask.id ||
-      task.status === 'completed' ||
-      task.status === 'skipped' ||
-      !dayjs(task.startTime).isAfter(deletedEnd)
-    ) {
-      return task;
-    }
-
-    return {
-      ...task,
-      startTime: dayjs(task.startTime).subtract(savedMinutes, 'minute').toISOString(),
-      endTime: dayjs(task.endTime).subtract(savedMinutes, 'minute').toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-  });
-}
-
 // ─── Detect tasks left unfinished (for app restart recovery) ─────────────────
 
 export function getUnfinishedOverdueTasks(tasks: Task[]): Task[] {

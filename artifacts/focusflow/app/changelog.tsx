@@ -14,7 +14,32 @@ type Entry = {
 
 const CHANGELOG: Entry[] = [
   {
-    version: '1.0.8',
+    version: '1.1.0',
+    date: 'August 2026',
+    sections: [
+      {
+        heading: 'More Reliable App Blocking',
+        icon: 'shield-checkmark-outline',
+        items: [
+          'Added a foreground-app watchdog that checks UsageStats every 1.5 seconds so blocked apps are caught even when Android does not emit a window-change event after returning from recent apps',
+          'The watchdog safely handles OEMs that deny UsageStats foreground events and leaves the AccessibilityService event path in control when Usage Access is unavailable',
+          'Fixed a cooldown issue where pressing the physical Home button could let the same blocked app reopen silently for up to two seconds',
+          'Added dynamic HOME-handler detection so custom and less common OEM launchers are protected even when they are not in FocusFlow’s built-in launcher list',
+          'Reset Shorts and Reels content-scan throttling after a recent-app return so the next available content event is checked immediately',
+        ],
+      },
+      {
+        heading: 'FocusFlow Safety',
+        icon: 'lock-closed-outline',
+        items: [
+          'FocusFlow’s own Focus, Stats, Settings, and onboarding screens remain exempt from app blocking while protection is active',
+          'Timed allowance tracking and retry foreground guards remain unchanged while the new watchdog provides an additional enforcement path',
+        ],
+      },
+    ],
+  },
+  {
+    version: '1.0.9',
     date: 'August 2026',
     sections: [
       {
@@ -24,6 +49,51 @@ const CHANGELOG: Entry[] = [
           'Removed the duplicate React Native in-app blocked-app banner; native Kotlin overlays, app enforcement, dismissal, and all other blocking features remain unchanged',
         ],
       },
+      {
+        heading: 'Navigation and Focus Workflow',
+        icon: 'navigate-outline',
+        items: [
+          'Reordered the bottom navigation into Focus, Schedule, Defense, Stats, and Settings',
+          'Moved persistent blocking controls into the dedicated Defense tab and added one-time guidance hints for the new locations',
+          'Moved Stats Today ahead of Yesterday and kept the internal Stats pages synchronized with swipe navigation',
+          'Fixed New Task and Edit Task forms opening with a forced keyboard and prevented the keyboard from blocking the lower controls',
+        ],
+      },
+      {
+        heading: 'Backup and Import Safety',
+        icon: 'cloud-done-outline',
+        items: [
+          'Task imports now check the complete database for ID collisions; Add tasks skips matching IDs while Replace everything removes all existing tasks before importing',
+          'Imported task Focus Mode behavior is preserved per task, while imported tasks receive reminders without automatically starting a focus session',
+          'Standalone Block runtime state stays local and is not changed by backup import',
+          'Backups now describe reusable feature presets in named sections without exporting live enabled or disabled states',
+          'Imported keyword lists and reusable blocking configuration become available without changing the importing device’s active protection switches',
+        ],
+      },
+      {
+        heading: 'Diagnostics and Reporting',
+        icon: 'paper-plane-outline',
+        items: [
+          'Settings now keeps Report an Issue as the main diagnostics action while the detailed log viewer remains available through existing diagnostic entry points',
+          'Added optional diagnostic-log inclusion so empty text attachments are not created',
+          'Bug reports, feedback, and reviews now keep the user’s written message directly in the email body for review before sending',
+        ],
+      },
+      {
+        heading: 'Onboarding Simplification',
+        icon: 'git-branch-outline',
+        items: [
+          'Removed the separate Standard and Iron Mode onboarding paths so new users follow one focused setup flow',
+          'Removed the layered Iron Mode activation counter, transition states, and mode-specific permission setup from first-run onboarding',
+          'Existing blocking, VPN, Device Admin, and Defense Password protections remain available from their dedicated settings',
+        ],
+      },
+    ],
+  },
+  {
+    version: '1.0.8',
+    date: 'August 2026',
+    sections: [
       {
         heading: 'New Two-Mode Onboarding',
         icon: 'git-branch-outline',
@@ -173,7 +243,7 @@ const CHANGELOG: Entry[] = [
         heading: 'Analog Clock Launcher',
         icon: 'time-outline',
         items: [
-          'New analog clock option for the launcher home screen — canvas-drawn hour, minute, and second hands with hour tick marks and blue-violet accent matching the dark launcher aesthetic',
+          'New analog clock option for the launcher home screen — canvas-drawn hour, minute, and second hands with hour tick marks and indigo accent matching the dark launcher aesthetic',
           'Clock style preference persisted via SharedPrefs and synced on every settings change — switching between digital and analog survives reboots and session restarts',
         ],
       },
@@ -247,8 +317,6 @@ const CHANGELOG: Entry[] = [
     date: 'April 2026',
     sections: [
       {
-        heading: 'Blocklist Import',
-        icon: 'download-outline',
         items: [
           'Two paths in one screen: pick an exported file (JSON / CSV / plain text) OR paste / type the app names yourself for blockers like Stay Focused that don\'t expose an export — names are fuzzy-matched against your installed apps so capitalisation and small typos still resolve',
           'Stay Focused is featured first because it has no public export — paste path is the recommended route for it',
@@ -278,7 +346,7 @@ const CHANGELOG: Entry[] = [
     ],
   },
   {
-    version: 'c1.0.8',
+    version: 'c1.0.9',
     date: 'April 2026',
     sections: [
       {

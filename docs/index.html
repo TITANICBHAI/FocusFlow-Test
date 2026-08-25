@@ -457,6 +457,85 @@
     .feature-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.4rem; }
     .feature-card p { color: var(--muted); font-size: 0.88rem; line-height: 1.6; }
 
+    /* ── Feature videos ───────────────────────────────────────── */
+    .video-showcase {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+      gap: 2rem;
+      align-items: stretch;
+      max-width: 980px;
+      margin: 0 auto;
+    }
+    .video-preview {
+      position: relative;
+      min-height: 360px;
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 72% 28%, rgba(108,99,255,0.38), transparent 25%),
+        radial-gradient(circle at 20% 80%, rgba(34,211,238,0.14), transparent 28%),
+        linear-gradient(145deg, #1d1b3b 0%, #11111d 58%, #0d0d14 100%);
+      box-shadow: 0 24px 70px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      isolation: isolate;
+    }
+    .video-preview::before,
+    .video-preview::after {
+      content: '';
+      position: absolute;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: -1;
+    }
+    .video-preview::before { width: 360px; height: 360px; transform: translate(18%, -8%); }
+    .video-preview::after { width: 520px; height: 520px; transform: translate(-22%, 28%); border-color: rgba(108,99,255,0.2); }
+    .video-screen {
+      width: min(78%, 380px);
+      aspect-ratio: 16 / 10;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 13px;
+      background: rgba(13,13,20,0.7);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+      padding: 0.85rem;
+      transform: rotate(-2deg);
+    }
+    .video-screen-bar { display: flex; gap: 0.32rem; margin-bottom: 0.9rem; }
+    .video-screen-bar i { width: 7px; height: 7px; border-radius: 50%; background: #ff5f57; }
+    .video-screen-bar i:nth-child(2) { background: #febc2e; }
+    .video-screen-bar i:nth-child(3) { background: #28c840; }
+    .video-screen-lines { display: grid; gap: 0.55rem; }
+    .video-screen-lines span { display: block; height: 0.55rem; border-radius: 999px; background: rgba(255,255,255,0.1); }
+    .video-screen-lines span:first-child { width: 48%; height: 1.1rem; background: var(--accent); }
+    .video-screen-lines span:nth-child(2) { width: 82%; }
+    .video-screen-lines span:nth-child(3) { width: 65%; }
+    .play-button {
+      position: absolute;
+      width: 74px; height: 74px;
+      border-radius: 50%;
+      display: grid; place-items: center;
+      background: var(--accent);
+      color: #fff;
+      font-size: 1.35rem;
+      padding-left: 0.2rem;
+      box-shadow: 0 0 0 10px rgba(108,99,255,0.18), 0 12px 28px rgba(0,0,0,0.35);
+      transition: transform 0.2s, background 0.2s;
+    }
+    .video-preview:hover .play-button { transform: scale(1.08); background: #7a72ff; }
+    .video-copy { display: flex; flex-direction: column; justify-content: center; }
+    .video-copy h3 { font-size: 1.35rem; line-height: 1.25; margin-bottom: 0.75rem; }
+    .video-copy p { color: var(--muted); font-size: 0.94rem; line-height: 1.7; margin-bottom: 1.35rem; }
+    .video-list { display: flex; flex-wrap: wrap; gap: 0.55rem; margin-bottom: 1.6rem; }
+    .video-chip { border: 1px solid var(--border); background: var(--surface2); border-radius: 999px; color: var(--muted); padding: 0.35rem 0.7rem; font-size: 0.76rem; }
+    .video-cta { align-self: flex-start; }
+    @media (max-width: 760px) {
+      .video-showcase { grid-template-columns: 1fr; }
+      .video-preview { min-height: 280px; }
+    }
+
     /* ── How it works ────────────────────────────────────────── */
     .steps {
       display: grid;
@@ -599,6 +678,7 @@
       <a href="compare/">Compare</a>
       <a href="alternatives/">Alternatives</a>
       <a href="how-it-works/">How it works</a>
+      <a href="#videos">Videos</a>
       <a href="faq/">FAQ</a>
       <a href="blog/">Blog</a>
       <a class="nav-cta" href="https://apps.gov.in/app-info/2691" target="_blank" rel="noopener noreferrer"><span class="en">Get the app</span><span class="zh">获取应用</span></a>
@@ -765,6 +845,41 @@
           <h3 class="zh">每日配额引擎</h3>
           <p class="en">Three sub-modes per app: count (opens per day), time-budget (minutes per day), and interval (cooldown between uses). Granular control that goes beyond blunt session blocking.</p>
           <p class="zh">每应用三种子模式：计数（每日打开次数）、时间预算（每日分钟数）和间隔（使用间冷却）。精细控制，超越粗暴的会话屏蔽。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Feature videos -->
+  <section id="videos" class="video-section">
+    <div class="section-inner">
+      <p class="section-label en">See it in action</p>
+      <p class="section-label zh">观看实际效果</p>
+      <h2 class="en">Watch FocusFlow work</h2>
+      <h2 class="zh">观看 FocusFlow 如何工作</h2>
+      <p class="section-sub en">Short animated demos that show the features, workflows, and protection layers before you install.</p>
+      <p class="section-sub zh">通过简短的动画演示，了解功能、工作流程和保护层，然后再安装。</p>
+      <div class="video-showcase">
+        <a class="video-preview" href="https://titanicbhai.github.io/FocusFlow-Feature-Videos/#" target="_blank" rel="noopener noreferrer" aria-label="Watch FocusFlow feature videos">
+          <div class="video-screen" aria-hidden="true">
+            <div class="video-screen-bar"><i></i><i></i><i></i></div>
+            <div class="video-screen-lines"><span></span><span></span><span></span></div>
+          </div>
+          <span class="play-button" aria-hidden="true">▶</span>
+        </a>
+        <div class="video-copy">
+          <h3 class="en">A quick tour of the full FocusFlow toolkit</h3>
+          <h3 class="zh">快速了解完整的 FocusFlow 工具集</h3>
+          <p class="en">Explore individual demos for app blocking, focus sessions, daily allowances, keyword and network blocking, analytics, custom overlays, and Block Defense.</p>
+          <p class="zh">观看应用屏蔽、专注会话、每日配额、关键词和网络屏蔽、数据分析、自定义覆盖层及屏蔽防护的独立演示。</p>
+          <div class="video-list" aria-label="Video topics">
+            <span class="video-chip">8 feature demos</span>
+            <span class="video-chip">3 workflows</span>
+            <span class="video-chip">No install required</span>
+          </div>
+          <a class="btn-primary video-cta" href="https://titanicbhai.github.io/FocusFlow-Feature-Videos/#" target="_blank" rel="noopener noreferrer">
+            <span class="en">Watch the videos →</span><span class="zh">观看视频 →</span>
+          </a>
         </div>
       </div>
     </div>

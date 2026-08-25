@@ -84,7 +84,7 @@ export const SharedPrefsModule = {
   },
 
   /**
-   * Writes the active task's accent color (hex string, e.g. "#4F8EF7") so the
+   * Writes the active task's accent color (hex string, e.g. "#6366f1") so the
    * widget can tint its header / sub-line. Pass an empty string to clear.
    * Triggers a widget redraw on the native side.
    */
@@ -278,6 +278,39 @@ export const SharedPrefsModule = {
     if (!hasSharedPrefsMethod('getString')) return null;
     const result = await callNative('getString', () => SharedPrefs.getString(key) as Promise<string | null>);
     return result ?? null;
+  },
+
+  /**
+   * Reads a long numeric value from SharedPreferences by key.
+   * Returns zero when the key is absent or the native module is unavailable.
+   */
+  async getLong(key: string): Promise<number> {
+    if (!hasSharedPrefsMethod('getLong')) return 0;
+    const result = await callNative('getLong', () => SharedPrefs.getLong(key) as Promise<number>);
+    return Number(result ?? 0) || 0;
+  },
+
+  async getAllowanceSnapshot(): Promise<{
+    usageJson: string | null;
+    activeSessionPackage: string | null;
+    activeSessionEndMs: number;
+  }> {
+    if (!hasSharedPrefsMethod('getAllowanceSnapshot')) {
+      return { usageJson: null, activeSessionPackage: null, activeSessionEndMs: 0 };
+    }
+    const result = await callNative(
+      'getAllowanceSnapshot',
+      () => SharedPrefs.getAllowanceSnapshot() as Promise<{
+        usageJson: string | null;
+        activeSessionPackage: string | null;
+        activeSessionEndMs: number;
+      }>,
+    );
+    return {
+      usageJson: result?.usageJson ?? null,
+      activeSessionPackage: result?.activeSessionPackage ?? null,
+      activeSessionEndMs: Number(result?.activeSessionEndMs ?? 0) || 0,
+    };
   },
 
   /**

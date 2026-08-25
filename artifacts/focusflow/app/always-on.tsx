@@ -202,7 +202,7 @@ export default function AlwaysOnScreen() {
           style={[
             styles.appRow,
             { borderBottomColor: theme.border },
-            checked && { backgroundColor: COLORS.primary + '14' },
+            checked && { backgroundColor: COLORS.primary + '0D' },
           ]}
           onPress={() => toggle(item.packageName)}
           activeOpacity={0.7}
@@ -292,7 +292,7 @@ export default function AlwaysOnScreen() {
       </View>
 
       {/* Info banner */}
-      <View style={[styles.banner, { backgroundColor: COLORS.primary + '14', borderColor: COLORS.primary + '2E' }]}>
+      <View style={[styles.banner, { backgroundColor: COLORS.primary + '12', borderColor: COLORS.primary + '33' }]}>
         <Ionicons name="infinite-outline" size={16} color={COLORS.primary} />
         <Text style={[styles.bannerText, { color: theme.text }]}>
           These apps are blocked continuously — no session or timer needed. They stay blocked until you untick them here.

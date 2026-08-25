@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -12,51 +12,42 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import dayjs from 'dayjs';
 import { useApp } from '@/context/AppContext';
-import type { DailyAllowanceEntry, GreyoutWindow } from '@/data/types';
 import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
 import { useTheme } from '@/hooks/useTheme';
 import Constants from 'expo-constants';
-import { dbDeleteAllTasks } from '@/data/database';
+import { dbDeleteAllTasks, dbDeleteAllTasksExcept, dbEndFocusSession } from '@/data/database';
 import {
   cancelAllReminders,
+  cancelAllRemindersExcept,
   requestPermissions,
   scheduleTaskRemindersBatch,
 } from '@/services/notificationService';
 import { exportBackup, pickAndImportBackup } from '@/services/backupService';
 import { formatDuration } from '@/services/taskService';
 import { AllowedAppsModal } from '@/components/AllowedAppsModal';
-import { StandaloneBlockModal } from '@/components/StandaloneBlockModal';
-import { DailyAllowanceModal } from '@/components/DailyAllowanceModal';
-import { BlockedWordsModal } from '@/components/BlockedWordsModal';
-import { PinVerifyModal } from '@/components/PinVerifyModal';
-import { PinSetupModal } from '@/components/PinSetupModal';
-import { GreyoutScheduleModal } from '@/components/GreyoutScheduleModal';
 import { OverlayAppearanceModal } from '@/components/OverlayAppearanceModal';
 import DiagnosticsModal from '@/components/DiagnosticsModal';
 import ReportIssueModal from '@/components/ReportIssueModal';
 import { withScreenErrorBoundary } from '@/components/withScreenErrorBoundary';
 import { SharedPrefsModule } from '@/native-modules/SharedPrefsModule';
+import DarkModeToggle from '@/components/DarkModeToggle';
+import { PinVerifyModal } from '@/components/PinVerifyModal';
+import { SessionPinModule } from '@/native-modules/SessionPinModule';
 
 const DURATION_OPTIONS = [30, 45, 60, 90, 120];
 
 function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { state, updateSettings, setStandaloneBlockAndAllowance, setDailyAllowanceEntries, setBlockedWords, refreshTasks, deleteTask, addTask } = useApp();
+  const { state, updateSettings, refreshTasks, deleteTask, addTask, stopFocusMode } = useApp();
   const { settings } = state;
   const { theme } = useTheme();
   const [appsModalVisible, setAppsModalVisible] = useState(false);
-  const [blockModalVisible, setBlockModalVisible] = useState(false);
-  const [dailyModalVisible, setDailyModalVisible] = useState(false);
-  const [wordsModalVisible, setWordsModalVisible] = useState(false);
-  const [greyoutModalVisible, setGreyoutModalVisible] = useState(false);
   const [overlayAppearanceVisible, setOverlayAppearanceVisible] = useState(false);
   const [diagnosticsVisible, setDiagnosticsVisible] = useState(false);
   const [reportIssueVisible, setReportIssueVisible] = useState(false);
-  const [defPinVisible, setDefPinVisible] = useState(false);
-  const [pinSetupVisible, setPinSetupVisible] = useState(false);
-  const pendingDefAction = useRef<(() => void) | null>(null);
+  const [focusPinVisible, setFocusPinVisible] = useState(false);
+  const pendingClearAllRef = useRef(false);
   // Logs are useful in release builds too: WARN/ERROR entries are retained
   // locally and the user can explicitly choose whether to report them.
   const showDiagnostics = true;
@@ -76,35 +67,6 @@ function SettingsScreen() {
 
   const update = async (partial: Partial<typeof settings>) => {
     await updateSettings({ ...settings, ...partial });
-  };
-
-  // ── Standalone block status ───────────────────────────────────────────────
-
-  const standaloneActive = (() => {
-    if (!settings.standaloneBlockUntil) return false;
-    if ((settings.standaloneBlockPackages ?? []).length === 0) return false;
-    return new Date(settings.standaloneBlockUntil).getTime() > Date.now();
-  })();
-
-  const blockUntilLabel = standaloneActive && settings.standaloneBlockUntil
-    ? dayjs(settings.standaloneBlockUntil).format('MMM D [at] h:mm A')
-    : null;
-
-  const focusActive = state.focusSession?.isActive === true;
-  const blockProtectionActive = focusActive || standaloneActive;
-
-  const handleSaveStandaloneBlock = async (packages: string[], untilMs: number | null, allowanceEntries: DailyAllowanceEntry[], vpnPackages?: string[]) => {
-    await setStandaloneBlockAndAllowance(packages, untilMs, allowanceEntries, vpnPackages);
-  };
-
-  const handleSaveBlockPreset = async (preset: import('@/data/types').BlockPreset) => {
-    const presets = [...(settings.blockPresets ?? []), preset];
-    await update({ blockPresets: presets });
-  };
-
-  const handleDeleteBlockPreset = async (id: string) => {
-    const presets = (settings.blockPresets ?? []).filter((p) => p.id !== id);
-    await update({ blockPresets: presets });
   };
 
   // ── Other handlers ────────────────────────────────────────────────────────
@@ -186,6 +148,36 @@ function SettingsScreen() {
     }
   };
 
+  const clearAllTasks = async (focusPinHash: string | null = null) => {
+    const activeFocusTaskId = state.focusSession?.isActive ? state.focusSession.taskId : null;
+    if (activeFocusTaskId) {
+      if (focusPinHash) {
+        await stopFocusMode(focusPinHash);
+        // stopFocusMode normally closes this row through focusService. Repeat
+        // the idempotent update here so a recovered session with no in-memory
+        // task reference cannot leave an active focus_sessions row behind.
+        await dbEndFocusSession(activeFocusTaskId);
+        await cancelAllReminders();
+        await dbDeleteAllTasks();
+      } else {
+        // Without the Focus PIN, preserve the protected task and its live
+        // session. Only the other task rows and their reminders are removed.
+        await cancelAllRemindersExcept(activeFocusTaskId);
+        await dbDeleteAllTasksExcept(activeFocusTaskId);
+      }
+    } else {
+      await cancelAllReminders();
+      await dbDeleteAllTasks();
+    }
+    await refreshTasks();
+    Alert.alert(
+      'Done',
+      activeFocusTaskId && !focusPinHash
+        ? 'All other tasks cleared. The active focus task was kept running.'
+        : 'All tasks cleared.',
+    );
+  };
+
   const handleClearAllTasks = () => {
     Alert.alert('Clear All Tasks', 'This will delete ALL tasks. Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
@@ -193,10 +185,15 @@ function SettingsScreen() {
         text: 'Clear All',
         style: 'destructive',
         onPress: async () => {
-          await cancelAllReminders();
-          await dbDeleteAllTasks();
-          await refreshTasks();
-          Alert.alert('Done', 'All tasks cleared.');
+          if (state.focusSession?.isActive) {
+            const pinSet = await SessionPinModule.isPinSet().catch(() => false);
+            if (pinSet) {
+              pendingClearAllRef.current = true;
+              setFocusPinVisible(true);
+              return;
+            }
+          }
+          await clearAllTasks();
         },
       },
     ]);
@@ -207,94 +204,6 @@ function SettingsScreen() {
     if (state.focusSession?.isActive) {
       await SharedPrefsModule.setAllowedPackages(packages);
     }
-  };
-
-  const withDefensePin = (action: () => void) => {
-    SharedPrefsModule.getString('defense_pin_hash')
-      .then((hash) => {
-        if (hash) {
-          // PIN is set — always require it regardless of the toggle state.
-          pendingDefAction.current = action;
-          setDefPinVisible(true);
-        } else if (settings.pinProtectionEnabled) {
-          // Toggle is ON but no PIN is set yet — check if user said "don't ask again".
-          SharedPrefsModule.getString('pin_setup_prompt_dismissed')
-            .then((dismissed) => {
-              if (dismissed === 'true') {
-                // User dismissed the prompt — proceed freely until toggle is cycled.
-                action();
-              } else {
-                Alert.alert(
-                  'No Defense Password Set',
-                  "PIN Protection is on but you haven't set a defense password yet. Set one now so your changes are protected.",
-                  [
-                    {
-                      text: 'Set Password Now',
-                      onPress: () => {
-                        pendingDefAction.current = action;
-                        setPinSetupVisible(true);
-                      },
-                    },
-                    {
-                      text: 'Not Now',
-                      style: 'cancel',
-                      onPress: () => action(),
-                    },
-                    {
-                      text: "Don't Ask Again",
-                      style: 'destructive',
-                      onPress: () => {
-                        void SharedPrefsModule.putString('pin_setup_prompt_dismissed', 'true');
-                        action();
-                      },
-                    },
-                  ],
-                );
-              }
-            })
-            .catch(() => action());
-        } else {
-          // No PIN and toggle is OFF — proceed freely.
-          action();
-        }
-      })
-      .catch(() => action());
-  };
-
-  const handleSystemGuardToggle = (enabled: boolean) => {
-    if (!enabled && blockProtectionActive) {
-      Alert.alert('Protection is active', 'System controls protection cannot be turned off while Focus Mode or an app block is active.');
-      return;
-    }
-    if (!enabled) {
-      withDefensePin(() => void update({ systemGuardEnabled: false }));
-      return;
-    }
-    void update({ systemGuardEnabled: true });
-  };
-
-  const handleBlockYoutubeShortsToggle = (enabled: boolean) => {
-    if (!enabled && blockProtectionActive) {
-      Alert.alert('Protection is active', 'YouTube Shorts protection cannot be turned off while Focus Mode or an app block is active.');
-      return;
-    }
-    if (!enabled) {
-      withDefensePin(() => void update({ blockYoutubeShortsEnabled: false }));
-      return;
-    }
-    void update({ blockYoutubeShortsEnabled: true });
-  };
-
-  const handleBlockInstagramReelsToggle = (enabled: boolean) => {
-    if (!enabled && blockProtectionActive) {
-      Alert.alert('Protection is active', 'Instagram Reels protection cannot be turned off while Focus Mode or an app block is active.');
-      return;
-    }
-    if (!enabled) {
-      withDefensePin(() => void update({ blockInstagramReelsEnabled: false }));
-      return;
-    }
-    void update({ blockInstagramReelsEnabled: true });
   };
 
   return (
@@ -323,6 +232,13 @@ function SettingsScreen() {
             }
             onPress={() => router.push('/user-profile')}
           />
+        </Section>
+
+        {/* ── Appearance ── */}
+        <Section title="Appearance">
+          <SettingRow label="Dark Mode" description="Use a darker color palette throughout FocusFlow">
+            <DarkModeToggle />
+          </SettingRow>
         </Section>
 
         {/* ── Notifications ── */}
@@ -379,187 +295,6 @@ function SettingsScreen() {
             label="Manage Allowed Apps"
             description={settings.allowedInFocus.length === 0 ? 'All apps will be blocked during Focus Mode' : `${settings.allowedInFocus.length} app${settings.allowedInFocus.length !== 1 ? 's' : ''} allowed during Focus Mode`}
             onPress={() => setAppsModalVisible(true)}
-          />
-        </Section>
-
-        {/* ── Aversion Deterrents ── */}
-        <Section title="Aversion Deterrents">
-          <SettingRow label="Screen Dimmer" description="Near-black overlay appears while a blocked app is open">
-            <Switch
-              value={settings.aversionDimmerEnabled}
-              onValueChange={(v) => update({ aversionDimmerEnabled: v })}
-              trackColor={{ false: COLORS.border, true: COLORS.primary + '88' }}
-              thumbColor={settings.aversionDimmerEnabled ? COLORS.primary : COLORS.muted}
-            />
-          </SettingRow>
-          <SettingRow label="Vibration Harassment" description="Repeated pulse vibration while blocked app is in foreground">
-            <Switch
-              value={settings.aversionVibrateEnabled}
-              onValueChange={(v) => update({ aversionVibrateEnabled: v })}
-              trackColor={{ false: COLORS.border, true: COLORS.primary + '88' }}
-              thumbColor={settings.aversionVibrateEnabled ? COLORS.primary : COLORS.muted}
-            />
-          </SettingRow>
-          <SettingRow label="Sound Alert" description="Startling sound plays the moment a blocked app launches">
-            <Switch
-              value={settings.aversionSoundEnabled}
-              onValueChange={(v) => update({ aversionSoundEnabled: v })}
-              trackColor={{ false: COLORS.border, true: COLORS.primary + '88' }}
-              thumbColor={settings.aversionSoundEnabled ? COLORS.primary : COLORS.muted}
-            />
-          </SettingRow>
-        </Section>
-
-        {/* ── Daily App Allowance ── */}
-        <Section title="Daily App Allowance">
-          <SettingButton
-            icon="sunny-outline"
-            label="Manage Daily Allowance Apps"
-            description={
-              (settings.dailyAllowanceEntries ?? []).length === 0
-                ? 'No apps configured — set count, time budget, or interval per app'
-                : `${(settings.dailyAllowanceEntries ?? []).length} app${(settings.dailyAllowanceEntries ?? []).length !== 1 ? 's' : ''} with daily allowance — tap to configure modes`
-            }
-            onPress={() => setDailyModalVisible(true)}
-          />
-        </Section>
-
-        {/* ── Word Blocking ── */}
-        <Section title="Word Blocking">
-          <SettingButton
-            icon="text-outline"
-            label="Manage Blocked Keywords"
-            description={
-              (settings.blockedWords ?? []).length === 0
-                ? 'No keywords set — blocked in URLs, searches & on-screen text'
-                : `${(settings.blockedWords ?? []).length} keyword${(settings.blockedWords ?? []).length !== 1 ? 's' : ''} — blocked in URLs, searches & on-screen text`
-            }
-            onPress={() => setWordsModalVisible(true)}
-          />
-        </Section>
-
-        <Section title="PIN Protection">
-          <SettingRow
-            label="Require password to disable protections"
-            description={
-              (settings.pinProtectionEnabled ?? false)
-                ? 'On — turning off any protection toggle requires your Defense Password'
-                : 'Off — protection toggles can be changed freely without a password'
-            }
-          >
-            <Switch
-              value={settings.pinProtectionEnabled ?? false}
-              onValueChange={(v) => {
-                void update({ pinProtectionEnabled: v });
-                if (!v) {
-                  // Reset "don't ask again" so the prompt shows fresh next time the toggle is enabled.
-                  void SharedPrefsModule.putString('pin_setup_prompt_dismissed', '');
-                }
-              }}
-              trackColor={{ false: COLORS.border, true: COLORS.primary + '88' }}
-              thumbColor={(settings.pinProtectionEnabled ?? false) ? COLORS.primary : COLORS.muted}
-            />
-          </SettingRow>
-          <SettingButton
-            icon="shield-half-outline"
-            label="Manage PIN Passwords"
-            description="Set or change your focus session and defense passwords"
-            onPress={() => router.push('/block-defense')}
-          />
-        </Section>
-
-        <Section title="System Protection">
-          <SettingRow
-            label="Protect system controls"
-            description={
-              blockProtectionActive
-                ? 'Locked on until Focus Mode or the active app block ends'
-                : 'Blocks power menu, notification shade, Emergency mode, and sensitive Settings pages during active blocks'
-            }
-          >
-            <Switch
-              value={settings.systemGuardEnabled ?? false}
-              onValueChange={handleSystemGuardToggle}
-              disabled={blockProtectionActive && (settings.systemGuardEnabled ?? false)}
-              trackColor={{ false: COLORS.border, true: COLORS.primary + '88' }}
-              thumbColor={(settings.systemGuardEnabled ?? false) ? COLORS.primary : COLORS.muted}
-            />
-          </SettingRow>
-
-          <SettingRow
-            label="Block YouTube Shorts"
-            description={
-              blockProtectionActive && (settings.blockYoutubeShortsEnabled ?? false)
-                ? 'Locked on until Focus Mode or the active app block ends'
-                : 'Redirects to home whenever the YouTube Shorts player opens (regular YouTube stays usable)'
-            }
-          >
-            <Switch
-              value={settings.blockYoutubeShortsEnabled ?? false}
-              onValueChange={handleBlockYoutubeShortsToggle}
-              disabled={blockProtectionActive && (settings.blockYoutubeShortsEnabled ?? false)}
-              trackColor={{ false: COLORS.border, true: COLORS.primary + '88' }}
-              thumbColor={(settings.blockYoutubeShortsEnabled ?? false) ? COLORS.primary : COLORS.muted}
-            />
-          </SettingRow>
-
-          <SettingRow
-            label="Block Instagram Reels"
-            description={
-              blockProtectionActive && (settings.blockInstagramReelsEnabled ?? false)
-                ? 'Locked on until Focus Mode or the active app block ends'
-                : 'Redirects to home whenever the Instagram Reels viewer opens (the rest of Instagram stays usable)'
-            }
-          >
-            <Switch
-              value={settings.blockInstagramReelsEnabled ?? false}
-              onValueChange={handleBlockInstagramReelsToggle}
-              disabled={blockProtectionActive && (settings.blockInstagramReelsEnabled ?? false)}
-              trackColor={{ false: COLORS.border, true: COLORS.primary + '88' }}
-              thumbColor={(settings.blockInstagramReelsEnabled ?? false) ? COLORS.primary : COLORS.muted}
-            />
-          </SettingRow>
-        </Section>
-
-        {/* ── Block Schedules ── */}
-        <Section title="Block Schedules">
-          <SettingButton
-            icon="time-outline"
-            label="Manage Time-Window Blocks"
-            description={
-              (settings.greyoutSchedule ?? []).length === 0
-                ? 'No windows set — block apps during specific hours and days'
-                : `${(settings.greyoutSchedule ?? []).length} window${(settings.greyoutSchedule ?? []).length !== 1 ? 's' : ''} active — tap to manage`
-            }
-            onPress={() => setGreyoutModalVisible(true)}
-          />
-        </Section>
-
-        {/* ── Standalone Block ── */}
-        <Section title="Standalone Block">
-          {standaloneActive ? (
-            <View style={styles.blockActiveCard}>
-              <View style={styles.blockActiveRow}>
-                <View style={styles.blockDot} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.blockActiveTitle}>Block active</Text>
-                  <Text style={styles.blockActiveDesc}>
-                    {(settings.standaloneBlockPackages ?? []).length} app{(settings.standaloneBlockPackages ?? []).length !== 1 ? 's' : ''} blocked until {blockUntilLabel}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          ) : (
-            <View style={styles.blockInactiveCard}>
-              <Ionicons name="shield-outline" size={18} color={theme.muted} />
-              <Text style={[styles.blockInactiveText, { color: theme.muted }]}>No scheduled block active</Text>
-            </View>
-          )}
-          <SettingButton
-            icon={standaloneActive ? 'lock-closed-outline' : 'ban-outline'}
-            label={standaloneActive ? 'Add More Apps to Block' : 'Set Standalone Block'}
-            description={standaloneActive ? 'Block is locked — you can add apps but not remove any until it expires' : 'Block specific apps until a date and time — regardless of tasks. Apps stay retained for always-on enforcement after the timer ends.'}
-            onPress={() => setBlockModalVisible(true)}
           />
         </Section>
 
@@ -639,15 +374,9 @@ function SettingsScreen() {
         {showDiagnostics && (
           <Section title="Diagnostics">
             <SettingButton
-              icon="terminal-outline"
-              label="View Logs"
-              description="Review local diagnostics and refresh the error log"
-              onPress={() => setDiagnosticsVisible(true)}
-            />
-            <SettingButton
               icon="paper-plane-outline"
               label="Report an Issue"
-              description="Open the same report form used from the log screen"
+              description="Review and email a bug report, feedback, or app review"
               onPress={() => setReportIssueVisible(true)}
             />
           </Section>
@@ -698,7 +427,7 @@ function SettingsScreen() {
         </Section>
 
         <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: theme.muted }]}>FocusFlow v1.0.8 (build 9)</Text>
+          <Text style={[styles.footerText, { color: theme.muted }]}>FocusFlow v1.1.0 (build 11)</Text>
           <Text style={[styles.footerText, { color: theme.muted }]}>All data stored locally on device</Text>
         </View>
       </ScrollView>
@@ -708,61 +437,6 @@ function SettingsScreen() {
         allowedPackages={settings.allowedInFocus}
         onSave={handleSaveAllowedApps}
         onClose={() => setAppsModalVisible(false)}
-      />
-
-      <StandaloneBlockModal
-        visible={blockModalVisible}
-        blockedPackages={settings.standaloneBlockPackages ?? []}
-        blockUntil={settings.standaloneBlockUntil}
-        locked={standaloneActive}
-        dailyAllowanceEntries={settings.dailyAllowanceEntries ?? []}
-        vpnPackages={settings.standaloneVpnPackages ?? []}
-        blockPresets={settings.blockPresets ?? []}
-        onSave={handleSaveStandaloneBlock}
-        onSavePreset={handleSaveBlockPreset}
-        onDeletePreset={handleDeleteBlockPreset}
-        onClose={() => setBlockModalVisible(false)}
-      />
-
-      <DailyAllowanceModal
-        visible={dailyModalVisible}
-        selectedEntries={settings.dailyAllowanceEntries ?? []}
-        locked={standaloneActive}
-        requireDefensePin={true}
-        onSave={async (entries) => { await setDailyAllowanceEntries(entries); }}
-        onClose={() => setDailyModalVisible(false)}
-      />
-
-      <BlockedWordsModal
-        visible={wordsModalVisible}
-        words={settings.blockedWords ?? []}
-        locked={standaloneActive}
-        requireDefensePin={true}
-        onSave={async (words) => { await setBlockedWords(words); }}
-        onClose={() => setWordsModalVisible(false)}
-      />
-
-      <PinVerifyModal
-        visible={defPinVisible}
-        pinType="defense"
-        title="Defense Password Required"
-        description="Enter your defense password to make this change."
-        onVerified={() => {
-          setDefPinVisible(false);
-          pendingDefAction.current?.();
-          pendingDefAction.current = null;
-        }}
-        onCancel={() => {
-          setDefPinVisible(false);
-          pendingDefAction.current = null;
-        }}
-      />
-
-      <GreyoutScheduleModal
-        visible={greyoutModalVisible}
-        windows={settings.greyoutSchedule ?? []}
-        onSave={async (windows: GreyoutWindow[]) => { await update({ greyoutSchedule: windows }); }}
-        onClose={() => setGreyoutModalVisible(false)}
       />
 
       <OverlayAppearanceModal
@@ -779,20 +453,28 @@ function SettingsScreen() {
         visible={reportIssueVisible}
         onClose={() => setReportIssueVisible(false)}
       />
-
-      <PinSetupModal
-        visible={pinSetupVisible}
-        pinType="defense"
-        onSaved={() => {
-          setPinSetupVisible(false);
-          pendingDefAction.current?.();
-          pendingDefAction.current = null;
+      <PinVerifyModal
+        visible={focusPinVisible}
+        pinType="focus"
+        title="Focus Session Password Required"
+        description="Enter your focus session password before clearing tasks and ending the active focus session."
+        onVerified={(hash) => {
+          setFocusPinVisible(false);
+          if (!pendingClearAllRef.current) return;
+          pendingClearAllRef.current = false;
+          void clearAllTasks(hash).catch(() => {
+            Alert.alert('Clear failed', 'Could not stop the active focus session and clear tasks.');
+          });
         }}
         onCancel={() => {
-          setPinSetupVisible(false);
-          pendingDefAction.current = null;
+          pendingClearAllRef.current = false;
+          setFocusPinVisible(false);
+          void clearAllTasks().catch(() => {
+            Alert.alert('Clear failed', 'Could not clear the other tasks.');
+          });
         }}
       />
+
     </SafeAreaView>
   );
 }
@@ -859,6 +541,9 @@ function SettingButton({
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.background },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     padding: SPACING.lg,
     backgroundColor: COLORS.card,
     borderBottomWidth: StyleSheet.hairlineWidth,

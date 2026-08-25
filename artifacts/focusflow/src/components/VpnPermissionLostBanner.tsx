@@ -142,7 +142,7 @@ export function VpnPermissionLostBanner({ vpnBlockEnabled, vpnPackages }: Props)
     >
       <View style={styles.inner}>
         <View style={styles.iconWrap}>
-          <Ionicons name="shield-half-outline" size={20} color="#EF4444" />
+          <Ionicons name="shield-half-outline" size={20} color="#ff6b35" />
         </View>
         <View style={styles.textWrap}>
           <Text style={styles.title}>
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     backgroundColor: '#1a1a2e',
     borderWidth: 1,
-    borderColor: '#EF444440',
+    borderColor: '#ff6b3540',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#EF444420',
+    backgroundColor: '#ff6b3520',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -228,14 +228,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#EF4444',
+    backgroundColor: '#ff6b35',
     borderRadius: RADIUS.md,
     paddingHorizontal: SPACING.sm + 2,
     paddingVertical: SPACING.xs + 2,
     flexShrink: 0,
   },
   regrantBtnBusy: {
-    backgroundColor: '#EF444480',
+    backgroundColor: '#ff6b3580',
   },
   regrantText: {
     fontSize: 12,

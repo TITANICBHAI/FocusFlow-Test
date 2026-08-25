@@ -666,6 +666,11 @@ function withFocusDayKotlin(config) {
       const kotlinDest = path.join(destRoot, 'java', pkg);
       copyDirSync(kotlinSrc, kotlinDest);
 
+      // ── Copy durable JVM test sources ─────────────────────────────────────
+      const testSrc  = path.join(projectRoot, 'android-native', 'app', 'src', 'test');
+      const testDest = path.join(platformRoot, 'app', 'src', 'test');
+      copyDirSync(testSrc, testDest);
+
       // ── Copy resource files (XML configs) ────────────────────────────────
       const resSrc  = path.join(srcRoot, 'res');
       const resDest = path.join(destRoot, 'res');
@@ -908,6 +913,84 @@ function withFocusDayBackupRules(config) {
   return config;
 }
 
+// ─── 7. .focusflow file association ───────────────────────────────────────────
+//
+// Keep these filters on the generated main activity so Android can deliver
+// backups opened from Files, Drive, or another file manager to the JS host.
+// The guards make the modifier safe to run repeatedly during prebuild.
+function withFocusFlowFileAssociation(config) {
+  return withAndroidManifest(config, (cfg) => {
+    const app = cfg.modResults.manifest.application[0];
+    const mainActivity = (app.activity || []).find((activity) =>
+      String(activity.$?.['android:name'] ?? '').endsWith('MainActivity'),
+    );
+
+    if (!mainActivity) {
+      throw new Error(
+        '[withFocusDayAndroid] Could not find the generated MainActivity for .focusflow file association.',
+      );
+    }
+
+    if (!mainActivity['intent-filter']) mainActivity['intent-filter'] = [];
+    const filters = mainActivity['intent-filter'];
+
+    const hasFileAssociationFilter = (scheme, mimeType, pathPattern) =>
+      filters.some((filter) => {
+        const actions = (filter.action || []).map((action) => action.$?.['android:name']);
+        const categories = (filter.category || []).map((category) => category.$?.['android:name']);
+        const data = filter.data || [];
+        return (
+          actions.includes('android.intent.action.VIEW') &&
+          categories.includes('android.intent.category.DEFAULT') &&
+          categories.includes('android.intent.category.BROWSABLE') &&
+          data.some((entry) => {
+            const attrs = entry.$ || {};
+            return (
+              attrs['android:scheme'] === scheme &&
+              attrs['android:mimeType'] === mimeType &&
+              (pathPattern === undefined || attrs['android:pathPattern'] === pathPattern)
+            );
+          })
+        );
+      });
+
+    const viewActions = [{ $: { 'android:name': 'android.intent.action.VIEW' } }];
+    const browsableCategories = [
+      { $: { 'android:name': 'android.intent.category.DEFAULT' } },
+      { $: { 'android:name': 'android.intent.category.BROWSABLE' } },
+    ];
+
+    if (!hasFileAssociationFilter('content', 'application/octet-stream')) {
+      filters.push({
+        action: viewActions,
+        category: browsableCategories,
+        data: [{
+          $: {
+            'android:scheme': 'content',
+            'android:mimeType': 'application/octet-stream',
+          },
+        }],
+      });
+    }
+
+    if (!hasFileAssociationFilter('file', 'application/octet-stream', '.*\\.focusflow')) {
+      filters.push({
+        action: viewActions,
+        category: browsableCategories,
+        data: [{
+          $: {
+            'android:scheme': 'file',
+            'android:mimeType': 'application/octet-stream',
+            'android:pathPattern': '.*\\.focusflow',
+          },
+        }],
+      });
+    }
+
+    return cfg;
+  });
+}
+
 // ─── Compose & export ─────────────────────────────────────────────────────────
 
 module.exports = function withFocusDayAndroid(config) {
@@ -918,6 +1001,7 @@ module.exports = function withFocusDayAndroid(config) {
   config = withFocusDayBuildConfig(config);
   config = withFocusDayProguard(config);
   config = withFocusDayBackupRules(config);
+  config = withFocusFlowFileAssociation(config);
   return config;
 };
 

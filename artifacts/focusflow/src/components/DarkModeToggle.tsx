@@ -34,7 +34,7 @@ export default function DarkModeToggle() {
 
   const trackBg = trackColor.interpolate({
     inputRange: [0, 1],
-    outputRange: ['#DDE8FF', '#1A2B4A'],
+    outputRange: ['#93c5fd', '#312e81'],
   });
 
   return (
@@ -49,7 +49,7 @@ export default function DarkModeToggle() {
         {/* Light-mode accent: sun + cloud on the right */}
         <View style={styles.lightIcons}>
           <Ionicons name="cloud-outline" size={9} color="rgba(255,255,255,0.7)" />
-          <Ionicons name="sunny" size={10} color="#F59E0B" />
+          <Ionicons name="sunny" size={10} color="#fbbf24" />
         </View>
 
         {/* Dark-mode accent: stars on the left */}
@@ -66,9 +66,9 @@ export default function DarkModeToggle() {
           ]}
         >
           {isDark ? (
-            <Ionicons name="moon" size={13} color="#4F8EF7" />
+            <Ionicons name="moon" size={13} color="#6366f1" />
           ) : (
-            <Ionicons name="sunny" size={13} color="#F59E0B" />
+            <Ionicons name="sunny" size={13} color="#f59e0b" />
           )}
         </Animated.View>
       </Animated.View>

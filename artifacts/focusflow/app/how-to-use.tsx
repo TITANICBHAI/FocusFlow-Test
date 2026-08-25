@@ -18,7 +18,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { useTheme } from '@/hooks/useTheme';
-import FocusFlowLogo from '@/components/FocusFlowLogo';
 import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
 
 interface GuideSection {
@@ -35,7 +34,7 @@ const GUIDE: GuideSection[] = [
     color: COLORS.primary,
     steps: [
       { heading: 'Add a task', body: 'Tap the + button on the Schedule tab. Give it a name, pick a start time and duration. Tap Save.' },
-      { heading: 'Set priority', body: 'Tasks are colour-coded by priority — critical (red), high (orange), medium (violet), low (grey). Higher-priority tasks surface first.' },
+      { heading: 'Set priority', body: 'Tasks are colour-coded by priority — critical (red), high (orange), medium (indigo), low (grey). Higher-priority tasks surface first.' },
       { heading: 'Start focusing', body: 'When a task is active, the Focus tab lights up. Tap "Start Focus Mode" to activate app blocking.' },
     ],
   },
@@ -98,7 +97,7 @@ export default function HowToUseScreen() {
   const { theme, isDark } = useTheme();
   const params = useLocalSearchParams<{ onboarding?: string }>();
   // When opened as part of the first-run flow, hide the back arrow and show
-  // a prominent "Get Started" CTA at the bottom that drops the user on /.
+  // a prominent "Get Started" CTA at the bottom that drops the user on Focus.
   const isOnboarding = params.onboarding === '1';
   const [expanded, setExpanded] = useState<number | null>(0);
 
@@ -110,7 +109,7 @@ export default function HowToUseScreen() {
   useEffect(() => {
     if (!isOnboarding) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      router.replace('/');
+      router.replace('/(tabs)/focus');
       return true;
     });
     return () => sub.remove();
@@ -124,20 +123,17 @@ export default function HowToUseScreen() {
             <Ionicons name="chevron-back" size={24} color={theme.text} />
           </TouchableOpacity>
         )}
-        <View style={{ marginLeft: isOnboarding ? 0 : SPACING.sm, flex: 1, flexDirection: 'row', alignItems: 'center' }}>
-          <FocusFlowLogo size={30} />
-          <View style={{ marginLeft: SPACING.sm, flex: 1 }}>
+        <View style={{ marginLeft: isOnboarding ? 0 : SPACING.sm, flex: 1 }}>
           <Text style={[styles.title, { color: theme.text }]}>
             {isOnboarding ? 'Welcome to FocusFlow' : 'How to Use FocusFlow'}
           </Text>
           <Text style={[styles.subtitle, { color: theme.muted }]}>
             {isOnboarding ? 'A quick tour before you get started' : 'Your discipline operating system — explained'}
           </Text>
-          </View>
         </View>
         {isOnboarding && (
           <TouchableOpacity
-            onPress={() => router.replace('/')}
+            onPress={() => router.replace('/(tabs)/focus')}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             style={styles.skipLink}
           >
@@ -209,7 +205,7 @@ export default function HowToUseScreen() {
         {isOnboarding && (
           <TouchableOpacity
             style={[styles.ctaBtn, { backgroundColor: COLORS.primary }]}
-            onPress={() => router.replace('/')}
+            onPress={() => router.replace('/(tabs)/focus')}
             activeOpacity={0.85}
           >
             <Text style={styles.ctaText}>Got it — let&apos;s start</Text>

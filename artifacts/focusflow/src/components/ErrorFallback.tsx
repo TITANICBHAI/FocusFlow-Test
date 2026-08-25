@@ -28,12 +28,12 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
   const insets = useSafeAreaInsets();
 
   const theme = {
-    background: isDark ? "#0A0A14" : "#F7F8FC",
-    backgroundSecondary: isDark ? "#111421" : "#EEF1F8",
-    text: isDark ? "#F5F7FF" : "#141722",
+    background: isDark ? "#000000" : "#FFFFFF",
+    backgroundSecondary: isDark ? "#1C1C1E" : "#F2F2F7",
+    text: isDark ? "#FFFFFF" : "#000000",
     textSecondary: isDark ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.7)",
-    link: "#4F8EF7",
-    danger: "#EF4444",
+    link: "#007AFF",
+    danger: "#FF3B30",
     buttonText: "#FFFFFF",
   };
 

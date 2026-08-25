@@ -164,7 +164,7 @@ export function SideMenu({ visible, onOpen, onClose, tabBarHeight }: SideMenuPro
           styles.panel,
           {
             width: MENU_W,
-            backgroundColor: isDark ? COLORS.darkCard : '#FFFFFF',
+            backgroundColor: isDark ? COLORS.darkCard : '#fff',
             paddingTop: insets.top + 8,
             paddingBottom: insets.bottom + 16,
             transform: [{ translateX }],
@@ -375,7 +375,7 @@ export function SideMenuToggle({ onPress, isOpen, tabBarHeight }: SideMenuToggle
         styles.toggle,
         {
           bottom: tabBarHeight + 16,
-          backgroundColor: isDark ? COLORS.darkCard : '#FFFFFF',
+          backgroundColor: isDark ? COLORS.darkCard : '#fff',
           borderColor: isDark ? COLORS.darkBorder : COLORS.border,
           transform: [{ scale }],
         },
@@ -466,9 +466,9 @@ function MenuSection({
         </Text>
       </View>
       {subtitle && (
-        <Text style={[styles.sectionSubtitle, { color: isDark ? COLORS.muted : COLORS.textSecondary }]}>{subtitle}</Text>
+        <Text style={[styles.sectionSubtitle, { color: isDark ? '#4b5563' : '#9ca3af' }]}>{subtitle}</Text>
       )}
-      <View style={[styles.sectionCard, { backgroundColor: isDark ? COLORS.darkSurface : '#F0F2F7', borderColor: isDark ? COLORS.darkBorder : COLORS.border }]}>
+      <View style={[styles.sectionCard, { backgroundColor: isDark ? '#111827' : '#f9fafb', borderColor: isDark ? COLORS.darkBorder : COLORS.border }]}>
         {children}
       </View>
     </View>
@@ -507,7 +507,7 @@ function MenuItem({
       <View style={{ flex: 1, gap: 1 }}>
         <Text style={[styles.menuItemLabel, { color: isDark ? COLORS.darkText : COLORS.text }]}>{label}</Text>
         {description && (
-          <Text style={[styles.menuItemDesc, { color: isDark ? COLORS.muted : COLORS.textSecondary }]} numberOfLines={1}>
+          <Text style={[styles.menuItemDesc, { color: isDark ? '#6b7280' : COLORS.textSecondary }]} numberOfLines={1}>
             {description}
           </Text>
         )}

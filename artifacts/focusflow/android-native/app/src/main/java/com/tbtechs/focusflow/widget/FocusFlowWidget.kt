@@ -39,7 +39,7 @@ import java.util.Calendar
  *      Tap → Schedule tab
  *
  *   4. STANDALONE BLOCK  — standalone app block active (no task).
- *      Header: green · "BLOCK ACTIVE"
+ *      Header: indigo · "BLOCK ACTIVE"
  *      Left:   "Blocking N apps · until HH:MM"
  *      Right:  (hidden)
  *      Tap → Schedule tab
@@ -54,7 +54,7 @@ import java.util.Calendar
  *   task_name                String  — active / awaiting task display name
  *   task_end_ms              Long    — task end epoch ms
  *   task_start_ms            Long    — task start epoch ms (for progress %)
- *   task_color               String  — task accent hex (e.g. "#4F8EF7")
+ *   task_color               String  — task accent hex (e.g. "#6366f1")
  *   task_awaiting_decision   String  — "true" when task ended, user not resolved yet
  *   next_upcoming_name       String  — name of the next upcoming task (idle only)
  *   next_upcoming_start_ms   String  — start epoch ms as a string (idle only)
@@ -71,7 +71,7 @@ class FocusFlowWidget : AppWidgetProvider() {
 
     companion object {
         private const val PREFS_NAME     = "focusday_prefs"
-        private const val DEFAULT_ACCENT = "#4F8EF7"
+        private const val DEFAULT_ACCENT = "#6366f1"
 
         // PendingIntent request codes — must be unique per target
         private const val PI_TAP_ROOT = 100

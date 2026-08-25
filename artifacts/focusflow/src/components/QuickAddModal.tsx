@@ -11,12 +11,13 @@ import {
   Switch,
   Alert,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
-import { createTask, parseQuickInput, formatDuration } from '@/services/taskService';
+import { createTask, formatDuration } from '@/services/taskService';
 import { COLORS, FONT, RADIUS, SPACING, TASK_COLORS } from '@/styles/theme';
 import { useTheme } from '@/hooks/useTheme';
 import type { Task, TaskPriority, AllowedAppPreset } from '@/data/types';
@@ -47,7 +48,6 @@ export default function QuickAddModal({ visible, onClose, onSave, initialStartTi
   const { theme } = useTheme();
   const presets: AllowedAppPreset[] = state.settings.allowedAppPresets ?? [];
 
-  const [quickText, setQuickText] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState<Date>(() => initialDate(initialStartTime));
@@ -64,22 +64,10 @@ export default function QuickAddModal({ visible, onClose, onSave, initialStartTi
   const [useGlobalApps, setUseGlobalApps] = useState(true);
   const [focusAllowedPackages, setFocusAllowedPackages] = useState<string[]>([]);
   const [showAppPicker, setShowAppPicker] = useState(false);
-  const [isAdvanced, setIsAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const handleQuickParse = useCallback(() => {
-    if (!quickText.trim()) return;
-    const parsed = parseQuickInput(quickText);
-    setTitle(parsed.title);
-    setDuration(parsed.durationMinutes);
-    if (parsed.startTime) {
-      setStartDate(new Date(parsed.startTime));
-    }
-    setIsAdvanced(true);
-  }, [quickText]);
-
   const handleSave = useCallback(async () => {
-    const finalTitle = title || quickText || 'New Task';
+    const finalTitle = title;
     if (!finalTitle.trim()) {
       Alert.alert('Title required', 'Please enter a task title.');
       return;
@@ -108,10 +96,9 @@ export default function QuickAddModal({ visible, onClose, onSave, initialStartTi
     } finally {
       setSaving(false);
     }
-  }, [title, quickText, description, startDate, duration, priority, tags, color, focusMode, focusAllowedPackages, useGlobalApps, onSave]);
+  }, [title, description, startDate, duration, priority, tags, color, focusMode, focusAllowedPackages, useGlobalApps, onSave]);
 
   const handleClose = () => {
-    setQuickText('');
     setTitle('');
     setDescription('');
     setStartDate(initialDate(initialStartTime));
@@ -127,7 +114,6 @@ export default function QuickAddModal({ visible, onClose, onSave, initialStartTi
     setUseGlobalApps(true);
     setFocusAllowedPackages([]);
     setShowAppPicker(false);
-    setIsAdvanced(false);
     onClose();
   };
 
@@ -177,30 +163,12 @@ export default function QuickAddModal({ visible, onClose, onSave, initialStartTi
             <ScrollView
               style={styles.body}
               contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
-              keyboardShouldPersistTaps="handled"
+              keyboardShouldPersistTaps="never"
+              keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+              onScrollBeginDrag={Keyboard.dismiss}
             >
 
-              {/* Quick input */}
-              {!isAdvanced && (
-                <View style={styles.quickRow}>
-                  <TextInput
-                    style={[styles.quickInput, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
-                    placeholder='e.g. "Call Bob at 3pm for 30m"'
-                    placeholderTextColor={theme.muted}
-                    value={quickText}
-                    onChangeText={setQuickText}
-                    onSubmitEditing={handleQuickParse}
-                    returnKeyType="done"
-                    autoFocus
-                  />
-                  <TouchableOpacity style={styles.parseBtn} onPress={handleQuickParse}>
-                    <Ionicons name="flash" size={18} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              {(isAdvanced || !quickText) && (
-                <>
+              <>
                   {/* Title */}
                   <Field label="Title" labelColor={theme.textSecondary}>
                     <TextInput
@@ -209,7 +177,6 @@ export default function QuickAddModal({ visible, onClose, onSave, initialStartTi
                       placeholderTextColor={theme.muted}
                       value={title}
                       onChangeText={setTitle}
-                      autoFocus={isAdvanced}
                     />
                   </Field>
 
@@ -332,12 +299,29 @@ export default function QuickAddModal({ visible, onClose, onSave, initialStartTi
                           keyboardType="number-pad"
                           placeholder="Minutes"
                           placeholderTextColor={theme.muted}
-                          autoFocus
                         />
                         <Text style={[styles.customDurationLabel, { color: theme.textSecondary }]}>minutes</Text>
                       </View>
                     )}
                   </Field>
+
+                  {/* Pomodoro applies to the focus session started for this task. */}
+                  <View style={[styles.switchRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.switchLabel, { color: theme.text }]}>Pomodoro Mode</Text>
+                      <Text style={[styles.switchDesc, { color: theme.muted }]}>
+                        {state.settings.pomodoroEnabled
+                          ? `On — ${state.settings.pomodoroDuration ?? 25}m work / ${state.settings.pomodoroBreak ?? 5}m break`
+                          : 'Off — one continuous focus session'}
+                      </Text>
+                    </View>
+                    <Switch
+                      value={state.settings.pomodoroEnabled}
+                      onValueChange={(v) => { void updateSettings({ ...state.settings, pomodoroEnabled: v }); }}
+                      trackColor={{ false: theme.border, true: COLORS.primary + '88' }}
+                      thumbColor={state.settings.pomodoroEnabled ? COLORS.primary : theme.muted}
+                    />
+                  </View>
 
                   {/* Priority */}
                   <Field label="Priority" labelColor={theme.textSecondary}>
@@ -395,26 +379,6 @@ export default function QuickAddModal({ visible, onClose, onSave, initialStartTi
                     />
                   </View>
 
-                  {/* Pomodoro toggle — shown when focus mode is on */}
-                  {focusMode && (
-                    <View style={[styles.switchRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.switchLabel, { color: theme.text }]}>Pomodoro Mode</Text>
-                        <Text style={[styles.switchDesc, { color: theme.muted }]}>
-                          {state.settings.pomodoroEnabled
-                            ? `On — ${state.settings.pomodoroDuration ?? 25}m work / ${state.settings.pomodoroBreak ?? 5}m break`
-                            : 'Off — one continuous session (global setting)'}
-                        </Text>
-                      </View>
-                      <Switch
-                        value={state.settings.pomodoroEnabled}
-                        onValueChange={(v) => { void updateSettings({ ...state.settings, pomodoroEnabled: v }); }}
-                        trackColor={{ false: theme.border, true: COLORS.primary + '88' }}
-                        thumbColor={state.settings.pomodoroEnabled ? COLORS.primary : theme.muted}
-                      />
-                    </View>
-                  )}
-
                   {/* Allowed apps — shown when focus mode is on */}
                   {focusMode && (
                     <>
@@ -453,8 +417,7 @@ export default function QuickAddModal({ visible, onClose, onSave, initialStartTi
                       )}
                     </>
                   )}
-                </>
-              )}
+              </>
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -508,25 +471,6 @@ const styles = StyleSheet.create({
   },
   saveBtnText: { color: '#fff', fontWeight: '700', fontSize: FONT.sm },
   body: { flex: 1, padding: SPACING.lg },
-  quickRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.md },
-  quickInput: {
-    flex: 1,
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.md,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    fontSize: FONT.md,
-    color: COLORS.text,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  parseBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.md,
-    paddingHorizontal: SPACING.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   field: { marginBottom: SPACING.md },
   fieldLabel: { fontSize: FONT.sm, fontWeight: '600', color: COLORS.textSecondary, marginBottom: SPACING.xs },
   input: {

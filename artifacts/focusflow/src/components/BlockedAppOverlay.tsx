@@ -82,11 +82,11 @@ export function BlockedAppOverlay() {
         >
           {/* Icon */}
           <View style={styles.iconCircle}>
-            <Ionicons name="shield-checkmark" size={52} color={COLORS.green} />
+            <Ionicons name="ban" size={52} color={COLORS.red} />
           </View>
 
           {/* Title */}
-          <Text style={styles.blockedLabel}>PROTECTED</Text>
+          <Text style={styles.blockedLabel}>APP BLOCKED</Text>
 
           {/* App name */}
           <Text style={styles.appName} numberOfLines={2}>
@@ -127,10 +127,10 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: '#10161A',
+    backgroundColor: '#1a0505',
     borderRadius: RADIUS.xl,
     borderWidth: 1.5,
-    borderColor: COLORS.green + '55',
+    borderColor: COLORS.red + '55',
     alignItems: 'center',
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.xxl,
@@ -140,9 +140,9 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: COLORS.green + '18',
+    backgroundColor: COLORS.red + '18',
     borderWidth: 2,
-    borderColor: COLORS.green + '44',
+    borderColor: COLORS.red + '44',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.xs,
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
     fontSize: FONT.xs,
     fontWeight: '800',
     letterSpacing: 3,
-    color: COLORS.green,
+    color: COLORS.red,
     textTransform: 'uppercase',
   },
   appName: {
@@ -180,8 +180,8 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: FONT.xs,
-    color: COLORS.green,
-    fontWeight: '700',
+    color: COLORS.primary,
+    fontWeight: '600',
   },
   dismissHint: {
     fontSize: FONT.xs,

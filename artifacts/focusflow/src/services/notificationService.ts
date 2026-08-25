@@ -55,7 +55,7 @@ export async function setupNotificationChannels(): Promise<void> {
     name: 'Task Reminders',
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#4F8EF7',
+    lightColor: '#6366f1',
     sound: 'default',
   });
   // Morning digest channel — low-priority daily summary, no vibration.
@@ -71,7 +71,7 @@ export async function setupNotificationChannels(): Promise<void> {
     name: 'Weekly Report',
     importance: Notifications.AndroidImportance.DEFAULT,
     vibrationPattern: [0, 200],
-    lightColor: '#4F8EF7',
+    lightColor: '#6366f1',
     sound: 'default',
   });
 }
@@ -330,6 +330,33 @@ export function cancelAllReminders(): Promise<void> {
     await Notifications.cancelAllScheduledNotificationsAsync();
     if (Platform.OS === 'android') {
       await Promise.all(taskIds.map((taskId) => TaskAlarmModule.cancelAlarm(taskId)));
+    }
+  });
+}
+
+/** Cancels task reminders while preserving the reminders for one active task. */
+export function cancelAllRemindersExcept(taskId: string): Promise<void> {
+  return enqueueNotificationWrite(async () => {
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    const taskIds = [
+      ...new Set(
+        scheduled
+          .map((notification) => notification.content.data?.taskId)
+          .filter(
+            (scheduledTaskId): scheduledTaskId is string =>
+              typeof scheduledTaskId === 'string' &&
+              scheduledTaskId.length > 0 &&
+              scheduledTaskId !== taskId,
+          ),
+      ),
+    ];
+    await Promise.all(
+      scheduled
+        .filter((notification) => notification.content.data?.taskId !== taskId)
+        .map((notification) => Notifications.cancelScheduledNotificationAsync(notification.identifier)),
+    );
+    if (Platform.OS === 'android') {
+      await Promise.all(taskIds.map((scheduledTaskId) => TaskAlarmModule.cancelAlarm(scheduledTaskId)));
     }
   });
 }

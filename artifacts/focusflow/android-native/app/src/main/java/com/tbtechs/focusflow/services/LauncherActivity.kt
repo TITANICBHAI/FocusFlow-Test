@@ -86,7 +86,7 @@ class LauncherActivity : Activity() {
         private const val DRAWER_TYPE_HEADER   = 0
         private const val DRAWER_TYPE_APP      = 1
 
-        private val ACCENT       = Color.parseColor("#4F8EF7")
+        private val ACCENT       = Color.parseColor("#6366f1")
         // Scrim: 20% black — wallpaper shows through naturally.
         // The dock area gets its own darker gradient so icons stay readable.
         private val SCRIM_COLOR  = Color.parseColor("#33000000")
@@ -1455,7 +1455,7 @@ class AnalogClockView(context: android.content.Context) : android.view.View(cont
         style = android.graphics.Paint.Style.FILL
     }
     private val paintRim = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-        color = android.graphics.Color.parseColor("#4F8EF7")
+        color = android.graphics.Color.parseColor("#6366f1")
         style = android.graphics.Paint.Style.STROKE
         strokeWidth = 3f
     }
@@ -1472,7 +1472,7 @@ class AnalogClockView(context: android.content.Context) : android.view.View(cont
         strokeCap = android.graphics.Paint.Cap.ROUND
     }
     private val paintSecond = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-        color = android.graphics.Color.parseColor("#4F8EF7")
+        color = android.graphics.Color.parseColor("#6366f1")
         style = android.graphics.Paint.Style.STROKE
         strokeWidth = 2f
         strokeCap = android.graphics.Paint.Cap.ROUND
@@ -1483,7 +1483,7 @@ class AnalogClockView(context: android.content.Context) : android.view.View(cont
         strokeWidth = 2f
     }
     private val paintCenter = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-        color = android.graphics.Color.parseColor("#4F8EF7")
+        color = android.graphics.Color.parseColor("#6366f1")
         style = android.graphics.Paint.Style.FILL
     }
 

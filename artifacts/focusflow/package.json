@@ -1,13 +1,15 @@
 {
   "name": "@workspace/focusflow",
-  "version": "1.0.8",
+  "version": "1.1.0",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
     "dev": "EXPO_PACKAGER_PROXY_URL=https://$REPLIT_EXPO_DEV_DOMAIN EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_REPL_ID=$REPL_ID REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN pnpm exec expo start --localhost --port ${PORT:-19000} --clear",
     "build": "node scripts/build.js",
     "serve": "node server/serve.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
@@ -44,6 +46,7 @@
     "react-native-svg": "15.12.1",
     "react-native-web": "^0.21.0",
     "typescript": "~5.9.2",
+    "vitest": "^3.2.4",
     "zod": "catalog:",
     "zod-validation-error": "^3.4.0"
   },

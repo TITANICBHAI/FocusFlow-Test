@@ -7,8 +7,10 @@ import React, {
   useCallback,
   useRef,
 } from 'react';
-import { Alert, AppState as RNAppState, Appearance, type AppStateStatus } from 'react-native';
+import { Alert, AppState as RNAppState, type AppStateStatus } from 'react-native';
 import type { Task, AppSettings, FocusSession, DailyAllowanceEntry, RecurringBlockSchedule, GreyoutWindow } from '@/data/types';
+import { DEFAULT_SETTINGS } from '@/data/defaultSettings';
+import { invalidateAllowanceUsageCache } from '@/services/allowanceUsageCache';
 import {
   dbGetTasksForDate,
   dbGetAllTasks,
@@ -121,57 +123,9 @@ function reducer(state: AppState, action: AppAction): AppState {
   }
 }
 
-const defaultSettings: AppSettings = {
-  darkMode: Appearance.getColorScheme() === 'dark',
-  defaultDuration: 60,
-  defaultReminderOffsets: [-10, -5, 0],
-  focusModeEnabled: true,
-  allowedInFocus: [], // [] = all apps allowed (no blocking) — sentinel value
-  allowedAppPresets: [],
-  blockPresets: [],
-  pomodoroEnabled: false,
-  pomodoroDuration: 25,
-  pomodoroBreak: 5,
-  notificationsEnabled: true,
-  privacyAccepted: false,
-  onboardingComplete: false,
-  protectionMode: 'standard',
-  standaloneBlockPackages: [],
-  standaloneBlockUntil: null,
-  alwaysOnPackages: [],
-  autoCopyToAlwaysOn: true,
-  autoCopiedAlwaysOnPackages: [],
-  dailyAllowanceEntries: [],
-  blockedWords: [],
-  aversionDimmerEnabled: false,
-  aversionVibrateEnabled: false,
-  aversionSoundEnabled: false,
-  weeklyReportEnabled: false,
-  greyoutSchedule: [],
-  systemGuardEnabled: false,
-  blockInstallActionsEnabled: false,
-  blockYoutubeShortsEnabled: false,
-  blockInstagramReelsEnabled: false,
-  vpnBlockEnabled: false,
-  standaloneVpnPackages: [],
-  keepFocusActiveUntilTaskEnd: true,
-  vpnSelfHealEnabled: true,
-  launcherEnabled: false,
-  launcherHiddenPackages: [],
-  launcherPinnedPackages: [],
-  launcherDockPackages: [],
-  launcherWallpaperUri: null,
-  launcherClockStyle: 'digital' as const,
-  launcherBlockUninstall: false,
-  launcherLockDuringStandalone: true,
-  overlayWallpaper: '',
-  overlayQuotes: [],
-  recurringBlockSchedules: [],
-};
-
 const initialState: AppState = {
   tasks: [],
-  settings: defaultSettings,
+  settings: DEFAULT_SETTINGS,
   focusSession: null,
   focusViolationApp: null,
   isLoading: true,
@@ -441,7 +395,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       // ── Database / settings ────────────────────────────────────────────────
       void logger.info('AppContext', 'Loading settings from DB (timeout=8000ms)');
-      const rawSettings = await withTimeout(dbGetSettings(), 8000, defaultSettings);
+      const rawSettings = await withTimeout(dbGetSettings(), 8000, DEFAULT_SETTINGS);
       void logger.info('AppContext', 'Settings loaded from DB');
       // Fire-and-forget: writes one [DB_DIAG] INFO line per session with
       // API level, Android version, manufacturer, model, and SQLite version.
@@ -610,14 +564,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // recover the first-run markers before showing the app. Otherwise a
       // returning user could be sent back through privacy/onboarding merely
       // because initialization hit a transient native error.
-      let recoveredSettings = defaultSettings;
+      let recoveredSettings = DEFAULT_SETTINGS;
       try {
         const backup = await readSetupBackups();
         recoveredSettings = {
-          ...defaultSettings,
+          ...DEFAULT_SETTINGS,
           privacyAccepted: backup.privacyAccepted === true,
           onboardingComplete: backup.onboardingComplete === true,
-          protectionMode: backup.protectionMode ?? defaultSettings.protectionMode,
+          protectionMode: backup.protectionMode ?? DEFAULT_SETTINGS.protectionMode,
         };
         await persistSetupBackups(recoveredSettings);
       } catch {
@@ -1740,6 +1694,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try { await dbSaveSettings(newSettings); } catch (e) { void logger.warn('AppContext', `setDailyAllowanceEntries: dbSaveSettings non-fatal: ${String(e)}`); }
     dispatch({ type: 'SET_SETTINGS', payload: newSettings });
     await SharedPrefsModule.setDailyAllowanceConfig(entries);
+    invalidateAllowanceUsageCache();
     // Enable always-on enforcement whenever allowance entries are configured.
     // Must use alwaysOnPackages (the 24/7 block list), NOT standaloneBlockPackages
     // (the timed-session list), so that saving daily allowance entries does not
