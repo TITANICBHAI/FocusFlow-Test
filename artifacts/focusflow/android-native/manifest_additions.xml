@@ -48,11 +48,11 @@
     VIBRATE                     (for vibration harassment aversion layer)
     SCHEDULE_EXACT_ALARM        (for weekly temptation report alarm; optional, falls back to inexact)
     KILL_BACKGROUND_PROCESSES   (terminate the blocked app process after HOME press)
-    USE_FULL_SCREEN_INTENT      (required to launch BlockOverlayActivity AND TaskAlarmActivity via full-screen notification)
+    USE_FULL_SCREEN_INTENT      (required to launch TaskAlarmActivity via full-screen notification)
      POST_NOTIFICATIONS          (required on Android 13+ for revoked-VPN recovery alerts)
     EXPAND_STATUS_BAR           (allows collapsing the notification panel via StatusBarManager)
     READ_EXTERNAL_STORAGE       (legacy API ≤ 32 — lets WallpaperManager.getDrawable() succeed
-                                 when reading the home-screen wallpaper for BlockOverlayActivity)
+                                 when reading the home-screen wallpaper for the blocking overlay)
 
   AndroidManifest.xml components (patched automatically):
 
@@ -119,29 +119,6 @@
         <meta-data android:name="android.app.device_admin"
             android:resource="@xml/device_admin" />
     </receiver>
-
-    <!--
-      BlockOverlayActivity — full-screen blocking overlay launched by
-      AppBlockerAccessibilityService when a blocked app is detected.
-
-      Key attributes:
-        excludeFromRecents    — hides from the app switcher / recent apps list
-        showWhenLocked        — renders over the lock screen (API 27+)
-        turnScreenOn          — wakes the display when launched (API 27+)
-        noHistory             — does not remain in the back stack after finish()
-        launchMode singleTask — a second launch re-uses the existing instance
-                                and calls onNewIntent() instead of creating a
-                                duplicate, preventing overlay stacking.
-    -->
-    <activity
-        android:name="...services.BlockOverlayActivity"
-        android:excludeFromRecents="true"
-        android:showWhenLocked="true"
-        android:turnScreenOn="true"
-        android:noHistory="false"
-        android:launchMode="singleTask"
-        android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
-        android:exported="false" />
 
     <!--
       TaskAlarmActivity — full-screen alarm launched by ForegroundTaskService

@@ -51,12 +51,13 @@ describe('blocked-app system interaction contract', () => {
     expect(dismissSource).toContain('GlobalAction.BACK');
     expect(dismissSource).toContain('GlobalAction.HOME');
     expect(policy).toContain('GlobalAction.BACK, 0L');
+    expect(policy).toContain('GlobalAction.BACK, 30L');
     expect(policy).toContain('GlobalAction.HOME, 80L');
     expect(policy).toContain('GlobalAction.BACK, 100L');
     expect(policy).toContain('equals(blockedPackage, ignoreCase = true)');
 
     const simulated = simulateDismissal();
-    expect(simulated.actions).toEqual(['BACK', 'HOME', 'BACK']);
+    expect(simulated.actions).toEqual(['BACK', 'BACK', 'HOME', 'BACK']);
     expect(simulated.state).toBe('home');
   });
 
