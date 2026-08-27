@@ -26,8 +26,8 @@
   explicit, standalone, and opt-in focus-mirror sources. Schedule and allowance
   mirroring remain deferred decisions.
 - 🚧 **Phase 2 — Native coordinator and VPN lifecycle:** target calculation,
-  durable policy persistence, and serialized reconfiguration are centralized;
-  debouncing and full lifecycle ownership remain open.
+  durable policy persistence, debounced serialized reconfiguration, and native
+  recovery dispatch are centralized; full lifecycle ownership remains open.
 - ❌ **Phase 3 — Recovery:** cover process death, boot, unlock, package changes, permission loss, and VPN conflicts.
 - ❌ **Phase 4 — React Native and UI:** add the opt-in setting, persistence, status, and explanatory states.
 - ❌ **Phase 5 — Verification:** complete contract, Kotlin, device, lifecycle, and network evidence.
@@ -44,6 +44,9 @@
 - ✅ Older queued VPN start/stop commands are rejected by policy generation.
 - ✅ VPN recovery gates no longer use ordinary always-on overlay state as a
   substitute for VPN policy.
+- ✅ Native bridge, service recreation, watchdog, revoke, Accessibility health,
+  foreground health, and focus teardown paths delegate VPN dispatch to the
+  coordinator.
 - 🚧 Native coordinator covers explicit, standalone, and optional focus-derived
   targets; full lifecycle ownership and schedule sources remain open.
 - ❌ Recurring schedule VPN enforcement, if included in the approved scope.

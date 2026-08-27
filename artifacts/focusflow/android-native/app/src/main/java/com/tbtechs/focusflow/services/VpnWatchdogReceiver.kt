@@ -6,7 +6,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.net.VpnService
-import android.os.Build
 import android.os.SystemClock
 
 /**
@@ -154,28 +153,15 @@ class VpnWatchdogReceiver : BroadcastReceiver() {
 
         val pkgs   = NetworkBlockerVpnService.effectivePackagesJson(context, prefs)
         val global = prefs.getBoolean("net_block_global", false)
-        val mode   = if (global) NetworkBlockerVpnService.MODE_GLOBAL
-                     else        NetworkBlockerVpnService.MODE_PER_APP
         if (!global && pkgs == "[]") {
             cancel(context)
             return
         }
 
         try {
-            val vpnIntent = Intent(context, NetworkBlockerVpnService::class.java).apply {
-                action = NetworkBlockerVpnService.ACTION_START
-                putExtra(NetworkBlockerVpnService.EXTRA_PACKAGES, pkgs)
-                putExtra(NetworkBlockerVpnService.EXTRA_MODE, mode)
-                putExtra(
-                    NetworkBlockerVpnService.EXTRA_POLICY_GENERATION,
-                    NetworkBlockerVpnService.currentPolicyGeneration(prefs),
-                )
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(vpnIntent)
-            } else {
-                context.startService(vpnIntent)
-            }
+            // Recovery must use the coordinator's durable-source calculation
+            // and serialized, generation-bearing dispatch.
+            VpnPolicyCoordinator.requestSync(context)
         } catch (e: Exception) {
             prefs.edit()
                 .putString("vpn_status", NetworkBlockerVpnService.STATUS_STARTUP_FAILED)

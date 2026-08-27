@@ -1,20 +1,18 @@
 package com.tbtechs.focusflow.modules
 
 import android.content.Context
-import android.content.Intent
 import android.content.SharedPreferences
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.VpnService
 import android.net.wifi.WifiManager
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.tbtechs.focusflow.services.NetworkBlockerVpnService
+import com.tbtechs.focusflow.services.VpnPolicyCoordinator
 import org.json.JSONObject
 
 /**
@@ -307,14 +305,10 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
                     )
                     return
                 }
-                val mode = if (global) NetworkBlockerVpnService.MODE_GLOBAL
-                           else        NetworkBlockerVpnService.MODE_PER_APP
-                val intent = Intent(reactContext, NetworkBlockerVpnService::class.java).apply {
-                    action = NetworkBlockerVpnService.ACTION_START
-                    putExtra(NetworkBlockerVpnService.EXTRA_PACKAGES, packagesJson)
-                    putExtra(NetworkBlockerVpnService.EXTRA_MODE, mode)
-                }
-                startVpnService(intent)
+                // The coordinator owns the persisted desired policy and the
+                // serialized service dispatch. Keep this bridge as a
+                // foreground permission-gated entry point only.
+                VpnPolicyCoordinator.requestSync(reactContext)
             }
 
             // 2 — Direct WiFi disable (supplementary; works on Android 9-)
@@ -379,13 +373,9 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
             return
         }
         try {
-            val intent = Intent(reactContext, NetworkBlockerVpnService::class.java).apply {
-                action = NetworkBlockerVpnService.ACTION_STOP
-            }
-            try { startVpnService(intent) } catch (e: Exception) {
-                promise.reject("NET_RESTORE_ERROR", e.message, e)
-                return
-            }
+            // A stop is also a policy update: the coordinator must serialize
+            // it with any queued start/reconfigure and attach its generation.
+            VpnPolicyCoordinator.requestSync(reactContext)
 
             val restore = prefs.getBoolean("net_block_restore", true)
             if (restore) {
@@ -462,14 +452,6 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
             }
         }
         return focusActive || standaloneActive
-    }
-
-    private fun startVpnService(intent: Intent) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            reactContext.startForegroundService(intent)
-        } else {
-            reactContext.startService(intent)
-        }
     }
 
     // ─── VPN self-heal ────────────────────────────────────────────────────────

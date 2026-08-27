@@ -78,6 +78,16 @@
         </intent-filter>
     </receiver>
 
+    <receiver android:name="...services.PackageInstallReceiver"
+        android:exported="true">
+        <intent-filter>
+            <action android:name="android.intent.action.PACKAGE_ADDED" />
+            <action android:name="android.intent.action.PACKAGE_REMOVED" />
+            <action android:name="android.intent.action.PACKAGE_FULLY_REMOVED" />
+            <data android:scheme="package" />
+        </intent-filter>
+    </receiver>
+
     <!--
       VpnWatchdogReceiver — fires every ~60 seconds via AlarmManager while a
       blocking session with network-block enabled is active.

@@ -4,14 +4,13 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.os.Build
 import org.json.JSONArray
 
 /**
  * PackageInstallReceiver
  *
- * Listens for ACTION_PACKAGE_ADDED broadcasts so a newly installed app can be
- * automatically handled during an active focus session.
+ * Listens for package add/remove broadcasts so the effective VPN policy can be
+ * recalculated when installed-package availability changes.
  *
  * Behaviour during an active session:
  *   1. Reads the current focus/standalone block state from SharedPreferences.
@@ -26,10 +25,13 @@ import org.json.JSONArray
  *      standalone_blocked_packages so it is immediately covered by the block.
  *   4. Starts a brief aversive deterrent (vibration) to alert the user that
  *      the install was noticed.
- *   5. If neither session mode is active, does nothing.
+ *   5. On package removal, recalculates the policy so the removed package is
+ *      no longer treated as an active VPN target.
  *
  * Declared in AndroidManifest.xml with:
  *   <action android:name="android.intent.action.PACKAGE_ADDED" />
+ *   <action android:name="android.intent.action.PACKAGE_REMOVED" />
+ *   <action android:name="android.intent.action.PACKAGE_FULLY_REMOVED" />
  *   <data android:scheme="package" />
  */
 class PackageInstallReceiver : BroadcastReceiver() {
@@ -43,7 +45,11 @@ class PackageInstallReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != Intent.ACTION_PACKAGE_ADDED) return
+        val action = intent.action ?: return
+        if (action != Intent.ACTION_PACKAGE_ADDED &&
+            action != Intent.ACTION_PACKAGE_REMOVED &&
+            action != Intent.ACTION_PACKAGE_FULLY_REMOVED
+        ) return
 
         val isReplacing = intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)
         if (isReplacing) return
@@ -71,7 +77,17 @@ class PackageInstallReceiver : BroadcastReceiver() {
             } else false
         }
 
-        if (!focusActive && !saActive) return
+        val persistentVpn = NetworkBlockerVpnService.hasPersistentVpnConfiguration(prefs)
+        if (!focusActive && !saActive && !persistentVpn) {
+            return
+        }
+
+        // A removal must recalculate even when no focus/standalone session is
+        // active: a persistent explicit selection may be the only source.
+        if (action != Intent.ACTION_PACKAGE_ADDED) {
+            NetworkBlockerVpnService.requestSync(context)
+            return
+        }
 
         val editor = prefs.edit()
 

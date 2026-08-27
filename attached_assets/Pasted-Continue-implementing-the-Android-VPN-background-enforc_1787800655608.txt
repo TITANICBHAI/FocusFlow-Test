@@ -1,0 +1,70 @@
+Continue implementing the Android VPN background-enforcement plan for FocusFlow.
+
+Project location:
+- artifacts/focusflow
+
+Read these first:
+1. artifacts/focusflow/VPN_BACKGROUND_ENFORCEMENT_PLAN.md
+   - This is the authoritative implementation plan.
+2. artifacts/focusflow/VPN_PLAN_CODE_REVIEW_1787795464198.md
+   - Supporting review only; some findings are stale.
+3. .agents/memory/MEMORY.md
+4. .agents/memory/vpn-enforcement-independence.md
+5. replit.md
+6. Inspect the current git diff before making changes.
+
+Current implementation status:
+- Explicit VPN package selections are implemented.
+- Standalone VPN package blocking is implemented.
+- Focus-to-VPN mirroring is implemented as opt-in and defaults to off.
+- Focus mirroring uses PER_APP mode.
+- A new native coordinator exists at:
+  android-native/app/src/main/java/com/tbtechs/focusflow/services/VpnPolicyCoordinator.kt
+- The coordinator currently owns:
+  - effective VPN target calculation,
+  - explicit/standalone/focus-derived target merging,
+  - installed-package validation,
+  - unavailable-package metadata,
+  - durable desired-policy persistence,
+  - policy generations,
+  - canonical net_block_packages snapshots,
+  - native VPN start/stop dispatch,
+  - short native dispatch debounce.
+- NetworkBlockerVpnService delegates policy helpers to the coordinator.
+- Existing boot, watchdog, package-install, accessibility recovery, and focus teardown paths were audited and currently use effective-policy recalculation.
+- The primary plan tracker has Phase 1 marked complete and Phase 2 marked in progress.
+
+Important product decisions:
+- Keep explicit VPN enforcement independent from Accessibility overlay blocking.
+- Keep focus mirroring opt-in and default-off.
+- Keep focus mirroring in PER_APP mode.
+- Do not implement recurring schedule VPN enforcement or daily allowance mirroring unless the plan/user explicitly approves it.
+- Preserve the existing Android VPN and React Native architecture; do not add unnecessary dependencies or migrate frameworks.
+
+Your next task:
+1. Inspect the current coordinator and all native VPN lifecycle/recovery callers.
+2. Continue Phase 2/Phase 3 by strengthening full native lifecycle ownership and process-death recovery.
+3. Prefer routing recovery/reconfiguration through VpnPolicyCoordinator where safe, while preserving permission-loss and VPN-conflict behavior.
+4. Ensure boot, unlock, watchdog, package changes, VPN revocation, service recreation, focus teardown, and process death cannot leave the VPN using stale policy.
+5. Preserve generation checks, canonical snapshots, source metadata, and stale-command rejection.
+6. Add or update focused contract tests for any changed recovery invariants.
+7. Tick the implementation tracker in VPN_BACKGROUND_ENFORCEMENT_PLAN.md as work advances.
+8. Do not just report findings—make the code changes and verify them.
+
+Verification already known:
+- Full Vitest suite previously passed: 15 files, 76 tests.
+- Focused VPN recovery contract previously passed: 3 tests.
+- git diff --check passed.
+- TypeScript typecheck currently has six unrelated pre-existing errors in:
+  - app/changelog.tsx
+  - app/onboarding.tsx
+  - app/permissions.tsx
+  - src/context/AppContext.tsx
+- No generated Android Gradle project was available in the artifact checkout, so run Kotlin/Android compilation only if the required project exists.
+- Do not “fix” unrelated TypeScript errors unless your changes directly cause them.
+
+At the end, summarize:
+- files changed,
+- which plan items are now complete,
+- tests run and results,
+- remaining limitations or product decisions.

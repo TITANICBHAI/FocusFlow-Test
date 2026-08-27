@@ -806,14 +806,9 @@ class ForegroundTaskService : Service() {
         }
         if (NetworkBlockerVpnService.hasPersistentVpnConfiguration(prefs)) return
         try {
-            val intent = Intent(this, NetworkBlockerVpnService::class.java).apply {
-                action = NetworkBlockerVpnService.ACTION_STOP
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent)
-            } else {
-                startService(intent)
-            }
+            // Focus teardown is a policy update. Let the coordinator serialize
+            // the stop with any queued start or reconfiguration command.
+            VpnPolicyCoordinator.requestSync(this)
         } catch (e: Exception) {
             prefs.edit()
                 .putString("vpn_status", NetworkBlockerVpnService.STATUS_STARTUP_FAILED)
@@ -871,23 +866,9 @@ class ForegroundTaskService : Service() {
             }
         } catch (_: Exception) { return }
 
-        val pkgs   = NetworkBlockerVpnService.effectivePackagesJson(this, prefs)
-        val global = prefs.getBoolean("net_block_global", false)
-        val mode   = if (global) NetworkBlockerVpnService.MODE_GLOBAL
-                     else        NetworkBlockerVpnService.MODE_PER_APP
-        val generation = NetworkBlockerVpnService.currentPolicyGeneration(prefs)
         try {
-            val intent = Intent(this, NetworkBlockerVpnService::class.java).apply {
-                action = NetworkBlockerVpnService.ACTION_START
-                putExtra(NetworkBlockerVpnService.EXTRA_PACKAGES, pkgs)
-                putExtra(NetworkBlockerVpnService.EXTRA_MODE, mode)
-                putExtra(NetworkBlockerVpnService.EXTRA_POLICY_GENERATION, generation)
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent)
-            } else {
-                startService(intent)
-            }
+            // The coordinator owns recovery dispatch and generation ordering.
+            VpnPolicyCoordinator.requestSync(this)
         } catch (e: Exception) {
             blockPrefs.edit()
                 .putString("vpn_status", NetworkBlockerVpnService.STATUS_STARTUP_FAILED)

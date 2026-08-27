@@ -161,9 +161,10 @@ class NetworkBlockerVpnService : VpnService() {
                 val focusActive = prefs.getBoolean("focus_active", false)
                 val saActive    = prefs.getBoolean("standalone_block_active", false)
                 if (focusActive || saActive || hasPersistentVpnConfiguration(prefs)) {
-                    val pkgs = effectivePackagesJson(this, prefs)
-                    val mode = prefs.getString("net_block_mode", MODE_PER_APP) ?: MODE_PER_APP
-                    startVpn(pkgs, mode)
+                    // Re-enter through the coordinator so restoration
+                    // recalculates every durable policy source and persists a
+                    // fresh generation before dispatching the command.
+                    VpnPolicyCoordinator.requestSync(this)
                 } else {
                     stopSelf()
                     return START_NOT_STICKY
@@ -247,18 +248,10 @@ class NetworkBlockerVpnService : VpnService() {
                     val pkgs = effectivePackagesJson(ctx, currentPrefs)
                     val global = currentPrefs.getBoolean("net_block_global", false)
                     if (!global && parseJsonArray(pkgs).isEmpty()) return@postDelayed
-                    val mode = if (global) MODE_GLOBAL else MODE_PER_APP
-                    val restartIntent = Intent(ctx, NetworkBlockerVpnService::class.java).apply {
-                        action = ACTION_START
-                        putExtra(EXTRA_PACKAGES, pkgs)
-                        putExtra(EXTRA_MODE, mode)
-                        putExtra(EXTRA_POLICY_GENERATION, currentPolicyGeneration(currentPrefs))
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        ctx.startForegroundService(restartIntent)
-                    } else {
-                        ctx.startService(restartIntent)
-                    }
+                    // The coordinator re-reads the same durable sources again
+                    // and owns the generation-bearing dispatch. This avoids
+                    // racing a newer policy with a hand-built restart intent.
+                    VpnPolicyCoordinator.requestSync(ctx)
                 } catch (_: Exception) {
                     // Session ended or another VPN took over — give up gracefully.
                     // vpn_permission_lost stays true so the UI can show the re-grant prompt.

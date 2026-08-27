@@ -23,6 +23,18 @@ const foregroundTask = readFileSync(
   path.join(nativeRoot, 'services/ForegroundTaskService.kt'),
   'utf8',
 );
+const networkBlockModule = readFileSync(
+  path.join(nativeRoot, 'modules/NetworkBlockModule.kt'),
+  'utf8',
+);
+const packageInstallReceiver = readFileSync(
+  path.join(nativeRoot, 'services/PackageInstallReceiver.kt'),
+  'utf8',
+);
+const nativeInstallScript = readFileSync(
+  path.join(nativeRoot, '../../../../../../../install.sh'),
+  'utf8',
+);
 
 function sliceFunction(source: string, signature: string, nextSignature: string): string {
   const start = source.indexOf(signature);
@@ -51,20 +63,24 @@ describe('VPN effective-policy recovery contract', () => {
     );
 
     expect(watchdog).toContain('val pkgs   = NetworkBlockerVpnService.effectivePackagesJson(context, prefs)');
-    expect(watchdog).toContain('NetworkBlockerVpnService.EXTRA_POLICY_GENERATION');
+    expect(watchdog).toContain('VpnPolicyCoordinator.requestSync(context)');
     expect(revoke).toContain('val pkgs = effectivePackagesJson(ctx, currentPrefs)');
     expect(revoke).toContain('Re-read every policy source after the teardown delay');
-    expect(revoke).toContain('currentPolicyGeneration(currentPrefs)');
-    expect(accessibilityHeal).toContain('NetworkBlockerVpnService.effectivePackagesJson(this, prefs)');
-    expect(accessibilityHeal).toContain('EXTRA_POLICY_GENERATION');
-    expect(foregroundHeal).toContain('NetworkBlockerVpnService.effectivePackagesJson(this, prefs)');
-    expect(foregroundHeal).toContain('EXTRA_POLICY_GENERATION');
+    expect(revoke).toContain('VpnPolicyCoordinator.requestSync(ctx)');
+    expect(accessibilityHeal).toContain('VpnPolicyCoordinator.requestSync(this)');
+    expect(foregroundHeal).toContain('VpnPolicyCoordinator.requestSync(this)');
+    expect(vpnService).toContain('VpnPolicyCoordinator.requestSync(this)');
+    expect(networkBlockModule).toContain('VpnPolicyCoordinator.requestSync(reactContext)');
     expect(watchdog).not.toContain('val alwaysOn = prefs.getBoolean("always_block_active", false)');
     expect(accessibilityHeal).not.toContain('PREF_ALWAYS_BLOCK');
     expect(foregroundHeal).not.toContain('always_block_active');
     expect(revoke).not.toContain('getString("net_block_packages"');
     expect(accessibilityHeal).not.toContain('getString("net_block_packages"');
     expect(foregroundHeal).not.toContain('getString("net_block_packages"');
+    expect(revoke).not.toContain('restartIntent');
+    expect(accessibilityHeal).not.toContain('ACTION_START');
+    expect(foregroundHeal).not.toContain('ACTION_START');
+    expect(networkBlockModule).not.toContain('private fun startVpnService');
   });
 
   it('shares one effective-policy result with desired-state metadata', () => {
@@ -91,5 +107,25 @@ describe('VPN effective-policy recovery contract', () => {
 
     expect(snapshotWrite).toBeGreaterThanOrEqual(0);
     expect(emptyPolicyCheck).toBeGreaterThan(snapshotWrite);
+  });
+
+  it('recalculates policy when installed-package availability changes', () => {
+    expect(packageInstallReceiver).toContain('Intent.ACTION_PACKAGE_REMOVED');
+    expect(packageInstallReceiver).toContain('Intent.ACTION_PACKAGE_FULLY_REMOVED');
+    expect(packageInstallReceiver).toContain(
+      'val persistentVpn = NetworkBlockerVpnService.hasPersistentVpnConfiguration(prefs)',
+    );
+    expect(packageInstallReceiver).toContain(
+      'if (action != Intent.ACTION_PACKAGE_ADDED)',
+    );
+    expect(packageInstallReceiver).toContain(
+      'NetworkBlockerVpnService.requestSync(context)',
+    );
+    expect(nativeInstallScript).toContain(
+      '<action android:name="android.intent.action.PACKAGE_REMOVED" />',
+    );
+    expect(nativeInstallScript).toContain(
+      '<action android:name="android.intent.action.PACKAGE_FULLY_REMOVED" />',
+    );
   });
 });
