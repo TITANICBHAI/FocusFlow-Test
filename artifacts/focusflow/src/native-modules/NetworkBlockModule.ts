@@ -37,6 +37,7 @@ export interface NetworkBlockStatus {
   failedPackages: string[];
   desiredPolicy?: string | null;
   policyGeneration?: number;
+  appliedPolicyGeneration?: number;
 }
 
 export type NetworkBlockStartState =
@@ -221,6 +222,7 @@ export const NetworkBlockModule = {
       failedPackages?: string | string[];
       desiredPolicy?: string | null;
       policyGeneration?: number;
+      appliedPolicyGeneration?: number;
     };
     let failedPackages: string[] = [];
     if (Array.isArray(parsed.failedPackages)) {
@@ -240,6 +242,10 @@ export const NetworkBlockModule = {
         typeof parsed.desiredPolicy === 'string' ? parsed.desiredPolicy : null,
       policyGeneration:
         typeof parsed.policyGeneration === 'number' ? parsed.policyGeneration : 0,
+      appliedPolicyGeneration:
+        typeof parsed.appliedPolicyGeneration === 'number'
+          ? parsed.appliedPolicyGeneration
+          : 0,
     };
   },
 

@@ -232,6 +232,7 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
                 put("failedPackages", failed)
                 put("desiredPolicy", prefs.getString("net_block_desired_policy", null) ?: JSONObject.NULL)
                 put("policyGeneration", prefs.getLong("net_block_policy_generation", 0L))
+                put("appliedPolicyGeneration", prefs.getLong("net_block_applied_generation", 0L))
             }
             promise.resolve(obj.toString())
         } catch (e: Exception) {

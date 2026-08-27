@@ -12,3 +12,9 @@ For the proposed background-enforcement feature, keep explicit VPN selections se
 **Why:** The feature plan defines the intended product and architecture, while the code review adds source-verified confirmation and gaps. Reading only one can cause either implementation drift or missed current-code constraints.
 
 **How to apply:** Before implementation, read both VPN documents. Treat the VPN target set as native durable policy, merge supported sources, reconfigure only when the effective set changes, restore it after lifecycle events, and preserve the AccessibilityService overlay pipeline separately. Use Silent Guardian only for independent architectural comparison; its GPL license makes source copying unsafe without a deliberate legal review.
+
+Recovery commands must recalculate from persisted policy sources at dispatch time and carry the desired-policy generation; `net_block_packages` is a compatibility/cache snapshot, not authoritative recovery input.
+
+**Why:** Delayed revoke recovery and reordered service commands can otherwise restore an expired or superseded target set after the user has already changed policy.
+
+**How to apply:** Re-read policy after teardown delays, reject older queued commands, clear the canonical snapshot when the effective set becomes empty, and keep overlay-only state out of VPN recovery gates.

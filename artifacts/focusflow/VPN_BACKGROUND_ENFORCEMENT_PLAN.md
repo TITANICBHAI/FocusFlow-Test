@@ -32,6 +32,12 @@ implemented, or awaiting a product decision.
 - ✅ Consolidation of competing writes to `net_block_packages`.
 - ✅ Package-install updates to the effective VPN target set.
 - ✅ Versioned native desired-state record with generation and reason metadata.
+- ✅ Installed-package validation and unavailable-package failure metadata.
+- ✅ Recovery restart inputs recalculate from persisted policy sources instead of
+  trusting the previous `net_block_packages` snapshot.
+- ✅ Older queued VPN start/stop commands are rejected by policy generation.
+- ✅ VPN recovery gates no longer use ordinary always-on overlay state as a
+  substitute for VPN policy.
 - ❌ Full native policy coordinator for explicit, standalone, scheduled, and optional focus-derived targets.
 - ❌ Recurring schedule VPN enforcement, if included in the approved scope.
 
@@ -107,16 +113,16 @@ enabled.
 
 The explicit always-on VPN package list is an independent network-enforcement
 source. It must remain effective without an active focus session, standalone
-block, or ordinary always-on overlay policy. The current recovery and
-synchronization paths do not fully preserve that independence yet; in
-particular, watchdog rearming and the separate overlay/VPN preference keys
-still need to be decoupled.
+block, or ordinary always-on overlay policy. The recovery gates now use the
+explicit/standalone VPN policy rather than the ordinary overlay flag, while the
+remaining coordinator work must keep the separate preference sources aligned.
 
 The current native layer also keeps the explicit package list separate from
 the effective list and persists a versioned desired-policy snapshot with a
-generation, timestamp, target packages, and per-package source reasons. This
-is the foundation for the planned coordinator, but stale-generation handling
-and a single dedicated coordinator class are still open.
+generation, timestamp, target packages, and per-package source reasons. Recovery
+commands carry that generation, and the VPN service rejects older queued start
+or stop commands. This is the foundation for the planned coordinator, but a
+single dedicated coordinator class and full lifecycle ownership are still open.
 
 ### 2.3 Existing React Native sources of VPN packages
 
@@ -415,9 +421,8 @@ for a later retry.
 
 The effective policy must not depend on the React process remaining alive. The
 current implementation has native effective-target recalculation, serialized
-sync entry, a durable desired-policy snapshot, and watchdog hooks. It does not
-yet have stale-generation handling or the full lifecycle coordinator described
-below.
+sync entry, a durable desired-policy snapshot, generation checks, and watchdog
+hooks. It does not yet have the full lifecycle coordinator described below.
 
 Recalculation or restoration should occur after:
 

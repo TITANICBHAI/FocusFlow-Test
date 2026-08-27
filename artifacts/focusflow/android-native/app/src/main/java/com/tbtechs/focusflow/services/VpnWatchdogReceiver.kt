@@ -40,10 +40,10 @@ import android.os.SystemClock
  *   • net_block_self_heal must be true   (user opted in to auto-restart)
  *   • net_block_enabled must be true     (VPN blocking is on)
  *   • net_block_vpn must be true         (VPN mechanism is selected)
- *   • A focus or standalone session must still be active
+ *   • A focus/standalone session or persistent VPN configuration must remain active
  *   • VPN permission must still be held  (VpnService.prepare() == null)
  *
- * If no active session is found the alarm cancels itself to avoid firing forever.
+ * If no active policy is found the alarm cancels itself to avoid firing forever.
  */
 class VpnWatchdogReceiver : BroadcastReceiver() {
 
@@ -126,9 +126,7 @@ class VpnWatchdogReceiver : BroadcastReceiver() {
                 untilMs <= 0L || now < untilMs
             }
         }
-        val alwaysOn = prefs.getBoolean("always_block_active", false)
-
-        if (!focusActive && !saActive && !alwaysOn &&
+        if (!focusActive && !saActive &&
             !NetworkBlockerVpnService.hasPersistentVpnConfiguration(prefs)
         ) {
             // Session has ended — cancel the alarm so it stops firing
@@ -168,6 +166,10 @@ class VpnWatchdogReceiver : BroadcastReceiver() {
                 action = NetworkBlockerVpnService.ACTION_START
                 putExtra(NetworkBlockerVpnService.EXTRA_PACKAGES, pkgs)
                 putExtra(NetworkBlockerVpnService.EXTRA_MODE, mode)
+                putExtra(
+                    NetworkBlockerVpnService.EXTRA_POLICY_GENERATION,
+                    NetworkBlockerVpnService.currentPolicyGeneration(prefs),
+                )
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(vpnIntent)

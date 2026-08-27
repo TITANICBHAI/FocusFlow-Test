@@ -1480,8 +1480,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
                 untilMs <= 0L || now < untilMs
             }
         }
-        val alwaysOn = prefs.getBoolean(PREF_ALWAYS_BLOCK, false)
-        if (!focusActive && !saActive && !alwaysOn &&
+        if (!focusActive && !saActive &&
             !NetworkBlockerVpnService.hasPersistentVpnConfiguration(prefs)
         ) return
 
@@ -1497,11 +1496,13 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         val global = prefs.getBoolean("net_block_global", false)
         val mode   = if (global) NetworkBlockerVpnService.MODE_GLOBAL
                      else        NetworkBlockerVpnService.MODE_PER_APP
+        val generation = NetworkBlockerVpnService.currentPolicyGeneration(prefs)
         try {
             val intent = Intent(this, NetworkBlockerVpnService::class.java).apply {
                 action = NetworkBlockerVpnService.ACTION_START
                 putExtra(NetworkBlockerVpnService.EXTRA_PACKAGES, pkgs)
                 putExtra(NetworkBlockerVpnService.EXTRA_MODE,     mode)
+                putExtra(NetworkBlockerVpnService.EXTRA_POLICY_GENERATION, generation)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(intent)
@@ -2863,12 +2864,14 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         } else {
             JSONArray().apply { put(blockedPackage) }.toString()
         }
+        val generation = NetworkBlockerVpnService.currentPolicyGeneration(prefs)
 
         try {
             val intent = Intent(this, NetworkBlockerVpnService::class.java).apply {
                 action = NetworkBlockerVpnService.ACTION_START
                 putExtra(NetworkBlockerVpnService.EXTRA_PACKAGES, pkgs)
                 putExtra(NetworkBlockerVpnService.EXTRA_MODE, mode)
+                putExtra(NetworkBlockerVpnService.EXTRA_POLICY_GENERATION, generation)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(intent)

@@ -11,7 +11,6 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.tbtechs.focusflow.MainActivity
 import com.tbtechs.focusflow.R
-import org.json.JSONArray
 
 /**
  * Posts the one user-facing notification used when an active VPN block loses
@@ -30,7 +29,8 @@ object VpnRecoveryNotifier {
 
     fun postPermissionRequired(context: Context) {
         val appContext = context.applicationContext
-        if (!hasConfiguredVpnProtection(appContext)) return
+        val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (!NetworkBlockerVpnService.hasPersistentVpnConfiguration(prefs)) return
         val notificationManager =
             appContext.getSystemService(NotificationManager::class.java) ?: return
 
@@ -49,7 +49,6 @@ object VpnRecoveryNotifier {
             return
         }
 
-        val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         if (prefs.getBoolean(PREF_POSTED, false)) return
 
         createChannel(notificationManager)
@@ -110,23 +109,4 @@ object VpnRecoveryNotifier {
         )
     }
 
-    /**
-     * A VPN consent prompt is only useful when the current native settings
-     * describe an actual VPN scope. In per-app mode an empty package list means
-     * there is nothing to restore; global mode intentionally uses an empty list.
-     */
-    private fun hasConfiguredVpnProtection(context: Context): Boolean {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        if (!prefs.getBoolean("net_block_enabled", false)) return false
-        if (!prefs.getBoolean("net_block_vpn", true)) return false
-
-        val mode = prefs.getString("net_block_mode", NetworkBlockerVpnService.MODE_PER_APP)
-        if (mode == NetworkBlockerVpnService.MODE_GLOBAL) return true
-
-        return try {
-            JSONArray(prefs.getString("net_block_packages", "[]") ?: "[]").length() > 0
-        } catch (_: Exception) {
-            false
-        }
-    }
 }

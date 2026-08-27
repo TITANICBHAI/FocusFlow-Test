@@ -857,8 +857,7 @@ class ForegroundTaskService : Service() {
                 untilMs <= 0L || now < untilMs
             }
         }
-        val alwaysOn = prefs.getBoolean("always_block_active", false)
-        if (!focusActive && !saActive && !alwaysOn &&
+        if (!focusActive && !saActive &&
             !NetworkBlockerVpnService.hasPersistentVpnConfiguration(prefs)
         ) return
 
@@ -876,11 +875,13 @@ class ForegroundTaskService : Service() {
         val global = prefs.getBoolean("net_block_global", false)
         val mode   = if (global) NetworkBlockerVpnService.MODE_GLOBAL
                      else        NetworkBlockerVpnService.MODE_PER_APP
+        val generation = NetworkBlockerVpnService.currentPolicyGeneration(prefs)
         try {
             val intent = Intent(this, NetworkBlockerVpnService::class.java).apply {
                 action = NetworkBlockerVpnService.ACTION_START
                 putExtra(NetworkBlockerVpnService.EXTRA_PACKAGES, pkgs)
                 putExtra(NetworkBlockerVpnService.EXTRA_MODE, mode)
+                putExtra(NetworkBlockerVpnService.EXTRA_POLICY_GENERATION, generation)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(intent)
