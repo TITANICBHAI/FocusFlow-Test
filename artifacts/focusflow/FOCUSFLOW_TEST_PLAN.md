@@ -980,6 +980,10 @@ Test:
 - watchdog does not restart when no qualifying active/persistent policy exists
 - watchdog attempts recovery only when every guard is satisfied
 - an already-running VPN is not started twice
+- another active VPN is reported as a conflict rather than missing FocusFlow consent
+- process-death recovery exposes desired versus applied policy generation
+- receiver recovery dispatches immediately for boot/unlock/watchdog paths
+- rejected background service starts persist an honest startup-failure state
 
 ---
 

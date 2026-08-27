@@ -149,8 +149,28 @@ class VpnWatchdogReceiver : BroadcastReceiver() {
 
         try {
             if (VpnService.prepare(context) != null) {
-                prefs.edit().putBoolean("vpn_permission_lost", true).apply()
-                VpnRecoveryNotifier.postPermissionRequired(context)
+                val anotherVpn = NetworkBlockerVpnService.isAnotherVpnActive(context)
+                prefs.edit()
+                    .putBoolean("vpn_permission_lost", !anotherVpn)
+                    .putString(
+                        "vpn_status",
+                        if (anotherVpn) NetworkBlockerVpnService.STATUS_ANOTHER_VPN
+                        else NetworkBlockerVpnService.STATUS_PERMISSION_MISSING,
+                    )
+                    .putString(
+                        "vpn_error",
+                        if (anotherVpn) "Another VPN is currently active"
+                        else "VPN permission is not granted",
+                    )
+                    .apply()
+                if (anotherVpn) {
+                    // A competing VPN owns the single system VPN slot. Stop
+                    // polling until the user deliberately retries after
+                    // releasing that VPN.
+                    cancel(context)
+                } else {
+                    VpnRecoveryNotifier.postPermissionRequired(context)
+                }
                 return
             }
         } catch (_: Exception) { return }

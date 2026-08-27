@@ -172,7 +172,14 @@ object VpnPolicyCoordinator {
             // and the current tunnel is healthy. A stale persisted "running"
             // state after process death is the explicit recovery exception.
             if (persisted.serviceStateChanged || recoveryNeeded) {
-                scheduleDispatch(context.applicationContext)
+                if (forceRecovery) {
+                    // Recovery callers include BroadcastReceivers and the
+                    // watchdog. Do not leave their only restart command behind
+                    // a delayed callback after onReceive() returns.
+                    dispatchLatest(context.applicationContext)
+                } else {
+                    scheduleDispatch(context.applicationContext)
+                }
             }
         }
     }
@@ -242,10 +249,24 @@ object VpnPolicyCoordinator {
             } else {
                 context.startService(intent)
             }
-        } catch (_: Exception) {
-            // The service records startup failures when Android accepts the
-            // command but cannot establish the tunnel. A background dispatch
-            // failure must not crash the caller or React process.
+        } catch (e: Exception) {
+            // A background start can be rejected before the service gets a
+            // chance to record its own failure (for example, by Android's
+            // foreground-service restrictions). Preserve an honest status for
+            // the next foreground UI read.
+            if (action == NetworkBlockerVpnService.ACTION_START) {
+                context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    .edit()
+                    .putString(
+                        "vpn_status",
+                        NetworkBlockerVpnService.STATUS_STARTUP_FAILED,
+                    )
+                    .putString(
+                        "vpn_error",
+                        e.message ?: "Android rejected the VPN service start",
+                    )
+                    .apply()
+            }
         }
     }
 

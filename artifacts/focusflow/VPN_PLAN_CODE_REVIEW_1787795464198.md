@@ -41,6 +41,13 @@ not implemented.
   can retry stopped or failed service states without duplicating an in-flight start.
 - ✅ Enabling self-healing immediately reconciles an existing durable VPN policy;
   disabling it still cancels the watchdog.
+- ✅ Native recovery distinguishes another active VPN from missing consent and
+  avoids repeatedly treating a conflict as permission loss.
+- ✅ Active diagnostics show pending recovery and desired versus applied policy
+  generations.
+- ✅ Recovery dispatch is immediate for receiver/watchdog/service-recreation
+  paths, and rejected background service starts persist startup failure state.
+- ✅ Watchdog polling stops while another VPN owns the system VPN slot.
 - ❌ Decide and implement recurring schedule VPN support if approved.
 - ❌ Complete lifecycle, device, and real network verification.
 
@@ -335,6 +342,10 @@ The original absence table is retained below as a reconciled status table:
 4. **Complete lifecycle ownership and process-death proof:** the coordinator and
    durable recovery hooks exist, but Android service lifecycle behavior is not
    device-verified.
+
+   Source-level conflict classification and recovery-generation diagnostics are
+   now present, and receiver recovery no longer relies on delayed dispatch;
+   device conflict and process-death behavior remain unverified.
 
 5. **Recurring schedule VPN support:** still requires a product decision and a
    native scheduler if approved.

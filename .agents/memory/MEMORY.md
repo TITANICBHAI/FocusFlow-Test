@@ -11,3 +11,4 @@
 - [FocusFlow persistence migration](focusflow-persistence-plan.md) — PERSISTENCE_MIGRATION_PLAN.md is authoritative; the reliability plan and review are supporting references.
 - [VPN enforcement plan authority](vpn-enforcement-independence.md) — read the background-enforcement plan and its code review together before implementing; the review supports the plan.
 - [VPN validation boundary](vpn-validation-boundary.md) — source contracts can run here, but real Kotlin/Gradle/device verification requires a generated Android project and toolchain.
+- [Receiver recovery dispatch](vpn-receiver-recovery-dispatch.md) — boot and watchdog VPN recovery must dispatch before a BroadcastReceiver returns, not only through a delayed handler.

@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Build
+import android.os.UserManager
 
 /**
  * BootReceiver
@@ -82,6 +83,14 @@ class BootReceiver : BroadcastReceiver() {
             prefs.edit().putBoolean("standalone_block_active", false).apply()
         }
 
+        // Receiver-delivered recovery must not wait for the watchdog interval.
+        // BOOT_COMPLETED may arrive before file-based-encryption data is
+        // unlocked, so defer the durable reconciliation until USER_UNLOCKED
+        // when Android reports the user is still locked.
+        if (persistentVpn && netBlockEnabled && isUserUnlocked(context)) {
+            NetworkBlockerVpnService.requestRecoverySync(context)
+        }
+
         if (sessionValid && endTimeMs > 0L) {
             // ── Restart in ACTIVE focus mode ──────────────────────────────────
             val taskId   = prefs.getString("task_id", "") ?: ""
@@ -126,5 +135,10 @@ class BootReceiver : BroadcastReceiver() {
         } else {
             context.startService(intent)
         }
+    }
+
+    private fun isUserUnlocked(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return true
+        return context.getSystemService(UserManager::class.java)?.isUserUnlocked == true
     }
 }

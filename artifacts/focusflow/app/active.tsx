@@ -211,13 +211,17 @@ function ActiveScreen() {
   const alwaysOnActive = (settings.alwaysOnEnforcementEnabled ?? false) && alwaysOnPackages.length > 0;
   const vpnConfigured = vpnPackages.length > 0 || settings.vpnBlockEnabled === true;
   const vpnRunning = vpnStatus?.running === true;
+  const vpnRecoveryPending = vpnStatus?.state === 'running' && !vpnStatus.running;
   const vpnNeedsAttention =
     vpnStatus === null ||
+    vpnRecoveryPending ||
     vpnStatus.failedPackages.length > 0 ||
     ['permission_missing', 'another_vpn_active', 'package_registration_failed', 'startup_failed'].includes(
       vpnStatus.state,
     );
-  const vpnStatusLabel = formatVpnStatus(vpnStatus?.state, vpnConfigured);
+  const vpnStatusLabel = vpnRecoveryPending
+    ? 'Recovery pending'
+    : formatVpnStatus(vpnStatus?.state, vpnConfigured);
   const vpnStatusDetail = vpnStatus?.error
     ? `${vpnStatusLabel} · ${vpnStatus.error}`
     : vpnStatusLabel;
@@ -346,6 +350,17 @@ function ActiveScreen() {
             <DetailRow
               label="Self-healing"
               value={settings.vpnSelfHealEnabled ? 'Enabled' : 'Disabled — manual recovery only'}
+              theme={theme}
+            />
+          )}
+          {vpnStatus && (vpnStatus.policyGeneration ?? 0) > 0 && (
+            <DetailRow
+              label="Policy sync"
+              value={
+                vpnStatus.appliedPolicyGeneration === vpnStatus.policyGeneration
+                  ? `Generation ${vpnStatus.policyGeneration} applied`
+                  : `Desired ${vpnStatus.policyGeneration} · applied ${vpnStatus.appliedPolicyGeneration ?? 0}`
+              }
               theme={theme}
             />
           )}

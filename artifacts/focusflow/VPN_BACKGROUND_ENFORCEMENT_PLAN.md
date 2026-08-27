@@ -19,6 +19,14 @@
   while VPN mirroring settings change.
 - ✅ Native focus-mirror recovery ignores expired focus sessions, and disabling
   self-healing cancels its existing watchdog alarm immediately.
+- ✅ Native startup and watchdog recovery distinguish another active VPN from
+  missing FocusFlow consent without treating the conflict as a permission loss.
+- ✅ Active diagnostics identify process-death recovery pending state and show
+  desired versus applied policy generations.
+- ✅ Recovery dispatch from boot, unlock, watchdog, and service recreation is
+  immediate; receiver paths do not depend on a delayed callback after delivery.
+- ✅ A competing VPN cancels the watchdog until a deliberate retry, and native
+  service-start rejection is persisted as a visible startup failure.
 - ✅ Ordinary standalone overlay packages remain separate from the timed
   standalone VPN package source.
 - ✅ Unchanged healthy VPN service state skips native reconfiguration while
@@ -36,9 +44,9 @@
 - 🚧 **Phase 2 — Native coordinator and VPN lifecycle:** target calculation,
   durable policy persistence, debounced serialized reconfiguration, and native
   recovery dispatch are centralized; full lifecycle ownership remains open.
-- 🚧 **Phase 3 — Recovery:** boot, package changes, permission-loss signaling, and
-  coordinator-based recovery dispatch are implemented; full process-death,
-  unlock, conflict, and device verification remain open.
+- 🚧 **Phase 3 — Recovery:** boot, package changes, permission-loss signaling,
+  conflict classification, and coordinator-based recovery dispatch are
+  implemented; full process-death, unlock, and device verification remain open.
 - 🚧 **Phase 4 — React Native and UI:** the opt-in setting, default, persistence,
   bridge, and basic status are implemented; complete explanatory and diagnostic
   states remain open.
@@ -72,8 +80,14 @@
 - ✅ Unexpected VPN service destruction preserves self-healing recovery when
   durable VPN policy still requires protection, while intentional stops remain
   canceled.
+- ✅ Native recovery classifies another active VPN separately from missing
+  consent and avoids posting a misleading permission-loss state for conflicts.
+- ✅ Receiver-driven recovery dispatches immediately, boot/unlock requests native
+  reconciliation, and conflict polling stops until an explicit retry.
 - ✅ Enabling VPN self-healing immediately reconciles an existing durable policy
   instead of waiting for a future watchdog tick.
+- ✅ Active VPN diagnostics expose recovery-pending state and desired/applied
+  policy generations.
 - ✅ Native coordinator covers explicit, timed standalone VPN, and optional
   focus-derived targets without routing ordinary standalone overlay packages;
   full lifecycle ownership and schedule sources remain open.

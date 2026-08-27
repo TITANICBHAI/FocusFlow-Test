@@ -7,6 +7,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.VpnService
 import android.os.Build
 import android.os.Handler
@@ -116,6 +118,22 @@ class NetworkBlockerVpnService : VpnService() {
 
         fun currentPolicyGeneration(prefs: SharedPreferences): Long =
             VpnPolicyCoordinator.currentPolicyGeneration(prefs)
+
+        /**
+         * Returns true when Android reports a VPN transport that is not
+         * FocusFlow's own active tunnel. This is a diagnostic signal: callers
+         * must surface the conflict and avoid retry loops.
+         */
+        fun isAnotherVpnActive(context: Context): Boolean {
+            if (isRunning || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false
+            val connectivity =
+                context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                ?: return false
+            return connectivity.allNetworks.any { network ->
+                connectivity.getNetworkCapabilities(network)
+                    ?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+            }
+        }
     }
 
     private var vpnInterface: ParcelFileDescriptor? = null
@@ -214,17 +232,28 @@ class NetworkBlockerVpnService : VpnService() {
         }
         stopVpn()   // close the TUN fd first
 
-        // Signal to the JS layer that VPN permission was lost.
-        // This flag is read by NetworkBlockModule.isVpnPermissionGranted() and
-        // used to surface the re-grant prompt in the UI. The flag is cleared
-        // by startVpn() if a subsequent restart succeeds.
+        // Persist the revoke reason for the JS layer. A true permission-loss
+        // flag drives the re-grant prompt; an active competing VPN is surfaced
+        // as a conflict instead so recovery does not fight the other VPN.
+        // Both states are cleared when a subsequent restart succeeds.
         val persistentVpn = hasPersistentVpnConfiguration(prefs)
         if (focusOn || saOn || persistentVpn) {
+            val anotherVpn = isAnotherVpnActive(applicationContext)
             prefs.edit()
-                .putBoolean("vpn_permission_lost", true)
+                .putBoolean("vpn_permission_lost", !anotherVpn)
+                .putString(
+                    PREF_STATUS,
+                    if (anotherVpn) STATUS_ANOTHER_VPN else STATUS_PERMISSION_MISSING,
+                )
+                .putString(
+                    PREF_ERROR,
+                    if (anotherVpn) "Another VPN is currently active"
+                    else "VPN permission was revoked",
+                )
                 .apply()
-            writeStatus(STATUS_PERMISSION_MISSING, "VPN permission was revoked or another VPN took over")
-            VpnRecoveryNotifier.postPermissionRequired(this)
+            if (!anotherVpn) {
+                VpnRecoveryNotifier.postPermissionRequired(this)
+            }
         }
 
         if (selfHeal && (focusOn || saOn || persistentVpn)) {
@@ -332,10 +361,15 @@ class NetworkBlockerVpnService : VpnService() {
         try {
             // Close the race between the JS preflight and service startup.
             if (VpnService.prepare(this) != null) {
+                val anotherVpn = isAnotherVpnActive(this)
                 stopVpn(updateStatus = false)
-                writeStatus(STATUS_PERMISSION_MISSING, "VPN permission is not granted")
-                sp.edit().putBoolean("vpn_permission_lost", true).apply()
-                VpnRecoveryNotifier.postPermissionRequired(this)
+                prefs.edit().putBoolean("vpn_permission_lost", !anotherVpn).apply()
+                if (anotherVpn) {
+                    writeStatus(STATUS_ANOTHER_VPN, "Another VPN is currently active")
+                } else {
+                    writeStatus(STATUS_PERMISSION_MISSING, "VPN permission is not granted")
+                    VpnRecoveryNotifier.postPermissionRequired(this)
+                }
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return
@@ -414,14 +448,14 @@ class NetworkBlockerVpnService : VpnService() {
                 activeMode = mode
                 // Persist mode and packages so we can restore after an OS restart.
                 // Also clear the permission-lost flag — the tunnel is up again.
-                sp.edit()
+                prefs.edit()
                     .putString("net_block_packages",  effectiveJson)
                     .putString("net_block_mode",       mode)
                     .putLong(PREF_APPLIED_GENERATION, currentGeneration)
                     .putBoolean("vpn_permission_lost", false)
                     .apply()
                 VpnRecoveryNotifier.clear(this)
-                if (sp.getString(PREF_STATUS, null) != STATUS_PACKAGE_FAILURE) {
+                if (prefs.getString(PREF_STATUS, null) != STATUS_PACKAGE_FAILURE) {
                     writeStatus(STATUS_RUNNING)
                 }
                 // Schedule the AlarmManager watchdog so the VPN is restarted even if
@@ -431,10 +465,15 @@ class NetworkBlockerVpnService : VpnService() {
                 // builder.establish() returned null — this usually means VPN permission
                 // was revoked between the prepare() check and the actual establish() call
                 // (race with the user dismissing the system prompt, another VPN starting, etc.)
-                sp.edit().putBoolean("vpn_permission_lost", true).apply()
-                VpnRecoveryNotifier.postPermissionRequired(this)
                 stopVpn(updateStatus = false)
-                writeStatus(STATUS_STARTUP_FAILED, "Android did not establish the VPN interface")
+                val anotherVpn = isAnotherVpnActive(this)
+                prefs.edit().putBoolean("vpn_permission_lost", !anotherVpn).apply()
+                if (anotherVpn) {
+                    writeStatus(STATUS_ANOTHER_VPN, "Another VPN is currently active")
+                } else {
+                    VpnRecoveryNotifier.postPermissionRequired(this)
+                    writeStatus(STATUS_STARTUP_FAILED, "Android did not establish the VPN interface")
+                }
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
@@ -446,7 +485,12 @@ class NetworkBlockerVpnService : VpnService() {
         } catch (e: Exception) {
             isRunning = false
             stopVpn(updateStatus = false)
-            writeStatus(STATUS_STARTUP_FAILED, e.message ?: "VPN service failed to start")
+            if (isAnotherVpnActive(this)) {
+                prefs.edit().putBoolean("vpn_permission_lost", false).apply()
+                writeStatus(STATUS_ANOTHER_VPN, "Another VPN is currently active")
+            } else {
+                writeStatus(STATUS_STARTUP_FAILED, e.message ?: "VPN service failed to start")
+            }
             Log.e("FocusFlowVPN", "VPN startup failed", e)
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()

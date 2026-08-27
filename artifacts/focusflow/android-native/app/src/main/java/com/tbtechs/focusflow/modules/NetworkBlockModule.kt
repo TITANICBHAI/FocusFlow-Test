@@ -2,8 +2,6 @@ package com.tbtechs.focusflow.modules
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.net.VpnService
 import android.net.wifi.WifiManager
 import android.os.Build
@@ -427,14 +425,7 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
     }
 
     private fun isAnotherVpnActiveInternal(): Boolean {
-        if (NetworkBlockerVpnService.isRunning) return false
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false
-        val cm = reactContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-            ?: return false
-        return cm.allNetworks.any { network ->
-            cm.getNetworkCapabilities(network)
-                ?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
-        }
+        return NetworkBlockerVpnService.isAnotherVpnActive(reactContext)
     }
 
     /**

@@ -15,6 +15,10 @@ const watchdog = readFileSync(
   path.join(nativeRoot, 'services/VpnWatchdogReceiver.kt'),
   'utf8',
 );
+const bootReceiver = readFileSync(
+  path.join(nativeRoot, 'services/BootReceiver.kt'),
+  'utf8',
+);
 const accessibility = readFileSync(
   path.join(nativeRoot, 'services/AppBlockerAccessibilityService.kt'),
   'utf8',
@@ -97,6 +101,43 @@ describe('VPN effective-policy recovery contract', () => {
     expect(accessibilityHeal).not.toContain('ACTION_START');
     expect(foregroundHeal).not.toContain('ACTION_START');
     expect(networkBlockModule).not.toContain('private fun startVpnService');
+  });
+
+  it('classifies VPN conflicts separately from missing consent in native recovery', () => {
+    const startVpn = sliceFunction(
+      vpnService,
+      'private fun startVpn(',
+      'private fun stopVpn(',
+    );
+    const revoke = sliceFunction(
+      vpnService,
+      'override fun onRevoke()',
+      'override fun onDestroy()',
+    );
+
+    expect(startVpn).toContain(
+      'val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)',
+    );
+    expect(startVpn).not.toContain('sp.');
+    expect(vpnService).toContain('fun isAnotherVpnActive(context: Context)');
+    expect(vpnService).toContain('STATUS_ANOTHER_VPN');
+    expect(revoke).toContain('val anotherVpn = isAnotherVpnActive(applicationContext)');
+    expect(watchdog).toContain('NetworkBlockerVpnService.isAnotherVpnActive(context)');
+    expect(networkBlockModule).toContain(
+      'return NetworkBlockerVpnService.isAnotherVpnActive(reactContext)',
+    );
+    expect(vpnPermissionBanner).toContain("'another_vpn_active'");
+  });
+
+  it('keeps receiver recovery immediate and records rejected starts', () => {
+    expect(coordinator).toContain(
+      'if (forceRecovery) dispatchLatest(context.applicationContext)',
+    );
+    expect(coordinator).toContain('Android rejected the VPN service start');
+    expect(watchdog).toContain('cancel(context)');
+    expect(bootReceiver).toContain('NetworkBlockerVpnService.requestRecoverySync(context)');
+    expect(bootReceiver).toContain('ACTION_USER_UNLOCKED');
+    expect(bootReceiver).toContain('isUserUnlocked(context)');
   });
 
   it('shares one effective-policy result with desired-state metadata', () => {
@@ -225,6 +266,13 @@ describe('VPN effective-policy recovery contract', () => {
     expect(vpnPermissionBanner).toContain('NetworkBlockModule.isAnotherVpnActive()');
     expect(vpnPermissionBanner).toContain("'Retry VPN'");
     expect(vpnPermissionBanner).toContain('NetworkBlockModule.startNetworkBlock');
+  });
+
+  it('shows process-death recovery and desired/applied policy generations', () => {
+    expect(activeScreen).toContain("vpnStatus?.state === 'running' && !vpnStatus.running");
+    expect(activeScreen).toContain("'Recovery pending'");
+    expect(activeScreen).toContain('Policy sync');
+    expect(activeScreen).toContain('appliedPolicyGeneration');
   });
 
   it('does not reintroduce the immutable Kotlin parameter assignment', () => {
