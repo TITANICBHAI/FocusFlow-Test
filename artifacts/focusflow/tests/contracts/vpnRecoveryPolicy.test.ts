@@ -31,8 +31,16 @@ const packageInstallReceiver = readFileSync(
   path.join(nativeRoot, 'services/PackageInstallReceiver.kt'),
   'utf8',
 );
+const appContext = readFileSync(
+  path.resolve(__dirname, '../../src/context/AppContext.tsx'),
+  'utf8',
+);
 const nativeInstallScript = readFileSync(
   path.join(nativeRoot, '../../../../../../../install.sh'),
+  'utf8',
+);
+const manifestAdditions = readFileSync(
+  path.join(nativeRoot, '../../../../../../../manifest_additions.xml'),
   'utf8',
 );
 
@@ -99,6 +107,8 @@ describe('VPN effective-policy recovery contract', () => {
     expect(coordinator).toContain('addReasons(policy.standalone, "standalone_block")');
     expect(coordinator).toContain('addReasons(policy.focus, "focus_blocked")');
     expect(coordinator).toContain('addReasons(policy.invalid, "invalid_package")');
+    expect(coordinator).toContain('private fun isFocusBlockActive(prefs: SharedPreferences)');
+    expect(coordinator).toContain('.map { arr.optString(it).trim() }');
   });
 
   it('clears the canonical snapshot before handling an empty effective policy', () => {
@@ -127,5 +137,43 @@ describe('VPN effective-policy recovery contract', () => {
     expect(nativeInstallScript).toContain(
       '<action android:name="android.intent.action.PACKAGE_FULLY_REMOVED" />',
     );
+    expect(nativeInstallScript).toContain(
+      '<action android:name="android.intent.action.USER_UNLOCKED" />',
+    );
+    expect(nativeInstallScript).toContain(
+      '<action android:name="android.intent.action.MY_PACKAGE_REPLACED" />',
+    );
+    expect(nativeInstallScript).toContain('USER_UNLOCKED added to BootReceiver');
+    expect(nativeInstallScript).toContain('MY_PACKAGE_REPLACED added to BootReceiver');
+    expect(manifestAdditions).toContain(
+      '<action android:name="android.intent.action.USER_UNLOCKED" />',
+    );
+    expect(manifestAdditions).toContain(
+      '<action android:name="android.intent.action.MY_PACKAGE_REPLACED" />',
+    );
+  });
+
+  it('preserves task-specific focus policy during settings synchronization', () => {
+    expect(appContext).toContain('focusSession?.allowedPackages');
+    expect(appContext).toContain('FOCUS_BLOCK_ALL_SENTINEL');
+    expect(appContext).toContain(
+      'getNativeFocusAllowedPackages(settings, state.focusSession)',
+    );
+  });
+
+  it('cancels stale watchdog alarms when self-healing is disabled', () => {
+    expect(watchdog).toContain('cancel(context)');
+    expect(networkBlockModule).toContain('VpnWatchdogReceiver.cancel(reactContext)');
+  });
+
+  it('does not reintroduce the immutable Kotlin parameter assignment', () => {
+    expect(networkBlockModule).not.toContain('packagesJson = effectivePackagesJson');
+    expect(accessibility).toContain('private fun checkAndHealVpn()');
+    expect(
+      accessibility.slice(
+        accessibility.indexOf('private fun checkAndHealVpn()'),
+        accessibility.indexOf('\n    // ─── Retry mechanism'),
+      ),
+    ).not.toContain('return false');
   });
 });

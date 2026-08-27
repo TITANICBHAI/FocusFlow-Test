@@ -250,10 +250,18 @@ fi
 # ── BootReceiver ─────────────────────────────────────────────────────────────
 
 if ! grep -q "BootReceiver" "$MANIFEST"; then
-  sedi 's|</application>|        <receiver\n            android:name="com.tbtechs.focusflow.services.BootReceiver"\n            android:enabled="true"\n            android:exported="true">\n            <intent-filter>\n                <action android:name="android.intent.action.BOOT_COMPLETED" />\n                <action android:name="android.intent.action.QUICKBOOT_POWERON" />\n            </intent-filter>\n        </receiver>\n    </application>|' "$MANIFEST"
+  sedi 's|</application>|        <receiver\n            android:name="com.tbtechs.focusflow.services.BootReceiver"\n            android:enabled="true"\n            android:exported="true">\n            <intent-filter>\n                <action android:name="android.intent.action.BOOT_COMPLETED" />\n                <action android:name="android.intent.action.QUICKBOOT_POWERON" />\n                <action android:name="android.intent.action.USER_UNLOCKED" />\n                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />\n            </intent-filter>\n        </receiver>\n    </application>|' "$MANIFEST"
   echo "   ✓ BootReceiver registered"
 else
   echo "   ✓ BootReceiver already registered"
+  if ! grep -q "android.intent.action.USER_UNLOCKED" "$MANIFEST"; then
+    sedi 's|<action android:name="android.intent.action.QUICKBOOT_POWERON" />|<action android:name="android.intent.action.QUICKBOOT_POWERON" />\n                <action android:name="android.intent.action.USER_UNLOCKED" />|' "$MANIFEST"
+    echo "   ✓ USER_UNLOCKED added to BootReceiver"
+  fi
+  if ! grep -q "android.intent.action.MY_PACKAGE_REPLACED" "$MANIFEST"; then
+    sedi 's|<action android:name="android.intent.action.USER_UNLOCKED" />|<action android:name="android.intent.action.USER_UNLOCKED" />\n                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />|' "$MANIFEST"
+    echo "   ✓ MY_PACKAGE_REPLACED added to BootReceiver"
+  fi
 fi
 
 # ── FocusFlowWidget ──────────────────────────────────────────────────────────

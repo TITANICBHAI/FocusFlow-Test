@@ -282,7 +282,6 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
                     .putString("net_block_mode", if (global) NetworkBlockerVpnService.MODE_GLOBAL
                                                  else NetworkBlockerVpnService.MODE_PER_APP)
                     .apply()
-                packagesJson = effectivePackagesJson
             }
             if (useVpn && !NetworkBlockerVpnService.isRunning) {
                 val vpnPermission = VpnService.prepare(reactContext)
@@ -469,6 +468,9 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
     fun setVpnSelfHealEnabled(enabled: Boolean, promise: Promise) {
         try {
             prefs.edit().putBoolean("net_block_self_heal", enabled).apply()
+            if (!enabled) {
+                VpnWatchdogReceiver.cancel(reactContext)
+            }
             promise.resolve(null)
         } catch (e: Exception) {
             promise.reject("SELF_HEAL_ERROR", e.message, e)

@@ -155,6 +155,21 @@ function getExplicitVpnPackages(settings: AppSettings): string[] {
   ]));
 }
 
+const FOCUS_BLOCK_ALL_SENTINEL = 'com.focusflow.internal.blockall';
+
+function getNativeFocusAllowedPackages(
+  settings: AppSettings,
+  focusSession: FocusSession | null,
+): string[] {
+  // A task-specific allow-list takes precedence over the global setting while
+  // that task is active. Keep the same non-installed sentinel used by
+  // focusService so an intentionally empty list means "block all" natively,
+  // rather than being confused with an unset policy.
+  const allowedPackages = focusSession?.allowedPackages ?? settings.allowedInFocus;
+  const filteredAllowed = allowedPackages.filter((p) => p.includes('.'));
+  return filteredAllowed.length > 0 ? filteredAllowed : [FOCUS_BLOCK_ALL_SENTINEL];
+}
+
 // ─── Context ──────────────────────────────────────────────────────────────────
 
 interface AppContextValue {
@@ -1631,7 +1646,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await Promise.all([
         state.focusSession !== null
           ? SharedPrefsModule.setAllowedPackages(
-              settings.allowedInFocus.filter((p) => p.includes('.')),
+              getNativeFocusAllowedPackages(settings, state.focusSession),
             )
           : Promise.resolve(),
         _syncStandaloneBlock(settings),

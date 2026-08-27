@@ -70,7 +70,7 @@ object VpnPolicyCoordinator {
 
         if (prefs.getBoolean("net_block_global", false)) return true
         if (prefs.getBoolean(PREF_FOCUS_MIRROR, false) &&
-            prefs.getBoolean("focus_active", false)
+            isFocusBlockActive(prefs)
         ) return true
         if (isStandaloneBlockActive(prefs) &&
             parsePackageJson(prefs.getString(PREF_STANDALONE_PKGS, "[]") ?: "[]").isNotEmpty()
@@ -218,7 +218,7 @@ object VpnPolicyCoordinator {
 
         val focusTargets = if (
             prefs.getBoolean(PREF_FOCUS_MIRROR, false) &&
-            prefs.getBoolean("focus_active", false)
+            isFocusBlockActive(prefs)
         ) {
             val allowed = parsePackageJson(
                 prefs.getString("allowed_packages", "[]") ?: "[]",
@@ -228,8 +228,7 @@ object VpnPolicyCoordinator {
                     .addCategory(Intent.CATEGORY_LAUNCHER)
                 context.packageManager.queryIntentActivities(launcherIntent, 0)
                     .map { it.activityInfo.packageName }
-                    .filter { it != context.packageName }
-                    .filter { it !in ALWAYS_EXCLUDED }
+                    .filterNot { isExcludedPackage(it, context.packageName) }
                     .filter { it !in allowed }
                     .distinct()
             } catch (_: Exception) {
@@ -240,7 +239,7 @@ object VpnPolicyCoordinator {
         }
 
         val sourcePackages = (explicitCandidates + standaloneCandidates + focusTargets)
-            .filterNot { it == context.packageName || it in ALWAYS_EXCLUDED }
+            .filterNot { isExcludedPackage(it, context.packageName) }
             .distinct()
             .sorted()
         val invalid = sourcePackages.filterNot { isInstalled(context, it) }
@@ -312,17 +311,27 @@ object VpnPolicyCoordinator {
             false
         }
 
+    private fun isExcludedPackage(packageName: String, ownPackageName: String): Boolean =
+        packageName.equals(ownPackageName, ignoreCase = true) ||
+            ALWAYS_EXCLUDED.any { packageName.equals(it, ignoreCase = true) }
+
     private fun isStandaloneBlockActive(prefs: SharedPreferences): Boolean {
         if (!prefs.getBoolean("standalone_block_active", false)) return false
         val untilMs = prefs.getLong("standalone_block_until_ms", 0L)
         return untilMs <= 0L || untilMs > System.currentTimeMillis()
     }
 
+    private fun isFocusBlockActive(prefs: SharedPreferences): Boolean {
+        if (!prefs.getBoolean("focus_active", false)) return false
+        val endMs = prefs.getLong("task_end_ms", 0L)
+        return endMs <= 0L || endMs > System.currentTimeMillis()
+    }
+
     private fun parsePackageJson(json: String): List<String> {
         return try {
             val arr = JSONArray(json)
             (0 until arr.length())
-                .map { arr.optString(it) }
+                .map { arr.optString(it).trim() }
                 .filter { it.isNotBlank() }
         } catch (_: Exception) {
             emptyList()

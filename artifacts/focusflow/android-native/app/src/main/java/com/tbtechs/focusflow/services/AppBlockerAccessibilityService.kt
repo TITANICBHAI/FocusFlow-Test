@@ -1502,7 +1502,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
                 .putString("vpn_status", NetworkBlockerVpnService.STATUS_STARTUP_FAILED)
                 .putString("vpn_error", e.message ?: "AccessibilityService could not start VPN service")
                 .apply()
-            return false
+            return
             }
     }
 

@@ -103,9 +103,15 @@ class VpnWatchdogReceiver : BroadcastReceiver() {
 
         // ── Gate checks — bail early if we should not be restarting ────────────
 
-        if (!prefs.getBoolean("net_block_enabled",  false)) return
-        if (!prefs.getBoolean("net_block_vpn",      true)) return
-        if (!prefs.getBoolean("net_block_self_heal", false)) return
+        if (!prefs.getBoolean("net_block_enabled", false) ||
+            !prefs.getBoolean("net_block_vpn", true) ||
+            !prefs.getBoolean("net_block_self_heal", false)
+        ) {
+            // A user turning off the gate must not leave the old repeating
+            // alarm behind until its next delivery.
+            cancel(context)
+            return
+        }
 
         // ── Session validity ────────────────────────────────────────────────────
 

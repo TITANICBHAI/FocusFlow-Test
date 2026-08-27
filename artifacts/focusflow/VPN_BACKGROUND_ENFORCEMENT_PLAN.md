@@ -15,6 +15,10 @@
 - ✅ Focus foreground enforcement remains separate from VPN network enforcement.
 - ✅ The supporting code review is stored beside this primary plan.
 - ✅ Opt-in focus-to-VPN mirroring setting and basic native target derivation are implemented.
+- ✅ Settings synchronization preserves the active task's native focus allow-list
+  while VPN mirroring settings change.
+- ✅ Native focus-mirror recovery ignores expired focus sessions, and disabling
+  self-healing cancels its existing watchdog alarm immediately.
 - 🚧 Native policy calculation and dispatch now have a dedicated coordinator;
   full lifecycle ownership and process-death recovery are not implemented.
 
@@ -28,8 +32,12 @@
 - 🚧 **Phase 2 — Native coordinator and VPN lifecycle:** target calculation,
   durable policy persistence, debounced serialized reconfiguration, and native
   recovery dispatch are centralized; full lifecycle ownership remains open.
-- ❌ **Phase 3 — Recovery:** cover process death, boot, unlock, package changes, permission loss, and VPN conflicts.
-- ❌ **Phase 4 — React Native and UI:** add the opt-in setting, persistence, status, and explanatory states.
+- 🚧 **Phase 3 — Recovery:** boot, package changes, permission-loss signaling, and
+  coordinator-based recovery dispatch are implemented; full process-death,
+  unlock, conflict, and device verification remain open.
+- 🚧 **Phase 4 — React Native and UI:** the opt-in setting, default, persistence,
+  bridge, and basic status are implemented; complete explanatory and diagnostic
+  states remain open.
 - ❌ **Phase 5 — Verification:** complete contract, Kotlin, device, lifecycle, and network evidence.
 
 ### Known implementation gaps
@@ -39,6 +47,12 @@
 - ✅ Package-install updates to the effective VPN target set.
 - ✅ Versioned native desired-state record with generation and reason metadata.
 - ✅ Installed-package validation and unavailable-package failure metadata.
+- ✅ Package inputs are trimmed and safety exclusions are compared
+  case-insensitively before VPN registration.
+- ✅ Durable manifest installation wires user-unlock and app-replacement
+  broadcasts to the native recovery receiver.
+- ✅ The native installer adds those broadcasts both on first install and when
+  rerun against an existing manifest.
 - ✅ Recovery restart inputs recalculate from persisted policy sources instead of
   trusting the previous `net_block_packages` snapshot.
 - ✅ Older queued VPN start/stop commands are rejected by policy generation.
@@ -47,6 +61,10 @@
 - ✅ Native bridge, service recreation, watchdog, revoke, Accessibility health,
   foreground health, and focus teardown paths delegate VPN dispatch to the
   coordinator.
+- ✅ Removed two native Kotlin integration errors that prevented the VPN bridge
+  and Accessibility health path from compiling.
+- ✅ Recovery gates honor persisted focus expiry timestamps and remove stale
+  watchdog alarms when self-healing is disabled.
 - 🚧 Native coordinator covers explicit, standalone, and optional focus-derived
   targets; full lifecycle ownership and schedule sources remain open.
 - ❌ Recurring schedule VPN enforcement, if included in the approved scope.
