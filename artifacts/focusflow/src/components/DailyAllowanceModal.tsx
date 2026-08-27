@@ -251,7 +251,9 @@ export function DailyAllowanceModal({
     const usage = usageMap[entry.packageName];
     if (!usage) return null;
     const today = getLocalDateKey();
-    if (usage.date && usage.date !== today) return null;
+    // Interval windows are rolling and may cross midnight. Their
+    // windowStartMs is authoritative; date is metadata only.
+    if (entry.mode !== 'interval' && usage.date && usage.date !== today) return null;
 
     if (entry.mode === 'count') {
       const used = usage.count ?? 0;
@@ -274,11 +276,11 @@ export function DailyAllowanceModal({
     }
     if (entry.mode === 'interval') {
       const usedMs = usage.usedMs ?? 0;
-      if (usedMs === 0) return null;
       const windowStartMs = usage.windowStartMs ?? 0;
       const windowEndMs = windowStartMs + (entry.intervalHours ?? 1) * 3_600_000;
       const now = Date.now();
       if (now > windowEndMs) return 'Window reset — full allowance available';
+      if (usedMs === 0) return null;
       const intervalMs = (entry.intervalMinutes ?? 5) * 60_000;
       const remainingMs = Math.max(0, intervalMs - usedMs);
       const remMin = Math.round(remainingMs / 60_000);

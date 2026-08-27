@@ -10,6 +10,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   Animated,
+  InteractionManager,
   ScrollView,
   StyleSheet,
   Text,
@@ -22,6 +23,7 @@ import { router, useFocusEffect } from 'expo-router';
 import dayjs from 'dayjs';
 
 import { useApp } from '@/context/AppContext';
+import { withScreenErrorBoundary } from '@/components/withScreenErrorBoundary';
 import { useTheme } from '@/hooks/useTheme';
 import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
 import { dbGetTodayFocusMinutes, dbGetTodayOverrideCount, dbGetRecentDayCompletions } from '@/data/database';
@@ -40,7 +42,7 @@ type AllowanceUsage = {
   windowStartMs?: number;
 };
 
-export default function ActiveScreen() {
+function ActiveScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const { state, stopFocusMode, setStandaloneBlockAndAllowance } = useApp();
@@ -141,12 +143,17 @@ export default function ActiveScreen() {
     }, [refreshLiveData, state.tasks]),
   );
 
+  // Defer the heavy getInstalledApps() call until after the navigation
+  // animation completes. On Android this query can take hundreds of ms
+  // and blocks the JS thread mid-transition, making the screen appear frozen.
   useEffect(() => {
     let mounted = true;
-    InstalledAppsModule.getInstalledApps()
-      .then((installed) => { if (mounted) setApps(installed); })
-      .catch(() => {});
-    return () => { mounted = false; };
+    const task = InteractionManager.runAfterInteractions(() => {
+      InstalledAppsModule.getInstalledApps()
+        .then((installed) => { if (mounted) setApps(installed); })
+        .catch(() => {});
+    });
+    return () => { mounted = false; task.cancel(); };
   }, []);
 
   useEffect(() => {
@@ -225,7 +232,7 @@ export default function ActiveScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top']}>
       <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/focus')} hitSlop={10}>
           <Ionicons name="chevron-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerCopy}>
@@ -381,6 +388,8 @@ export default function ActiveScreen() {
   );
 }
 
+export default withScreenErrorBoundary(ActiveScreen, 'Active');
+
 function StatusCard({ icon, color, title, status, theme, children, expandable = false, expanded = false, onToggle }: { icon: keyof typeof Ionicons.glyphMap; color: string; title: string; status: string; theme: ReturnType<typeof useTheme>['theme']; children: React.ReactNode; expandable?: boolean; expanded?: boolean; onToggle?: () => void }) {
   return (
     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -406,11 +415,22 @@ function PackageList({ packages, appNames, theme }: { packages: string[]; appNam
 }
 
 function AllowanceRow({ entry, usage, appName, activeSessionEndMs, clock, theme }: { entry: DailyAllowanceEntry; usage?: AllowanceUsage; appName?: string; activeSessionEndMs?: number; clock: number; theme: ReturnType<typeof useTheme>['theme'] }) {
-  const used = entry.mode === 'count' ? (usage?.count ?? 0) : Math.floor((usage?.usedMs ?? 0) / 60_000);
+  // For interval mode the window is rolling (not daily). If the window start
+  // time has passed by more than intervalHours, the native service hasn't
+  // flushed the stale usedMs yet — treat used as 0.
+  const windowExpired = entry.mode === 'interval' && (
+    !usage?.windowStartMs ||
+    clock >= usage.windowStartMs + entry.intervalHours * 3_600_000
+  );
+  const used = entry.mode === 'count'
+    ? (usage?.count ?? 0)
+    : windowExpired
+      ? 0
+      : Math.floor((usage?.usedMs ?? 0) / 60_000);
   const limit = entry.mode === 'count' ? entry.countPerDay : entry.mode === 'time_budget' ? entry.budgetMinutes : entry.intervalMinutes;
   const remaining = Math.max(0, limit - used);
   const reset = resetLabel(entry, usage);
-  const remainingLabel = formatAllowanceRemaining(entry, usage, remaining);
+  const remainingLabel = formatAllowanceRemaining(entry, usage, remaining, windowExpired);
   const liveSession = activeSessionEndMs && activeSessionEndMs > clock
     ? `Live session: ${formatDuration(activeSessionEndMs - clock)} remaining`
     : null;
@@ -420,10 +440,18 @@ function AllowanceRow({ entry, usage, appName, activeSessionEndMs, clock, theme 
 function AllowanceSummary({ entries, usage, activeSessionPackage, activeSessionEndMs, clock, theme }: { entries: DailyAllowanceEntry[]; usage: Record<string, AllowanceUsage>; activeSessionPackage: string | null; activeSessionEndMs: number; clock: number; theme: ReturnType<typeof useTheme>['theme'] }) {
   const first = entries[0];
   const firstUsage = usage[first.packageName];
-  const used = first.mode === 'count' ? (firstUsage?.count ?? 0) : Math.floor((firstUsage?.usedMs ?? 0) / 60_000);
+  const windowExpired = first.mode === 'interval' && (
+    !firstUsage?.windowStartMs ||
+    clock >= firstUsage.windowStartMs + first.intervalHours * 3_600_000
+  );
+  const used = first.mode === 'count'
+    ? (firstUsage?.count ?? 0)
+    : windowExpired
+      ? 0
+      : Math.floor((firstUsage?.usedMs ?? 0) / 60_000);
   const limit = first.mode === 'count' ? first.countPerDay : first.mode === 'time_budget' ? first.budgetMinutes : first.intervalMinutes;
   const remaining = Math.max(0, limit - used);
-  const remainingLabel = formatAllowanceRemaining(first, firstUsage, remaining);
+  const remainingLabel = formatAllowanceRemaining(first, firstUsage, remaining, windowExpired);
   const liveSession = activeSessionPackage && activeSessionPackage === first.packageName && activeSessionEndMs > clock
     ? ` · Live session: ${formatDuration(activeSessionEndMs - clock)}`
     : '';
@@ -509,12 +537,16 @@ function formatDuration(durationMs: number): string {
   return seconds === 0 ? `${minutes}m` : `${minutes}m ${seconds}s`;
 }
 
-function formatAllowanceRemaining(entry: DailyAllowanceEntry, usage: AllowanceUsage | undefined, fallbackMinutes: number): string {
+function formatAllowanceRemaining(entry: DailyAllowanceEntry, usage: AllowanceUsage | undefined, fallbackMinutes: number, windowExpired = false): string {
   if (entry.mode === 'count') return `${fallbackMinutes} opens`;
   const allowanceMs = entry.mode === 'time_budget'
     ? (entry.budgetMinutes ?? 30) * 60_000
     : (entry.intervalMinutes ?? 5) * 60_000;
-  const remainingMs = Math.max(0, allowanceMs - (usage?.usedMs ?? 0));
+  // When the interval window has expired the native service hasn't flushed
+  // usedMs yet — the previous window's value would show 0 remaining.
+  // Treat usedMs as 0 so we display the full fresh-window allowance instead.
+  const effectiveUsedMs = entry.mode === 'interval' && windowExpired ? 0 : (usage?.usedMs ?? 0);
+  const remainingMs = Math.max(0, allowanceMs - effectiveUsedMs);
   return remainingMs < 5 * 60_000
     ? formatDuration(remainingMs)
     : `${Math.ceil(remainingMs / 60_000)} min`;

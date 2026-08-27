@@ -7,6 +7,7 @@ import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.WritableNativeMap
 import com.tbtechs.focusflow.services.AppBlockerAccessibilityService
+import com.tbtechs.focusflow.services.NetworkBlockerVpnService
 import com.tbtechs.focusflow.widget.FocusFlowWidget
 
 /**
@@ -63,6 +64,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
             }
         }
         prefs().edit().putBoolean("focus_active", active).apply()
+        NetworkBlockerVpnService.requestSync(reactContext)
         promise.resolve(null)
     }
 
@@ -82,6 +84,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
                 .remove("focus_break_until_ms")
         }
         editor.apply()
+        NetworkBlockerVpnService.requestSync(reactContext)
         promise.resolve(null)
     }
 
@@ -107,6 +110,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
         val list = (0 until packages.size()).map { "\"${packages.getString(it)}\"" }
         val json = "[${list.joinToString(",")}]"
         prefs().edit().putString("allowed_packages", json).apply()
+        NetworkBlockerVpnService.requestSync(reactContext)
         promise.resolve(null)
     }
 
@@ -400,6 +404,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
             // toggle. Older services still read both keys.
             .putBoolean("net_block_vpn", enabled)
             .apply()
+        NetworkBlockerVpnService.requestSync(reactContext)
         promise.resolve(null)
     }
 
@@ -415,10 +420,12 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
     fun setVpnSelectedPackages(packagesJson: String, promise: Promise) {
         prefs().edit()
             .putString("vpn_selected_packages", packagesJson)
-            // net_block_packages is the canonical list consumed by the VPN
-            // service, watchdog, AccessibilityService, and restore path.
-            .putString("net_block_packages", packagesJson)
+            // Compatibility path: preserve the old API while keeping its
+            // values in the explicit policy slot. The native resolver owns the
+            // effective list now.
+            .putString("net_block_explicit_packages", packagesJson)
             .apply()
+        NetworkBlockerVpnService.requestSync(reactContext)
         promise.resolve(null)
     }
 

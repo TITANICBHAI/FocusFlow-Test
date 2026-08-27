@@ -518,6 +518,7 @@ export default function RootLayout() {
               <Stack.Screen name="privacy-policy" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
               <Stack.Screen name="onboarding" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
               <Stack.Screen name="permissions" options={{ headerShown: false }} />
+              <Stack.Screen name="active" options={{ headerShown: false, presentation: 'card' }} />
               <Stack.Screen name="block-defense" options={{ headerShown: false, presentation: 'card' }} />
               <Stack.Screen name="keyword-blocker" options={{ headerShown: false, presentation: 'card' }} />
               <Stack.Screen name="home-launcher" options={{ headerShown: false, presentation: 'card' }} />

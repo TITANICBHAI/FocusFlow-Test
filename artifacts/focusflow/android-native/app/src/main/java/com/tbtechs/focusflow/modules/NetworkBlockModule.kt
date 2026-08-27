@@ -150,7 +150,8 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
      * Persists network-block settings from a JSON object string.
      * Only keys present in [settingsJson] are updated; missing keys are left unchanged.
      *
-     * Accepted keys: enabled, vpn, wifi, mobile, global, restore, packages
+     * Accepted keys: enabled, vpn, wifi, mobile, global, restore, packages,
+     * focusMirrorEnabled
      */
     @ReactMethod
     fun setNetworkBlockSettings(settingsJson: String, promise: Promise) {
@@ -196,8 +197,16 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
             if (obj.has("mobile"))   editor.putBoolean("net_block_mobile",  obj.getBoolean("mobile"))
             if (obj.has("global"))   editor.putBoolean("net_block_global",  obj.getBoolean("global"))
             if (obj.has("restore"))  editor.putBoolean("net_block_restore", obj.getBoolean("restore"))
-            if (obj.has("packages")) editor.putString("net_block_packages", obj.getString("packages"))
+            if (obj.has("packages")) {
+                // Keep explicit VPN selections separate from the effective
+                // package list, which may include focus-mirrored targets.
+                editor.putString("net_block_explicit_packages", obj.getString("packages"))
+            }
+            if (obj.has("focusMirrorEnabled")) {
+                editor.putBoolean("net_block_focus_mirror", obj.getBoolean("focusMirrorEnabled"))
+            }
             editor.apply()
+            NetworkBlockerVpnService.requestSync(reactContext)
             promise.resolve(null)
         } catch (e: Exception) {
             promise.reject("INVALID_JSON", e.message, e)
@@ -254,13 +263,25 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
 
             // 1 — VPN tunnel (primary, most reliable)
             if (useVpn) {
+                if (!prefs.contains("net_block_explicit_packages")) {
+                    // One-time compatibility for installations created before
+                    // explicit and effective package lists were separated.
+                    prefs.edit().putString("net_block_explicit_packages", packagesJson).apply()
+                }
+                val effectivePackagesJson = if (global) packagesJson
+                    else NetworkBlockerVpnService.effectivePackagesJson(reactContext, prefs)
+                if (!global && effectivePackagesJson == "[]") {
+                    promise.resolve(NetworkBlockerVpnService.STATUS_DISABLED)
+                    return
+                }
                 // The service and every watchdog path read this canonical list.
                 // Persist it before dispatching the asynchronous service start.
                 prefs.edit()
-                    .putString("net_block_packages", packagesJson)
+                    .putString("net_block_packages", effectivePackagesJson)
                     .putString("net_block_mode", if (global) NetworkBlockerVpnService.MODE_GLOBAL
                                                  else NetworkBlockerVpnService.MODE_PER_APP)
                     .apply()
+                packagesJson = effectivePackagesJson
             }
             if (useVpn && !NetworkBlockerVpnService.isRunning) {
                 val vpnPermission = VpnService.prepare(reactContext)

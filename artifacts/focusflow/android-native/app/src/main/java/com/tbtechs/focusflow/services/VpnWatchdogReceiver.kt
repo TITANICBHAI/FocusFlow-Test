@@ -154,10 +154,14 @@ class VpnWatchdogReceiver : BroadcastReceiver() {
 
         // ── Restart the VPN tunnel ──────────────────────────────────────────────
 
-        val pkgs   = prefs.getString("net_block_packages", "[]") ?: "[]"
+        val pkgs   = NetworkBlockerVpnService.effectivePackagesJson(context, prefs)
         val global = prefs.getBoolean("net_block_global", false)
         val mode   = if (global) NetworkBlockerVpnService.MODE_GLOBAL
                      else        NetworkBlockerVpnService.MODE_PER_APP
+        if (!global && pkgs == "[]") {
+            cancel(context)
+            return
+        }
 
         try {
             val vpnIntent = Intent(context, NetworkBlockerVpnService::class.java).apply {

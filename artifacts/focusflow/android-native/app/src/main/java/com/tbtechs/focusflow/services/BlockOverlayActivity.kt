@@ -40,9 +40,9 @@ import org.json.JSONArray
  *      fades in the ✕ button in the top-right corner.
  *   5. User taps ✕ → overlay finishes.  No navigation — they're already at home.
  *
- * Back button: opens FocusFlow so the user can return to the app without
- * dismissing the active block itself. The overlay's re-raise guard treats
- * MainActivity as a trusted FocusFlow screen.
+ * Back button: intentionally swallowed so the fallback activity cannot
+ * navigate away from the block screen. The AccessibilityService owns the
+ * system-level dismissal sequence.
  * onPause re-raise: kept from the original for slow-device protection.
  *
  * SharedPrefs keys read:
@@ -171,11 +171,11 @@ class BlockOverlayActivity : Activity() {
         intent?.getStringExtra(EXTRA_BLOCK_REASON)?.let { if (it.isNotEmpty()) blockReason = it }
     }
 
-    // ─── Back button: fully swallowed — only ✕ can dismiss the overlay ─────────
+    // ─── Back button: swallow it so the fallback overlay cannot escape ─────────
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        // Intentionally do nothing — back is completely ignored.
+        // Intentionally swallow Back. The AccessibilityService owns dismissal.
     }
 
     // ─── Power button: block power-off menu during session ────────────────────

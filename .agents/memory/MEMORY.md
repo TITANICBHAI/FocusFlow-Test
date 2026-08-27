@@ -1,16 +1,12 @@
 - [Android usage launch counts](usage-stats-launch-count.md) — derive app-entry counts from UsageEvents, not UsageStats.appLaunchCount, for this Android build.
 - [Android usage aggregation](usage-stats-aggregation.md) — aggregate UsageStats milliseconds before converting to display minutes; bucket-by-bucket flooring undercounts.
 - [Onboarding permission tiers](onboarding-permission-tiers.md) — keep first-run focused: three permissions gate readiness, while recommended access and personalization stay non-blocking.
-- [User-controlled diagnostic email](user-controlled-diagnostic-email.md) — keep reports in a user-reviewed native email draft with a sanitized text attachment, not a server relay.
-- [Imported audit verification](imported-audit-verification.md) — uploaded codebase audits may describe fixes already present; validate each finding against the current checkout before editing.
 - [Android SQLite write serialization](android-sqlite-write-serialization.md) — single-flight database opening does not prevent concurrent Expo SQLite writes from contending.
 - [Android prebuild native patches](android-prebuild-native-patches.md) — release-critical Gradle changes must be mirrored in the Expo config plugin, not only install.sh.
 - [FocusFlow implementation plan](focusflow-implementation-plan.md) — use the final Kotlin-focused plan as the authoritative execution order for UsageStats and fallback enforcement work.
-- [FocusFlow plain-English guide](focusflow-plain-english-guide.md) — use the companion explanation to understand the two-guard architecture and rationale behind the implementation plan.
 - [Dependency installation timing](dependency-installation-timing.md) — read the applicable plan and do requested code edits before installing dependencies; install when the user asks or verification requires it.
 - [Workspace package firewall](workspace-package-firewall.md) — filtered frozen installs can still fail on the shared shell-quote tarball before workspace-local node_modules is linked.
 - [System-control enforcement gate](system-control-enforcement-gate.md) — installer and system-control interception must require the explicit Protect system controls toggle.
 - [Task deletion and focus cleanup](task-deletion-focus-cleanup.md) — clearing tasks must end active focus sessions before deleting their task rows, without changing block settings.
-- [FocusFlow test planning](focusflow-test-planning.md) — keep test layers and durable native sources inside the FocusFlow artifact; validate local, CI, device, then relevant CodeQL evidence.
-- [FocusFlow test-plan review](test-plan-review.md) — test fallback preconditions and cross-service timing, not only mocked blocked outcomes.
-- [FocusFlow additional recommendations](additional-recommendations.md) — optional backlog is status-tracked in the FocusFlow artifact; distinguish existing behavior from new ideas.
+- [FocusFlow persistence migration](focusflow-persistence-plan.md) — PERSISTENCE_MIGRATION_PLAN.md is authoritative; the reliability plan and review are supporting references.
+- [VPN enforcement plan authority](vpn-enforcement-independence.md) — read the background-enforcement plan and its code review together before implementing; the review supports the plan.

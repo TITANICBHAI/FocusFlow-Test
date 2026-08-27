@@ -460,6 +460,19 @@ function DefenseScreen() {
               thumbColor={settings.vpnSelfHealEnabled ? COLORS.primary : theme.muted}
             />
           </SettingRow>
+          <SettingRow
+            label="Mirror Focus blocking to VPN"
+            description="Also block internet for apps blocked by Focus during an active session"
+            theme={theme}
+          >
+            <Switch
+              value={settings.focusMirrorVpnEnabled ?? false}
+              onValueChange={(value) => void update({ focusMirrorVpnEnabled: value })}
+              disabled={!(settings.vpnBlockEnabled ?? false)}
+              trackColor={{ false: theme.border, true: COLORS.primary + '88' }}
+              thumbColor={settings.focusMirrorVpnEnabled ? COLORS.primary : theme.muted}
+            />
+          </SettingRow>
         </Section>
 
         <Section title="Home Launcher" theme={theme}>

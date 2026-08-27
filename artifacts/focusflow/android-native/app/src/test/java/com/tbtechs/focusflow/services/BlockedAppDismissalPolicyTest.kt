@@ -12,7 +12,7 @@ class BlockedAppDismissalPolicyTest {
     )
 
     @Test
-    fun normalBlockedAppGetsBackBackHomeThenBackWithRealDelays() {
+    fun normalBlockedAppGetsBackThenHomeWithRealDelays() {
         assertEquals(
             listOf(
                 BlockedAppDismissalPolicy.DismissalAction(

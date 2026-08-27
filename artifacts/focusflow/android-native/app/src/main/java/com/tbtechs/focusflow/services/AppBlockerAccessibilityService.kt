@@ -2565,6 +2565,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
                 val remainingMs = (entry.intervalMs - prevUsedMs).coerceAtLeast(0L)
                 sessionEndMs = now + remainingMs
                 pkgUsed.put("mode", "interval")
+                pkgUsed.put("date", todayDateString())
                 pkgUsed.put("windowStartMs", effectiveWindowStart)
                 pkgUsed.put("usedMs", prevUsedMs) // updated when session ends
             }
@@ -2803,9 +2804,9 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         //    own re-raise on slow phones via onPause(), so this service can back off.
         launchBlockOverlay(blockedPackage, fullReason)
 
-        // 4. Close the blocked app: immediate BACK → BACK (30 ms) → HOME (80 ms)
-        //    → BACK (100 ms). These key presses act on the blocked app itself and
-        //    do not affect the overlay, which is a system window that stays on top.
+        // 4. Close the blocked app: BACK → HOME (150 ms) → BACK (160 ms).
+        //    These key presses act on the blocked app itself and do not affect the
+        //    overlay, which is a system window that stays on top regardless.
         dismissPackage(blockedPackage)
 
         // 5. Aversive deterrents — screen dim, vibration, alert sound (each gated
@@ -3519,12 +3520,10 @@ class AppBlockerAccessibilityService : AccessibilityService() {
     /**
      * Kicks the user out of [blockedPackage] using both BACK and HOME.
      *
-     * BACK immediately, then again at 30 ms — gives the blocked app two
-     * best-effort chances to collapse any in-app dialog or deeplink navigation.
-     * HOME at 80 ms — forces the launcher to the foreground, which also
+     * BACK at 30 ms — gives the blocked app a best-effort chance to collapse
+     * any in-app dialog or deeplink navigation before leaving it.
+     * HOME at 90 ms — forces the launcher to the foreground, which also
      * triggers the overlay X-button / Back+Home nav row reveal signal.
-     * BACK again at 100 ms — closes any remaining navigation layer after the
-     * launcher transition.
      *
      * Installer packages (Play Store, MIUI installer, etc.) only get BACK
      * because sending HOME during an install confirmation hides the dialog
@@ -3536,8 +3535,11 @@ class AppBlockerAccessibilityService : AccessibilityService() {
                 BlockedAppDismissalPolicy.GlobalAction.BACK -> GLOBAL_ACTION_BACK
                 BlockedAppDismissalPolicy.GlobalAction.HOME -> GLOBAL_ACTION_HOME
             }
-            if (dismissal.delayMs == 0L) performGlobalAction(action)
-            else handler.postDelayed({ performGlobalAction(action) }, dismissal.delayMs)
+            if (dismissal.delayMs == 0L) {
+                performGlobalAction(action)
+            } else {
+                handler.postDelayed({ performGlobalAction(action) }, dismissal.delayMs)
+            }
         }
     }
 

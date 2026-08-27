@@ -48,11 +48,11 @@
     VIBRATE                     (for vibration harassment aversion layer)
     SCHEDULE_EXACT_ALARM        (for weekly temptation report alarm; optional, falls back to inexact)
     KILL_BACKGROUND_PROCESSES   (terminate the blocked app process after HOME press)
-    USE_FULL_SCREEN_INTENT      (required to launch TaskAlarmActivity via full-screen notification)
+    USE_FULL_SCREEN_INTENT      (required to launch BlockOverlayActivity AND TaskAlarmActivity via full-screen notification)
      POST_NOTIFICATIONS          (required on Android 13+ for revoked-VPN recovery alerts)
     EXPAND_STATUS_BAR           (allows collapsing the notification panel via StatusBarManager)
     READ_EXTERNAL_STORAGE       (legacy API ≤ 32 — lets WallpaperManager.getDrawable() succeed
-                                 when reading the home-screen wallpaper for the blocking overlay)
+                                 when reading the home-screen wallpaper for BlockOverlayActivity)
 
   AndroidManifest.xml components (patched automatically):
 

@@ -225,19 +225,6 @@ else
   echo "   ✓ PackageInstallReceiver already registered"
 fi
 
-# ── BlockOverlayActivity ──────────────────────────────────────────────────────
-# Full-screen overlay shown when a blocked app is launched.
-# singleTask: prevents stacking multiple overlay instances.
-# showWhenLocked + turnScreenOn: renders over lockscreen if needed.
-# excludeFromRecents + noHistory: disappears cleanly after dismissal.
-
-if ! grep -q "BlockOverlayActivity" "$MANIFEST"; then
-  sedi 's|</application>|        <activity\n            android:name="com.tbtechs.focusflow.services.BlockOverlayActivity"\n            android:exported="false"\n            android:launchMode="singleTask"\n            android:showWhenLocked="true"\n            android:turnScreenOn="true"\n            android:excludeFromRecents="true"\n            android:noHistory="true"\n            android:taskAffinity=""\n            android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />\n    </application>|' "$MANIFEST"
-  echo "   ✓ BlockOverlayActivity registered"
-else
-  echo "   ✓ BlockOverlayActivity already registered"
-fi
-
 # ── TaskEndAlarmReceiver ──────────────────────────────────────────────────────
 # Receives AlarmManager PendingIntents fired when a task's scheduled end time
 # arrives. Not exported — only our own process sends these intents.

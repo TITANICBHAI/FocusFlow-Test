@@ -186,6 +186,7 @@ export const NetworkBlockModule = {
     enabled: boolean;
     vpn: boolean;
     packages: string[];
+    focusMirrorEnabled?: boolean;
     defensePinHash?: string | null;
   }): Promise<void> {
     const native = requireNetworkBlock();
@@ -197,6 +198,7 @@ export const NetworkBlockModule = {
       enabled: settings.enabled,
       vpn: settings.vpn,
       packages: JSON.stringify(Array.from(new Set(settings.packages))),
+      focusMirrorEnabled: settings.focusMirrorEnabled ?? false,
       ...(settings.defensePinHash ? { defensePinHash: settings.defensePinHash } : {}),
     }));
   },

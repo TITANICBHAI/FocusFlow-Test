@@ -14,11 +14,10 @@
  *  10. Declares LauncherActivity with HOME + DEFAULT intent-filter
  *  11. Declares NetworkBlockerVpnService with BIND_VPN_SERVICE permission
  *  12. Declares VpnWatchdogReceiver for VPN self-healing
- *  13. Uses the WindowManager overlay for app blocking
- *  14. Declares TemptationReportReceiver for weekly reports
- *  15. Adds <queries> block for Android 11+ package visibility
- *  16. Registers FocusDayPackage via withMainApplication (reliable for RN 0.76+)
- *  17. Copies all Kotlin source files from android-native/ into the project
+ *  13. Declares TemptationReportReceiver for weekly reports
+ *  14. Adds <queries> block for Android 11+ package visibility
+ *  15. Registers FocusDayPackage via withMainApplication (reliable for RN 0.76+)
+ *  16. Copies all Kotlin source files from android-native/ into the project
  *
  * Applied automatically during `npx expo prebuild --platform android`.
  * No manual XML or Kotlin editing required.

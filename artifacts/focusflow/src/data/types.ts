@@ -171,6 +171,12 @@ export interface AppSettings {
    */
   alwaysOnVpnPackages?: string[];
   /**
+   * When true, FocusFlow mirrors the current focus allow-list into the
+   * per-app VPN target set. This is opt-in and does not alter explicit VPN
+   * selections or GLOBAL mode.
+   */
+  focusMirrorVpnEnabled?: boolean;
+  /**
    * When true, any packages added via standalone block are automatically
    * mirrored into `alwaysOnPackages` so they stay blocked after the timed
    * session expires. Default false.

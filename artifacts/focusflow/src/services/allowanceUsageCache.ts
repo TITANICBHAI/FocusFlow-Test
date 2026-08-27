@@ -2,6 +2,7 @@ import { SharedPrefsModule } from '@/native-modules/SharedPrefsModule';
 
 export type AllowanceUsageSnapshot = {
   usage: Record<string, {
+    mode?: string;
     date?: string;
     count?: number;
     usedMs?: number;
@@ -32,7 +33,14 @@ function parseUsage(raw: string | null, today: string): AllowanceUsageSnapshot['
   try {
     const parsed = JSON.parse(raw) as Record<string, AllowanceUsageSnapshot['usage'][string]>;
     return Object.fromEntries(
-      Object.entries(parsed).map(([pkg, value]) => [pkg, value.date === today ? value : {}]),
+      Object.entries(parsed).map(([pkg, value]) => {
+        // Interval allowances use a rolling window that can cross midnight.
+        // Their windowStartMs, not the calendar date, determines validity.
+        if (value.mode === 'interval') {
+          return [pkg, value.windowStartMs ? value : {}];
+        }
+        return [pkg, value.date === today ? value : {}];
+      }),
     );
   } catch {
     return {};

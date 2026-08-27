@@ -40,6 +40,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   blockYoutubeShortsEnabled: false,
   blockInstagramReelsEnabled: false,
   vpnBlockEnabled: false,
+  focusMirrorVpnEnabled: false,
   standaloneVpnPackages: [],
   vpnSelfHealEnabled: false,
   keepFocusActiveUntilTaskEnd: true,

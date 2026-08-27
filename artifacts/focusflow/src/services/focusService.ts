@@ -66,7 +66,6 @@ export async function startFocusMode(
   // Write state to SharedPreferences so:
   //   • AppBlockerAccessibilityService knows focus is on and which apps to block
   //   • BootReceiver can restart the service after a reboot
-  await SharedPrefsModule.setFocusActive(true);
   await SharedPrefsModule.setActiveTask(task.id, task.title, endMs, nextTask?.title ?? null);
   // Tint the home-screen widget with the task's accent color.
   await SharedPrefsModule.setActiveTaskColor(task.color ?? '');
@@ -77,6 +76,9 @@ export async function startFocusMode(
   await SharedPrefsModule.setAllowedPackages(
     filteredAllowed.length > 0 ? filteredAllowed : ['com.focusflow.internal.blockall'],
   );
+  // Set the active flag after the allow-list so native focus-to-VPN mirroring
+  // computes the correct effective target set on its first restart.
+  await SharedPrefsModule.setFocusActive(true);
 
   // App blocking is handled entirely by AppBlockerAccessibilityService (Kotlin).
   // It reads focus_active and allowed_packages from SharedPreferences (written

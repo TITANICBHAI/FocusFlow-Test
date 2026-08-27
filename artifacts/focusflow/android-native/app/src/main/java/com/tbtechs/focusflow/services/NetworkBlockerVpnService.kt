@@ -80,6 +80,8 @@ class NetworkBlockerVpnService : VpnService() {
         private const val PREF_STATUS      = "vpn_status"
         private const val PREF_ERROR       = "vpn_error"
         private const val PREF_FAILED_PKGS = "vpn_failed_packages"
+        private const val PREF_EXPLICIT_PKGS = "net_block_explicit_packages"
+        private const val PREF_FOCUS_MIRROR = "net_block_focus_mirror"
 
         const val STATUS_DISABLED = "disabled"
         const val STATUS_STARTING = "starting"
@@ -120,11 +122,110 @@ class NetworkBlockerVpnService : VpnService() {
             ) return false
 
             if (prefs.getBoolean("net_block_global", false)) return true
+            if (prefs.getBoolean(PREF_FOCUS_MIRROR, false) &&
+                prefs.getBoolean("focus_active", false)
+            ) return true
 
             return try {
-                JSONArray(prefs.getString("net_block_packages", "[]") ?: "[]").length() > 0
+                parsePackageJson(
+                    prefs.getString(PREF_EXPLICIT_PKGS, null)
+                        ?: prefs.getString("net_block_packages", "[]")
+                        ?: "[]",
+                ).isNotEmpty()
             } catch (_: Exception) {
                 false
+            }
+        }
+
+        /**
+         * Computes the effective per-app target set from persisted policy.
+         * Explicit VPN selections remain independent; focus mirroring adds the
+         * launchable apps that are not in the current focus allow-list.
+         */
+        fun effectivePackages(context: Context, prefs: SharedPreferences): List<String> {
+            val explicit = parsePackageJson(
+                prefs.getString(PREF_EXPLICIT_PKGS, null)
+                    ?: prefs.getString("net_block_packages", "[]")
+                    ?: "[]",
+            )
+            if (!prefs.getBoolean(PREF_FOCUS_MIRROR, false) ||
+                !prefs.getBoolean("focus_active", false)
+            ) return explicit
+
+            val allowed = parsePackageJson(prefs.getString("allowed_packages", "[]") ?: "[]").toSet()
+            val focusTargets = try {
+                val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                context.packageManager.queryIntentActivities(launcherIntent, 0)
+                    .map { it.activityInfo.packageName }
+                    .filter { it != context.packageName }
+                    .filter { it !in ALWAYS_EXCLUDED }
+                    .filter { it !in allowed }
+            } catch (_: Exception) {
+                emptyList()
+            }
+            return (explicit + focusTargets).distinct()
+        }
+
+        fun effectivePackagesJson(context: Context, prefs: SharedPreferences): String =
+            JSONArray(effectivePackages(context, prefs)).toString()
+
+        /**
+         * Re-applies the persisted network policy after a focus/allow-list or
+         * settings change. This runs in native code so a killed JS process does
+         * not leave the VPN using a stale package set.
+         */
+        fun requestSync(context: Context) {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            if (!prefs.getBoolean("net_block_enabled", false) ||
+                !prefs.getBoolean("net_block_vpn", true)
+            ) return
+
+            val global = prefs.getBoolean("net_block_global", false)
+            val packagesJson = effectivePackagesJson(context, prefs)
+            if (!global && parsePackageJson(packagesJson).isEmpty()) {
+                val stopIntent = Intent(context, NetworkBlockerVpnService::class.java).apply {
+                    action = ACTION_STOP
+                }
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        context.startForegroundService(stopIntent)
+                    } else {
+                        context.startService(stopIntent)
+                    }
+                } catch (_: Exception) {}
+                return
+            }
+
+            prefs.edit()
+                .putString("net_block_packages", packagesJson)
+                .putString(
+                    "net_block_mode",
+                    if (global) MODE_GLOBAL else MODE_PER_APP,
+                )
+                .apply()
+
+            val startIntent = Intent(context, NetworkBlockerVpnService::class.java).apply {
+                action = ACTION_START
+                putExtra(EXTRA_PACKAGES, packagesJson)
+                putExtra(EXTRA_MODE, if (global) MODE_GLOBAL else MODE_PER_APP)
+            }
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(startIntent)
+                } else {
+                    context.startService(startIntent)
+                }
+            } catch (_: Exception) {}
+        }
+
+        private fun parsePackageJson(json: String): List<String> {
+            return try {
+                val arr = JSONArray(json)
+                (0 until arr.length())
+                    .map { arr.optString(it) }
+                    .filter { it.isNotBlank() }
+            } catch (_: Exception) {
+                emptyList()
             }
         }
     }
@@ -174,7 +275,7 @@ class NetworkBlockerVpnService : VpnService() {
                 val saActive    = prefs.getBoolean("standalone_block_active", false)
                 val alwaysOn    = prefs.getBoolean("always_block_active", false)
                 if (focusActive || saActive || alwaysOn || hasPersistentVpnConfiguration(prefs)) {
-                    val pkgs = prefs.getString("net_block_packages", "[]") ?: "[]"
+                    val pkgs = effectivePackagesJson(this, prefs)
                     val mode = prefs.getString("net_block_mode", MODE_PER_APP) ?: MODE_PER_APP
                     startVpn(pkgs, mode)
                 } else {
@@ -282,8 +383,18 @@ class NetworkBlockerVpnService : VpnService() {
      * (emergency apps) and FocusFlow itself.
      */
     private fun startVpn(packagesJson: String, mode: String) {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val effectiveJson = if (mode == MODE_GLOBAL) packagesJson
+            else effectivePackagesJson(this, prefs)
+        if (mode != MODE_GLOBAL && parseJsonArray(effectiveJson).isEmpty()) {
+            stopVpn(updateStatus = true)
+            writeStatus(STATUS_STOPPED)
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return
+        }
         if (vpnInterface != null &&
-            activePackagesJson == packagesJson &&
+            activePackagesJson == effectiveJson &&
             activeMode == mode
         ) return   // already established with the same package set
         if (vpnInterface != null) {
@@ -292,7 +403,6 @@ class NetworkBlockerVpnService : VpnService() {
             stopVpn(updateStatus = false)
         }
 
-        val sp = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         writeStatus(STATUS_STARTING)
         try {
             // Close the race between the JS preflight and service startup.
@@ -329,7 +439,7 @@ class NetworkBlockerVpnService : VpnService() {
                     // PER_APP: route ONLY the blocked app(s) through the VPN
                     // addAllowedApplication() means: ONLY those packages go through the VPN;
                     // all others bypass it completely.
-                    val packages = parseJsonArray(packagesJson)
+                    val packages = parseJsonArray(effectiveJson)
                     if (packages.isEmpty()) {
                         // No packages specified — abort rather than silently becoming a
                         // global block. Caller must provide at least one package for per-app mode.
@@ -375,12 +485,12 @@ class NetworkBlockerVpnService : VpnService() {
             isRunning = vpnInterface != null
 
             if (isRunning) {
-                activePackagesJson = packagesJson
+                activePackagesJson = effectiveJson
                 activeMode = mode
                 // Persist mode and packages so we can restore after an OS restart.
                 // Also clear the permission-lost flag — the tunnel is up again.
                 sp.edit()
-                    .putString("net_block_packages",  packagesJson)
+                    .putString("net_block_packages",  effectiveJson)
                     .putString("net_block_mode",       mode)
                     .putBoolean("vpn_permission_lost", false)
                     .apply()
