@@ -737,13 +737,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // Keep the UI setting, native mechanism flag, explicit package list, and
       // focus-mirror preference in one native write. The native service derives
       // the effective per-app target set from these persisted values.
-      const explicitVpnPkgs = getExplicitVpnPackages(settings);
+      const explicitVpnPkgs = Array.from(new Set(settings.alwaysOnVpnPackages ?? []));
       // native write. The VPN service, watchdog, and AccessibilityService all
       // consume the native effective list.
       await NetworkBlockModule.setNetworkBlockSettings({
         enabled: settings.vpnBlockEnabled ?? false,
         vpn: settings.vpnBlockEnabled ?? false,
         packages: explicitVpnPkgs,
+        standalonePackages: settings.standaloneVpnPackages ?? [],
         focusMirrorEnabled: settings.focusMirrorVpnEnabled ?? false,
         defensePinHash,
       });
@@ -759,7 +760,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // VPN blocking is enabled. The native service reconfigures itself when the
     // package set changes and is otherwise a no-op.
     try {
-      const explicitVpnPkgs = getExplicitVpnPackages(settings);
+      const explicitVpnPkgs = Array.from(new Set(settings.alwaysOnVpnPackages ?? []));
       if ((settings.vpnBlockEnabled ?? false) && explicitVpnPkgs.length > 0) {
         void NetworkBlockModule.startNetworkBlock(JSON.stringify(explicitVpnPkgs)).catch((e) =>
           void logger.warn('AppContext', `always-on VPN start failed: ${String(e)}`),
@@ -1856,7 +1857,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await NetworkBlockModule.setNetworkBlockSettings({
       enabled: newSettings.vpnBlockEnabled ?? false,
       vpn: newSettings.vpnBlockEnabled ?? false,
-      packages: getExplicitVpnPackages(newSettings),
+      packages: Array.from(new Set(newSettings.alwaysOnVpnPackages ?? [])),
+      standalonePackages: newSettings.standaloneVpnPackages ?? [],
       focusMirrorEnabled: newSettings.focusMirrorVpnEnabled ?? false,
       defensePinHash: pinHash,
     });

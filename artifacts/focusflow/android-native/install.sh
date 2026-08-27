@@ -222,6 +222,14 @@ if ! grep -q "PackageInstallReceiver" "$MANIFEST"; then
   sedi 's|</application>|        <receiver\n            android:name="com.tbtechs.focusflow.services.PackageInstallReceiver"\n            android:exported="true">\n            <intent-filter>\n                <action android:name="android.intent.action.PACKAGE_ADDED" />\n                <action android:name="android.intent.action.PACKAGE_REMOVED" />\n                <action android:name="android.intent.action.PACKAGE_FULLY_REMOVED" />\n                <data android:scheme="package" />\n            </intent-filter>\n        </receiver>\n    </application>|' "$MANIFEST"
   echo "   ✓ PackageInstallReceiver registered"
 else
+  if ! grep -q 'android.intent.action.PACKAGE_REMOVED' "$MANIFEST"; then
+    sedi 's|<action android:name="android.intent.action.PACKAGE_ADDED" />|<action android:name="android.intent.action.PACKAGE_ADDED" />\n                <action android:name="android.intent.action.PACKAGE_REMOVED" />|' "$MANIFEST"
+    echo "   ✓ PACKAGE_REMOVED added to PackageInstallReceiver"
+  fi
+  if ! grep -q 'android.intent.action.PACKAGE_FULLY_REMOVED' "$MANIFEST"; then
+    sedi 's|<action android:name="android.intent.action.PACKAGE_REMOVED" />|<action android:name="android.intent.action.PACKAGE_REMOVED" />\n                <action android:name="android.intent.action.PACKAGE_FULLY_REMOVED" />|' "$MANIFEST"
+    echo "   ✓ PACKAGE_FULLY_REMOVED added to PackageInstallReceiver"
+  fi
   echo "   ✓ PackageInstallReceiver already registered"
 fi
 

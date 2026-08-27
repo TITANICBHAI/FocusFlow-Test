@@ -19,6 +19,10 @@
   while VPN mirroring settings change.
 - ✅ Native focus-mirror recovery ignores expired focus sessions, and disabling
   self-healing cancels its existing watchdog alarm immediately.
+- ✅ Ordinary standalone overlay packages remain separate from the timed
+  standalone VPN package source.
+- ✅ Unchanged healthy VPN service state skips native reconfiguration while
+  desired policy metadata continues to persist.
 - 🚧 Native policy calculation and dispatch now have a dedicated coordinator;
   full lifecycle ownership and process-death recovery are not implemented.
 
@@ -27,8 +31,8 @@
 - ❌ **Phase 0 — Confirm product scope:** resolve the open decisions in Section 13.
 - ✅ **Phase 1 — Native policy contract:** versioned desired state, source reasons,
   validation failures, and stale-generation behavior are implemented for
-  explicit, standalone, and opt-in focus-mirror sources. Schedule and allowance
-  mirroring remain deferred decisions.
+  explicit, timed standalone VPN, and opt-in focus-mirror sources. Schedule and
+  allowance mirroring remain deferred decisions.
 - 🚧 **Phase 2 — Native coordinator and VPN lifecycle:** target calculation,
   durable policy persistence, debounced serialized reconfiguration, and native
   recovery dispatch are centralized; full lifecycle ownership remains open.
@@ -65,8 +69,13 @@
   and Accessibility health path from compiling.
 - ✅ Recovery gates honor persisted focus expiry timestamps and remove stale
   watchdog alarms when self-healing is disabled.
-- 🚧 Native coordinator covers explicit, standalone, and optional focus-derived
-  targets; full lifecycle ownership and schedule sources remain open.
+- ✅ Native coordinator covers explicit, timed standalone VPN, and optional
+  focus-derived targets without routing ordinary standalone overlay packages;
+  full lifecycle ownership and schedule sources remain open.
+- ✅ Expo prebuild and the durable native installer register package add,
+  removal, and fully-removed broadcasts for VPN policy recalculation.
+- 🚧 Full package-removal behavior remains unverified until a generated Android
+  build is exercised.
 - ❌ Recurring schedule VPN enforcement, if included in the approved scope.
 
 ## 1. Executive summary

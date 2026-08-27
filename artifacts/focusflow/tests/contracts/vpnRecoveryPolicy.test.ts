@@ -35,6 +35,14 @@ const appContext = readFileSync(
   path.resolve(__dirname, '../../src/context/AppContext.tsx'),
   'utf8',
 );
+const activeScreen = readFileSync(
+  path.resolve(__dirname, '../../app/active.tsx'),
+  'utf8',
+);
+const vpnPermissionBanner = readFileSync(
+  path.resolve(__dirname, '../../src/components/VpnPermissionLostBanner.tsx'),
+  'utf8',
+);
 const nativeInstallScript = readFileSync(
   path.join(nativeRoot, '../../../../../../../install.sh'),
   'utf8',
@@ -93,6 +101,8 @@ describe('VPN effective-policy recovery contract', () => {
 
   it('shares one effective-policy result with desired-state metadata', () => {
     expect(coordinator).toContain('private data class EffectivePolicy(');
+    expect(coordinator).toContain('PREF_STANDALONE_VPN_PKGS');
+    expect(coordinator).not.toContain('PREF_STANDALONE_PKGS');
     expect(coordinator).toContain('private const val DISPATCH_DEBOUNCE_MS = 150L');
     expect(coordinator).toContain('pendingDispatch');
     expect(coordinator).toContain('mainHandler.postDelayed');
@@ -104,7 +114,7 @@ describe('VPN effective-policy recovery contract', () => {
     expect(coordinator).toContain('getApplicationInfo(packageName, 0)');
     expect(coordinator).toContain('put("failedPackages", JSONArray(policy.invalid))');
     expect(coordinator).toContain('addReasons(policy.explicit, "explicit_vpn")');
-    expect(coordinator).toContain('addReasons(policy.standalone, "standalone_block")');
+    expect(coordinator).toContain('addReasons(policy.standalone, "standalone_vpn")');
     expect(coordinator).toContain('addReasons(policy.focus, "focus_blocked")');
     expect(coordinator).toContain('addReasons(policy.invalid, "invalid_package")');
     expect(coordinator).toContain('private fun isFocusBlockActive(prefs: SharedPreferences)');
@@ -143,6 +153,8 @@ describe('VPN effective-policy recovery contract', () => {
     expect(nativeInstallScript).toContain(
       '<action android:name="android.intent.action.MY_PACKAGE_REPLACED" />',
     );
+    expect(nativeInstallScript).toContain('PACKAGE_REMOVED added to PackageInstallReceiver');
+    expect(nativeInstallScript).toContain('PACKAGE_FULLY_REMOVED added to PackageInstallReceiver');
     expect(nativeInstallScript).toContain('USER_UNLOCKED added to BootReceiver');
     expect(nativeInstallScript).toContain('MY_PACKAGE_REPLACED added to BootReceiver');
     expect(manifestAdditions).toContain(
@@ -164,6 +176,39 @@ describe('VPN effective-policy recovery contract', () => {
   it('cancels stale watchdog alarms when self-healing is disabled', () => {
     expect(watchdog).toContain('cancel(context)');
     expect(networkBlockModule).toContain('VpnWatchdogReceiver.cancel(reactContext)');
+  });
+
+  it('persists source updates without reconfiguring an unchanged healthy service', () => {
+    expect(coordinator).toContain('private fun sameServiceState(');
+    expect(coordinator).toContain('val serviceStateChanged = !sameServiceState(');
+    expect(coordinator).toContain('if (persisted.serviceStateChanged || recoveryNeeded)');
+    expect(coordinator).toContain('NetworkBlockerVpnService.isRunning');
+    expect(coordinator).toContain('status == NetworkBlockerVpnService.STATUS_RUNNING');
+  });
+
+  it('keeps package-removal recovery durable through Expo prebuild', () => {
+    expect(nativeInstallScript).toContain('android.intent.action.PACKAGE_REMOVED');
+    expect(nativeInstallScript).toContain('android.intent.action.PACKAGE_FULLY_REMOVED');
+    expect(manifestAdditions).toContain('android.intent.action.PACKAGE_REMOVED');
+    expect(manifestAdditions).toContain('android.intent.action.PACKAGE_FULLY_REMOVED');
+    const plugin = readFileSync(
+      path.resolve(__dirname, '../../plugins/withFocusDayAndroid.js'),
+      'utf8',
+    );
+    expect(plugin).toContain('packageInstallActions');
+    expect(plugin).toContain('android.intent.action.PACKAGE_REMOVED');
+    expect(plugin).toContain('android.intent.action.PACKAGE_FULLY_REMOVED');
+  });
+
+  it('surfaces VPN permission, conflict, partial-failure, and self-healing states', () => {
+    expect(activeScreen).toContain("case 'another_vpn_active':");
+    expect(activeScreen).toContain("case 'package_registration_failed':");
+    expect(activeScreen).toContain("case 'startup_failed':");
+    expect(activeScreen).toContain('Disabled — manual recovery only');
+    expect(activeScreen).toContain('vpnStatus.failedPackages.length');
+    expect(vpnPermissionBanner).toContain('NetworkBlockModule.isAnotherVpnActive()');
+    expect(vpnPermissionBanner).toContain("'Retry VPN'");
+    expect(vpnPermissionBanner).toContain('NetworkBlockModule.startNetworkBlock');
   });
 
   it('does not reintroduce the immutable Kotlin parameter assignment', () => {

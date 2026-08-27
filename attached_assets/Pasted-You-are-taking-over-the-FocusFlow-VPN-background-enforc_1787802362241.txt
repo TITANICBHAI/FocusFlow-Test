@@ -1,0 +1,132 @@
+You are taking over the FocusFlow VPN background-enforcement implementation.
+Your job is to continue the remaining work from the repository state. Do not start from scratch, do not reset existing changes, and do not push to GitHub or deploy unless explicitly asked.
+## Primary source of truth
+Read these first:
+1. artifacts/focusflow/VPN_BACKGROUND_ENFORCEMENT_PLAN.md
+2. artifacts/focusflow/VPN_PLAN_CODE_REVIEW_1787795464198.md
+3. .agents/memory/MEMORY.md
+4. Relevant linked memory files, especially:
+   - vpn-enforcement-independence.md
+   - focusflow-implementation-plan.md
+   - android-prebuild-native-patches.md
+   - system-control-enforcement-gate.md
+   - dependency-installation-timing.md
+   - vpn-validation-boundary.md
+The primary VPN plan is authoritative. The code review is supporting material and may be stale.
+## Product decisions to follow unless the user explicitly changes them
+Use the plan’s recommended first-release scope:
+- Focus-to-VPN mirroring is opt-in.
+- The default is off.
+- Use Android PER_APP VPN routing.
+- Keep explicit VPN selections independent from Accessibility foreground blocking.
+- Do not use global VPN mode for focus mirroring.
+- Empty effective target sets must stop the VPN, never become global blocking.
+- Defer recurring schedule VPN mirroring.
+- Defer daily-allowance VPN mirroring.
+- Keep GLOBAL mode as a separate explicit feature.
+- Use bounded, visible recovery when another VPN is active.
+- Do not copy Silent Guardian GPL-licensed source.
+## Current implementation already present
+The following work has already been implemented and must be preserved:
+- Native VpnPolicyCoordinator for effective policy calculation and dispatch.
+- Versioned desired policy with generation numbers.
+- Source reason metadata.
+- Invalid/unavailable package reporting.
+- Stale VPN command rejection.
+- Debounced coordinator dispatch.
+- Explicit, standalone, and opt-in focus-derived VPN sources.
+- Recovery recalculation from persisted policy sources.
+- Boot, package-change, watchdog, revoke, Accessibility, foreground-service, and focus-teardown paths delegating to the coordinator.
+- Active focus task allow-list preservation in React Native settings synchronization.
+- Block-all sentinel for intentionally empty focus allow-lists.
+- Focus expiry-aware recovery.
+- Watchdog cancellation when self-healing is disabled.
+- Package trimming and case-insensitive safety exclusions.
+- USER_UNLOCKED and MY_PACKAGE_REPLACED manifest wiring.
+- Idempotent manifest installer updates.
+- Kotlin fixes in NetworkBlockModule and AppBlockerAccessibilityService.
+- Contract tests for the above.
+## Current files of interest
+Inspect the actual current files before editing:
+- artifacts/focusflow/android-native/app/src/main/java/com/tbtechs/focusflow/services/VpnPolicyCoordinator.kt
+- artifacts/focusflow/android-native/app/src/main/java/com/tbtechs/focusflow/services/NetworkBlockerVpnService.kt
+- artifacts/focusflow/android-native/app/src/main/java/com/tbtechs/focusflow/services/VpnWatchdogReceiver.kt
+- artifacts/focusflow/android-native/app/src/main/java/com/tbtechs/focusflow/services/BootReceiver.kt
+- artifacts/focusflow/android-native/app/src/main/java/com/tbtechs/focusflow/services/PackageInstallReceiver.kt
+- artifacts/focusflow/android-native/app/src/main/java/com/tbtechs/focusflow/services/AppBlockerAccessibilityService.kt
+- artifacts/focusflow/android-native/app/src/main/java/com/tbtechs/focusflow/services/ForegroundTaskService.kt
+- artifacts/focusflow/android-native/app/src/main/java/com/tbtechs/focusflow/modules/NetworkBlockModule.kt
+- artifacts/focusflow/android-native/app/src/main/java/com/tbtechs/focusflow/modules/SharedPrefsModule.kt
+- artifacts/focusflow/android-native/install.sh
+- artifacts/focusflow/android-native/manifest_additions.xml
+- artifacts/focusflow/src/context/AppContext.tsx
+- artifacts/focusflow/src/services/focusService.ts
+- artifacts/focusflow/src/data/types.ts
+- artifacts/focusflow/src/data/defaultSettings.ts
+- artifacts/focusflow/app/(tabs)/defense.tsx
+- artifacts/focusflow/tests/contracts/vpnRecoveryPolicy.test.ts
+## Remaining implementation work
+Work through these in order.
+### 1. Confirm the policy-source distinction
+Verify whether the native coordinator currently uses:
+- explicit VPN packages,
+- ordinary standalone Accessibility-blocked packages,
+- standaloneVpnPackages,
+as separate concepts.
+The React model has a distinct standaloneVpnPackages list. Make sure ordinary standalone-blocked apps are not unintentionally routed through the VPN unless that is explicitly intended by the product model.
+If a change is needed, preserve backwards compatibility with existing SharedPreferences keys and update the contract tests.
+### 2. Improve coordinator no-op behavior
+The plan requires reconfiguration only when the effective policy changes.
+Inspect whether requestSync currently increments the generation and dispatches a new start/stop command even when:
+- target packages have not changed,
+- mode has not changed,
+- enabled state has not changed,
+- VPN state has not changed.
+If it does, add a safe no-op comparison against the persisted desired policy. Do not skip persistence when failure metadata or source reasons changed. Only skip the actual VPN service reconfiguration when the effective desired state is unchanged.
+Add contract tests for unchanged policy behavior.
+### 3. Complete recovery/lifecycle behavior
+Review and harden:
+- process death restoration,
+- VPN service recreation,
+- boot before user unlock,
+- user unlock recovery,
+- package uninstall while protected,
+- permission revoke/re-grant,
+- another VPN becoming active,
+- standalone VPN expiration,
+- standalone-to-always-on handoff,
+- watchdog cancellation and bounded retry behavior.
+Do not claim these are complete based only on source inspection. Mark implementation and proof separately in the plan.
+### 4. Complete UI diagnostics
+Check the React Native UI for visible states covering:
+- VPN permission missing,
+- VPN permission revoked,
+- another VPN already active,
+- invalid/uninstalled selected packages,
+- partial package registration failures,
+- VPN self-healing disabled,
+- difference between Accessibility blocking and network blocking.
+Do not redesign unrelated parts of the app. Keep the UI changes focused on the VPN enforcement plan.
+### 5. Keep the plan tracker current
+Update:
+artifacts/focusflow/VPN_BACKGROUND_ENFORCEMENT_PLAN.md
+Use:
+- ✅ only for implemented and verified behavior,
+- 🚧 for implemented but not fully verified behavior,
+- ❌ for open decisions or unimplemented behavior.
+Do not mark native/device behavior complete until it has actually been tested on a generated Android build or emulator/device.
+## Verification steps
+First install the existing FocusFlow dependencies using the frozen lockfile:
+pnpm install --filter @workspace/focusflow --frozen-lockfile
+Do not modify dependency versions or the lockfile.
+Then run:
+pnpm --filter @workspace/focusflow exec vitest run tests/contracts/vpnRecoveryPolicy.test.ts
+pnpm --filter @workspace/focusflow exec tsc --noEmit
+The VPN contract suite previously passed 7 tests.
+The TypeScript check previously reported six unrelated baseline errors:
+- app/changelog.tsx: missing heading and icon fields
+- app/onboarding.tsx: missing collapsedAction style
+- app/permissions.tsx: duplicate/unrelated PermissionId types
+- src/context/AppContext.tsx: missing compressDeletedTaskGap export
+- two implicit-any errors in AppContext.tsx
+Rerun the checks after your changes and distinguish new VPN regressions from these existing errors. Do not fix unrelated errors unless they block the VPN work or are explicitly required.

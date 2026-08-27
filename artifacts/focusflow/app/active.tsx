@@ -211,6 +211,16 @@ function ActiveScreen() {
   const alwaysOnActive = (settings.alwaysOnEnforcementEnabled ?? false) && alwaysOnPackages.length > 0;
   const vpnConfigured = vpnPackages.length > 0 || settings.vpnBlockEnabled === true;
   const vpnRunning = vpnStatus?.running === true;
+  const vpnNeedsAttention =
+    vpnStatus === null ||
+    vpnStatus.failedPackages.length > 0 ||
+    ['permission_missing', 'another_vpn_active', 'package_registration_failed', 'startup_failed'].includes(
+      vpnStatus.state,
+    );
+  const vpnStatusLabel = formatVpnStatus(vpnStatus?.state, vpnConfigured);
+  const vpnStatusDetail = vpnStatus?.error
+    ? `${vpnStatusLabel} · ${vpnStatus.error}`
+    : vpnStatusLabel;
   const nothingActive = !focusActive && !standaloneActive && !alwaysOnActive && allowanceEntries.length === 0 &&
     keywords.length === 0 && !vpnRunning;
 
@@ -322,9 +332,23 @@ function ActiveScreen() {
           </TouchableOpacity>
         </StatusCard>
 
-        <StatusCard icon="shield-checkmark-outline" color={vpnRunning ? COLORS.green : theme.muted} title="VPN Blocking" status={vpnRunning ? 'Active' : 'Not active'} theme={theme} expandable={vpnPackages.length > 0} expanded={expanded === 'vpn'} onToggle={() => setExpanded(expanded === 'vpn' ? null : 'vpn')}>
-          <DetailRow label="Status" value={vpnRunning ? (vpnStatus?.error ? `Running · ${vpnStatus.error}` : vpnStatus.failedPackages.length > 0 ? `Running · ${vpnStatus.failedPackages.length} app${vpnStatus.failedPackages.length === 1 ? '' : 's'} failed` : 'Running normally') : vpnConfigured ? (vpnStatus?.state === 'permission_missing' ? 'Permission required' : 'Configured but stopped') : 'No VPN apps configured'} theme={theme} />
+        <StatusCard icon="shield-checkmark-outline" color={vpnRunning && !vpnNeedsAttention ? COLORS.green : vpnNeedsAttention ? COLORS.red : theme.muted} title="VPN Blocking" status={vpnRunning && !vpnNeedsAttention ? 'Active' : vpnStatusLabel} theme={theme} expandable={vpnPackages.length > 0} expanded={expanded === 'vpn'} onToggle={() => setExpanded(expanded === 'vpn' ? null : 'vpn')}>
+          <DetailRow label="Status" value={vpnStatusDetail} theme={theme} />
           {vpnPackages.length > 0 && <DetailRow label="Apps" value={`${vpnPackages.length} app${vpnPackages.length === 1 ? '' : 's'} selected`} theme={theme} />}
+          {vpnStatus?.failedPackages.length ? (
+            <DetailRow
+              label="Unavailable"
+              value={`${vpnStatus.failedPackages.length} selected app${vpnStatus.failedPackages.length === 1 ? '' : 's'} could not be registered`}
+              theme={theme}
+            />
+          ) : null}
+          {settings.vpnBlockEnabled && (
+            <DetailRow
+              label="Self-healing"
+              value={settings.vpnSelfHealEnabled ? 'Enabled' : 'Disabled — manual recovery only'}
+              theme={theme}
+            />
+          )}
           {expanded === 'vpn' && <PackageList packages={vpnPackages} appNames={appNames} theme={theme} />}
           <TouchableOpacity style={[styles.action, { borderColor: theme.border }]} onPress={() => router.push('/vpn-block-list')}>
             <Ionicons name="settings-outline" size={16} color={COLORS.primary} />
@@ -556,6 +580,29 @@ function shortPackageName(pkg: string): string {
   const parts = pkg.split('.');
   const last = parts[parts.length - 1] === 'android' ? parts[parts.length - 2] : parts[parts.length - 1];
   return last ? last.charAt(0).toUpperCase() + last.slice(1) : pkg;
+}
+
+function formatVpnStatus(state: string | undefined, configured: boolean): string {
+  switch (state) {
+    case 'starting':
+      return 'Starting';
+    case 'running':
+      return 'Running normally';
+    case 'permission_missing':
+      return 'Permission required';
+    case 'another_vpn_active':
+      return 'Another VPN is active';
+    case 'package_registration_failed':
+      return 'Some apps could not be registered';
+    case 'startup_failed':
+      return 'Startup failed';
+    case 'disabled':
+      return 'Disabled';
+    case 'stopped':
+      return configured ? 'Configured but stopped' : 'No VPN apps configured';
+    default:
+      return configured ? 'VPN status unavailable' : 'No VPN apps configured';
+  }
 }
 
 function unique(values: string[]): string[] {

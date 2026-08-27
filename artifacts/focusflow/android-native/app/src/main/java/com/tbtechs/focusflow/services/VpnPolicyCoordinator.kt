@@ -23,8 +23,8 @@ import org.json.JSONObject
 object VpnPolicyCoordinator {
     private const val PREFS_NAME = "focusday_prefs"
     private const val PREF_EXPLICIT_PKGS = "net_block_explicit_packages"
+    private const val PREF_STANDALONE_VPN_PKGS = "net_block_standalone_vpn_packages"
     private const val PREF_FOCUS_MIRROR = "net_block_focus_mirror"
-    private const val PREF_STANDALONE_PKGS = "standalone_blocked_packages"
     private const val PREF_DESIRED_POLICY = "net_block_desired_policy"
     private const val PREF_POLICY_GENERATION = "net_block_policy_generation"
     private const val PREF_FAILED_PKGS = "vpn_failed_packages"
@@ -59,6 +59,11 @@ object VpnPolicyCoordinator {
         val invalid: List<String>,
     )
 
+    private data class PersistResult(
+        val generation: Long,
+        val serviceStateChanged: Boolean,
+    )
+
     /**
      * Returns whether a durable VPN policy still requires protection without
      * depending on a live focus or standalone overlay session.
@@ -73,7 +78,9 @@ object VpnPolicyCoordinator {
             isFocusBlockActive(prefs)
         ) return true
         if (isStandaloneBlockActive(prefs) &&
-            parsePackageJson(prefs.getString(PREF_STANDALONE_PKGS, "[]") ?: "[]").isNotEmpty()
+            parsePackageJson(
+                prefs.getString(PREF_STANDALONE_VPN_PKGS, "[]") ?: "[]",
+            ).isNotEmpty()
         ) return true
 
         return parsePackageJson(
@@ -107,7 +114,7 @@ object VpnPolicyCoordinator {
             val policy = effectivePolicy(context, prefs)
             val packagesJson = JSONArray(policy.targets).toString()
 
-            persistDesiredPolicy(
+            val persisted = persistDesiredPolicy(
                 prefs = prefs,
                 enabled = enabled,
                 vpnEnabled = vpnEnabled,
@@ -128,7 +135,23 @@ object VpnPolicyCoordinator {
                 )
                 .apply()
 
-            scheduleDispatch(context.applicationContext)
+            val expectsRunning = enabled && vpnEnabled &&
+                (global || policy.targets.isNotEmpty())
+            val status = prefs.getString(
+                "vpn_status",
+                NetworkBlockerVpnService.STATUS_STOPPED,
+            )
+            val recoveryNeeded = expectsRunning &&
+                !NetworkBlockerVpnService.isRunning &&
+                status == NetworkBlockerVpnService.STATUS_RUNNING
+
+            // Persist every source/reason/failure update, but do not issue a
+            // service command when the effective service state is unchanged
+            // and the current tunnel is healthy. A stale persisted "running"
+            // state after process death is the explicit recovery exception.
+            if (persisted.serviceStateChanged || recoveryNeeded) {
+                scheduleDispatch(context.applicationContext)
+            }
         }
     }
 
@@ -211,7 +234,9 @@ object VpnPolicyCoordinator {
                 ?: "[]",
         )
         val standaloneCandidates = if (isStandaloneBlockActive(prefs)) {
-            parsePackageJson(prefs.getString(PREF_STANDALONE_PKGS, "[]") ?: "[]")
+            parsePackageJson(
+                prefs.getString(PREF_STANDALONE_VPN_PKGS, "[]") ?: "[]",
+            )
         } else {
             emptyList()
         }
@@ -259,7 +284,7 @@ object VpnPolicyCoordinator {
         vpnEnabled: Boolean,
         global: Boolean,
         policy: EffectivePolicy,
-    ) {
+    ): PersistResult {
         val reasons = JSONObject()
 
         fun addReasons(packages: List<String>, reason: String) {
@@ -278,10 +303,18 @@ object VpnPolicyCoordinator {
         }
 
         addReasons(policy.explicit, "explicit_vpn")
-        addReasons(policy.standalone, "standalone_block")
+        addReasons(policy.standalone, "standalone_vpn")
         addReasons(policy.focus, "focus_blocked")
         addReasons(policy.invalid, "invalid_package")
 
+        val previousRecord = prefs.getString(PREF_DESIRED_POLICY, null)
+        val serviceStateChanged = !sameServiceState(
+            previousRecord = previousRecord,
+            enabled = enabled,
+            vpnEnabled = vpnEnabled,
+            global = global,
+            targets = policy.targets,
+        )
         val generation = currentPolicyGeneration(prefs) + 1L
         val record = JSONObject().apply {
             put("version", POLICY_VERSION)
@@ -301,6 +334,34 @@ object VpnPolicyCoordinator {
             .putLong(PREF_POLICY_GENERATION, generation)
             .putString(PREF_DESIRED_POLICY, record.toString())
             .apply()
+        return PersistResult(
+            generation = generation,
+            serviceStateChanged = serviceStateChanged,
+        )
+    }
+
+    private fun sameServiceState(
+        previousRecord: String?,
+        enabled: Boolean,
+        vpnEnabled: Boolean,
+        global: Boolean,
+        targets: List<String>,
+    ): Boolean {
+        if (previousRecord.isNullOrBlank()) return false
+        return try {
+            val previous = JSONObject(previousRecord)
+            val previousTargets = parsePackageJson(
+                previous.optJSONArray("targetPackages")?.toString() ?: "[]",
+            ).distinct().sorted()
+            previous.optBoolean("enabled", false) == enabled &&
+                previous.optBoolean("vpnEnabled", false) == vpnEnabled &&
+                previous.optString("mode", NetworkBlockerVpnService.MODE_PER_APP) ==
+                    if (global) NetworkBlockerVpnService.MODE_GLOBAL
+                    else NetworkBlockerVpnService.MODE_PER_APP &&
+                previousTargets == targets.distinct().sorted()
+        } catch (_: Exception) {
+            false
+        }
     }
 
     private fun isInstalled(context: Context, packageName: String): Boolean =

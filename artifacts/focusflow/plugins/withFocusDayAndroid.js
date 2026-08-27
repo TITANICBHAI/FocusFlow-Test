@@ -363,6 +363,11 @@ function withFocusDayManifest(config) {
     // automatically added to the blocked list.
     // android:exported="true" is required for system-broadcast receivers;
     // data scheme="package" restricts the receiver to package events only.
+    const packageInstallActions = [
+      'android.intent.action.PACKAGE_ADDED',
+      'android.intent.action.PACKAGE_REMOVED',
+      'android.intent.action.PACKAGE_FULLY_REMOVED',
+    ];
     const pkgInstallExists = (app.receiver || []).some(
       (r) => r.$['android:name'] === 'com.tbtechs.focusflow.services.PackageInstallReceiver'
     );
@@ -375,14 +380,37 @@ function withFocusDayManifest(config) {
           'android:exported': 'true',
         },
         'intent-filter': [{
-          action: [
-            { $: { 'android:name': 'android.intent.action.PACKAGE_ADDED' } },
-          ],
+          action: packageInstallActions.map((name) => ({ $: { 'android:name': name } })),
           data: [
             { $: { 'android:scheme': 'package' } },
           ],
         }],
       });
+    } else {
+      const packageReceiver = app.receiver.find(
+        (r) => r.$['android:name'] === 'com.tbtechs.focusflow.services.PackageInstallReceiver'
+      );
+      const packageFilter = (packageReceiver['intent-filter'] || []).find((filter) =>
+        (filter.data || []).some((entry) => entry.$?.['android:scheme'] === 'package')
+      );
+
+      if (packageFilter) {
+        if (!packageFilter.action) packageFilter.action = [];
+        const existingActions = new Set(
+          packageFilter.action.map((action) => action.$?.['android:name'])
+        );
+        for (const name of packageInstallActions) {
+          if (!existingActions.has(name)) {
+            packageFilter.action.push({ $: { 'android:name': name } });
+          }
+        }
+      } else {
+        if (!packageReceiver['intent-filter']) packageReceiver['intent-filter'] = [];
+        packageReceiver['intent-filter'].push({
+          action: packageInstallActions.map((name) => ({ $: { 'android:name': name } })),
+          data: [{ $: { 'android:scheme': 'package' } }],
+        });
+      }
     }
 
     // ── TemptationReportReceiver ───────────────────────────────────────────────

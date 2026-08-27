@@ -149,7 +149,7 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
      * Only keys present in [settingsJson] are updated; missing keys are left unchanged.
      *
      * Accepted keys: enabled, vpn, wifi, mobile, global, restore, packages,
-     * focusMirrorEnabled
+     * focusMirrorEnabled, standalonePackages
      */
     @ReactMethod
     fun setNetworkBlockSettings(settingsJson: String, promise: Promise) {
@@ -196,9 +196,16 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
             if (obj.has("global"))   editor.putBoolean("net_block_global",  obj.getBoolean("global"))
             if (obj.has("restore"))  editor.putBoolean("net_block_restore", obj.getBoolean("restore"))
             if (obj.has("packages")) {
-                // Keep explicit VPN selections separate from the effective
-                // package list, which may include focus-mirrored targets.
+                // Keep persistent explicit VPN selections separate from the
+                // effective package list, which may include timed standalone
+                // or focus-mirrored targets.
                 editor.putString("net_block_explicit_packages", obj.getString("packages"))
+            }
+            if (obj.has("standalonePackages")) {
+                editor.putString(
+                    "net_block_standalone_vpn_packages",
+                    obj.getString("standalonePackages"),
+                )
             }
             if (obj.has("focusMirrorEnabled")) {
                 editor.putBoolean("net_block_focus_mirror", obj.getBoolean("focusMirrorEnabled"))

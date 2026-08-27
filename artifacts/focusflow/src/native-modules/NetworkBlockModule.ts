@@ -189,6 +189,8 @@ export const NetworkBlockModule = {
     enabled: boolean;
     vpn: boolean;
     packages: string[];
+    /** Timed standalone VPN selections; ordinary overlay packages stay separate. */
+    standalonePackages?: string[];
     focusMirrorEnabled?: boolean;
     defensePinHash?: string | null;
   }): Promise<void> {
@@ -201,6 +203,9 @@ export const NetworkBlockModule = {
       enabled: settings.enabled,
       vpn: settings.vpn,
       packages: JSON.stringify(Array.from(new Set(settings.packages))),
+      standalonePackages: JSON.stringify(
+        Array.from(new Set(settings.standalonePackages ?? [])),
+      ),
       focusMirrorEnabled: settings.focusMirrorEnabled ?? false,
       ...(settings.defensePinHash ? { defensePinHash: settings.defensePinHash } : {}),
     }));
