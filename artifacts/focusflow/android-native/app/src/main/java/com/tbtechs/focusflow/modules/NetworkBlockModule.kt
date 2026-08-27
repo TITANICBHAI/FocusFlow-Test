@@ -2,6 +2,7 @@ package com.tbtechs.focusflow.modules
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.net.ConnectivityManager
 import android.net.VpnService
 import android.net.wifi.WifiManager
 import android.os.Build
@@ -280,13 +281,6 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
                     promise.resolve(NetworkBlockerVpnService.STATUS_DISABLED)
                     return
                 }
-                // The service and every watchdog path read this canonical list.
-                // Persist it before dispatching the asynchronous service start.
-                prefs.edit()
-                    .putString("net_block_packages", effectivePackagesJson)
-                    .putString("net_block_mode", if (global) NetworkBlockerVpnService.MODE_GLOBAL
-                                                 else NetworkBlockerVpnService.MODE_PER_APP)
-                    .apply()
             }
             if (useVpn && !NetworkBlockerVpnService.isRunning) {
                 val vpnPermission = VpnService.prepare(reactContext)

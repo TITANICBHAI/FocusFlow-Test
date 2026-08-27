@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.concurrent.Executors
 
 /**
  * Native owner for the persisted VPN policy and its effective target set.
@@ -30,10 +31,14 @@ object VpnPolicyCoordinator {
     private const val PREF_FAILED_PKGS = "vpn_failed_packages"
     private const val POLICY_VERSION = 1
     private const val DISPATCH_DEBOUNCE_MS = 150L
+    private const val LAUNCHER_CACHE_TTL_MS = 30_000L
 
     private val syncLock = Any()
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val launcherCacheExecutor = Executors.newSingleThreadExecutor()
     private var pendingDispatch: Runnable? = null
+    @Volatile private var cachedLauncherPackages: List<String> = emptyList()
+    @Volatile private var cacheRefreshedAtMs: Long = 0L
 
     /**
      * These packages must remain reachable for emergency calls, messaging, and
@@ -122,6 +127,7 @@ object VpnPolicyCoordinator {
     }
 
     private fun requestSyncInternal(context: Context, forceRecovery: Boolean) {
+        refreshLauncherPackageCacheIfStale(context.applicationContext)
         synchronized(syncLock) {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val enabled = prefs.getBoolean("net_block_enabled", false)
@@ -288,20 +294,14 @@ object VpnPolicyCoordinator {
             prefs.getBoolean(PREF_FOCUS_MIRROR, false) &&
             isFocusBlockActive(prefs)
         ) {
+            val launcherPackages = getCachedLauncherPackages(context)
             val allowed = parsePackageJson(
                 prefs.getString("allowed_packages", "[]") ?: "[]",
             ).toSet()
-            try {
-                val launcherIntent = Intent(Intent.ACTION_MAIN)
-                    .addCategory(Intent.CATEGORY_LAUNCHER)
-                context.packageManager.queryIntentActivities(launcherIntent, 0)
-                    .map { it.activityInfo.packageName }
-                    .filterNot { isExcludedPackage(it, context.packageName) }
-                    .filter { it !in allowed }
-                    .distinct()
-            } catch (_: Exception) {
-                emptyList()
-            }
+            launcherPackages
+                .filterNot { isExcludedPackage(it, context.packageName) }
+                .filter { it !in allowed }
+                .distinct()
         } else {
             emptyList()
         }
@@ -319,6 +319,35 @@ object VpnPolicyCoordinator {
             focus = focusTargets.distinct().sorted(),
             invalid = invalid,
         )
+    }
+
+    private fun getCachedLauncherPackages(context: Context): List<String> {
+        refreshLauncherPackageCacheIfStale(context.applicationContext)
+        return cachedLauncherPackages
+    }
+
+    private fun refreshLauncherPackageCacheIfStale(context: Context) {
+        val now = System.currentTimeMillis()
+        if (now - cacheRefreshedAtMs < LAUNCHER_CACHE_TTL_MS) return
+
+        launcherCacheExecutor.execute {
+            val refreshStartedAt = System.currentTimeMillis()
+            if (refreshStartedAt - cacheRefreshedAtMs < LAUNCHER_CACHE_TTL_MS) return@execute
+
+            val launcherPackages = try {
+                val launcherIntent = Intent(Intent.ACTION_MAIN)
+                    .addCategory(Intent.CATEGORY_LAUNCHER)
+                context.packageManager.queryIntentActivities(launcherIntent, 0)
+                    .map { it.activityInfo.packageName }
+                    .distinct()
+            } catch (_: Exception) {
+                emptyList()
+            }
+
+            cachedLauncherPackages = launcherPackages
+            cacheRefreshedAtMs = refreshStartedAt
+            requestSync(context)
+        }
     }
 
     private fun persistDesiredPolicy(

@@ -37,6 +37,7 @@ let _writeTail: Promise<void> = Promise.resolve();
  * handle is invalidated by the OS.
  */
 let _dbUnrecoverable = false;
+let _usingRecoveryDb = false;
 
 /**
  * Counts getDb() IIFEs currently in flight (i.e. actively trying to open the
@@ -54,6 +55,15 @@ let _openInFlight = 0;
 export function resetDb(): void {
   db = null;
   _dbUnrecoverable = false;
+  _usingRecoveryDb = false;
+}
+
+export function isDbUnrecoverable(): boolean {
+  return _dbUnrecoverable;
+}
+
+export function isUsingRecoveryDb(): boolean {
+  return _usingRecoveryDb;
 }
 
 async function openAndInit(name: string = PRIMARY_DB_NAME): Promise<SQLite.SQLiteDatabase> {
@@ -214,6 +224,7 @@ export async function getDb(): Promise<SQLite.SQLiteDatabase | null> {
     void logger.debug('database', `getDb: opening (in-flight: ${_openInFlight}, API: ${Platform.Version})`);
     try {
       db = await openAndInit(PRIMARY_DB_NAME);
+      _usingRecoveryDb = false;
       void logger.debug('database', `getDb: primary opened OK in ${Date.now() - t0}ms`);
       void SQLite.deleteDatabaseAsync(RECOVERY_DB_NAME).catch(() => {});
       return db;
@@ -236,6 +247,7 @@ export async function getDb(): Promise<SQLite.SQLiteDatabase | null> {
         void logger.warn('database', `open/init: JSI constructor NPE detected — skipping same-name retry, opening recovery DB immediately (saves ~${300 + ms1}ms)`);
         try {
           db = await openAndInit(RECOVERY_DB_NAME);
+          _usingRecoveryDb = true;
           void logger.error('database', `[DB_CORRUPTION_RECOVERY] opened recovery DB in ${Date.now() - t0}ms total (JSI fast-path)`);
           return db;
         } catch (recoveryErr) {
@@ -251,6 +263,7 @@ export async function getDb(): Promise<SQLite.SQLiteDatabase | null> {
       await new Promise((r) => setTimeout(r, 300));
       try {
         db = await openAndInit(PRIMARY_DB_NAME);
+        _usingRecoveryDb = false;
         void logger.debug('database', `getDb: primary opened OK on attempt 2 in ${Date.now() - t0}ms total`);
         void SQLite.deleteDatabaseAsync(RECOVERY_DB_NAME).catch(() => {});
         return db;
@@ -260,6 +273,7 @@ export async function getDb(): Promise<SQLite.SQLiteDatabase | null> {
         void logger.error('database', `open/init attempt 2 failed (${ms2}ms, in-flight: ${_openInFlight}, API: ${Platform.Version}): ${fullErr(secondErr)} — switching to recovery DB`);
         try {
           db = await openAndInit(RECOVERY_DB_NAME);
+          _usingRecoveryDb = true;
           void logger.error('database', `[DB_CORRUPTION_RECOVERY] opened recovery DB in ${Date.now() - t0}ms total — primary may be corrupted`);
           return db;
         } catch (recoveryErr) {

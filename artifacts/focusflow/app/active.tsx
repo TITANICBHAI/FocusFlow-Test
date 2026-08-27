@@ -59,6 +59,12 @@ function ActiveScreen() {
   const [clock, setClock] = useState(() => Date.now());
   const pendingDefAction = useRef<(() => void) | null>(null);
   const livePulse = useRef(new Animated.Value(1)).current;
+  const tasksRef = useRef(state.tasks);
+  const refreshInFlight = useRef(false);
+
+  useEffect(() => {
+    tasksRef.current = state.tasks;
+  }, [state.tasks]);
 
   const focusActive = state.focusSession?.isActive === true;
   const focusTask = state.focusSession
@@ -111,18 +117,25 @@ function ActiveScreen() {
     useCallback(() => {
       let mounted = true;
       const refresh = (force = false) => {
-        void refreshLiveData(force);
+        if (!state.isDbReady || state.isDbUnrecoverable) return;
+        if (refreshInFlight.current) return;
+        refreshInFlight.current = true;
         void (async () => {
           try {
-            const [rows, focusMinutes, blocked] = await Promise.all([
-              dbGetRecentDayCompletions(1),
-              dbGetTodayFocusMinutes(),
-              dbGetTodayOverrideCount(),
+            const [, [rows, focusMinutes, blocked]] = await Promise.all([
+              refreshLiveData(force),
+              Promise.all([
+                dbGetRecentDayCompletions(1),
+                dbGetTodayFocusMinutes(),
+                dbGetTodayOverrideCount(),
+              ]),
             ]);
             if (!mounted) return;
             const todayKey = dayjs().format('YYYY-MM-DD');
             const today = rows.find((row) => row.date === todayKey);
-            const total = state.tasks.filter((task) => dayjs(task.startTime).format('YYYY-MM-DD') === todayKey).length;
+            const total = tasksRef.current.filter(
+              (task) => dayjs(task.startTime).format('YYYY-MM-DD') === todayKey,
+            ).length;
             setTodayStats({
               completed: today?.completed ?? 0,
               total: today?.total ?? total,
@@ -131,6 +144,8 @@ function ActiveScreen() {
             });
           } catch {
             if (mounted) setTodayStats({ completed: 0, total: 0, focusMinutes: 0, blocked: 0 });
+          } finally {
+            refreshInFlight.current = false;
           }
         })();
       };
@@ -140,7 +155,7 @@ function ActiveScreen() {
         mounted = false;
         clearInterval(timer);
       };
-    }, [refreshLiveData, state.tasks]),
+    }, [refreshLiveData, state.isDbReady, state.isDbUnrecoverable]),
   );
 
   // Defer the heavy getInstalledApps() call until after the navigation

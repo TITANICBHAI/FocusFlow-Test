@@ -1,8 +1,8 @@
 import { Feather } from "@expo/vector-icons";
-import { reloadAppAsync } from "expo";
 import React, { useState } from "react";
 import {
   Alert,
+  BackHandler,
   Modal,
   Platform,
   Pressable,
@@ -40,13 +40,15 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
 
-  const handleRestart = async () => {
-    try {
-      await reloadAppAsync();
-    } catch (restartError) {
-      console.error("Failed to restart app:", restartError);
-      resetError();
+  const handleRestart = () => {
+    if (Platform.OS === "android") {
+      BackHandler.exitApp();
+      return;
     }
+
+    // iOS does not expose a supported process-exit API. Keep the existing
+    // fallback behavior there rather than attempting a platform-unsafe call.
+    resetError();
   };
 
   const handleCopyLogs = async () => {
