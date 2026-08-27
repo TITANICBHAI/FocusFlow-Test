@@ -7,6 +7,10 @@ const vpnService = readFileSync(
   path.join(nativeRoot, 'services/NetworkBlockerVpnService.kt'),
   'utf8',
 );
+const coordinator = readFileSync(
+  path.join(nativeRoot, 'services/VpnPolicyCoordinator.kt'),
+  'utf8',
+);
 const watchdog = readFileSync(
   path.join(nativeRoot, 'services/VpnWatchdogReceiver.kt'),
   'utf8',
@@ -64,28 +68,26 @@ describe('VPN effective-policy recovery contract', () => {
   });
 
   it('shares one effective-policy result with desired-state metadata', () => {
-    expect(vpnService).toContain('private data class EffectivePolicy(');
+    expect(coordinator).toContain('private data class EffectivePolicy(');
+    expect(coordinator).toContain('private const val DISPATCH_DEBOUNCE_MS = 150L');
+    expect(coordinator).toContain('pendingDispatch');
+    expect(coordinator).toContain('mainHandler.postDelayed');
     expect(vpnService).toContain('EXTRA_POLICY_GENERATION');
     expect(vpnService).toContain('requestedGeneration < currentGeneration');
-    expect(vpnService).toContain('val policy = effectivePolicy(context, prefs)');
-    expect(vpnService).toContain('policy = policy,');
-    expect(vpnService).toContain('put("targetPackages", JSONArray(policy.targets))');
-    expect(vpnService).toContain('getApplicationInfo(packageName, 0)');
-    expect(vpnService).toContain('put("failedPackages", JSONArray(policy.invalid))');
-    expect(vpnService).toContain('addReasons(policy.explicit, "explicit_vpn")');
-    expect(vpnService).toContain('addReasons(policy.standalone, "standalone_block")');
-    expect(vpnService).toContain('addReasons(policy.focus, "focus_blocked")');
-    expect(vpnService).toContain('addReasons(policy.invalid, "invalid_package")');
+    expect(coordinator).toContain('val policy = effectivePolicy(context, prefs)');
+    expect(coordinator).toContain('policy = policy,');
+    expect(coordinator).toContain('put("targetPackages", JSONArray(policy.targets))');
+    expect(coordinator).toContain('getApplicationInfo(packageName, 0)');
+    expect(coordinator).toContain('put("failedPackages", JSONArray(policy.invalid))');
+    expect(coordinator).toContain('addReasons(policy.explicit, "explicit_vpn")');
+    expect(coordinator).toContain('addReasons(policy.standalone, "standalone_block")');
+    expect(coordinator).toContain('addReasons(policy.focus, "focus_blocked")');
+    expect(coordinator).toContain('addReasons(policy.invalid, "invalid_package")');
   });
 
   it('clears the canonical snapshot before handling an empty effective policy', () => {
-    const sync = sliceFunction(
-      vpnService,
-      'private fun requestSyncLocked(context: Context)',
-      '\n        private fun parsePackageJson',
-    );
-    const snapshotWrite = sync.indexOf('.putString("net_block_packages", packagesJson)');
-    const emptyPolicyCheck = sync.indexOf('if (!global && parsePackageJson(packagesJson).isEmpty())');
+    const snapshotWrite = coordinator.indexOf('.putString("net_block_packages", packagesJson)');
+    const emptyPolicyCheck = coordinator.indexOf('!global && parsePackageJson(packagesJson).isEmpty()');
 
     expect(snapshotWrite).toBeGreaterThanOrEqual(0);
     expect(emptyPolicyCheck).toBeGreaterThan(snapshotWrite);

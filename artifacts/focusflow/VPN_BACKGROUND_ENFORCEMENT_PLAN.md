@@ -6,8 +6,8 @@
 
 ## Implementation tracker
 
-**Legend:** ✅ complete or confirmed in the current codebase · ❌ open, not
-implemented, or awaiting a product decision.
+**Legend:** ✅ complete or confirmed in the current codebase · 🚧 in progress ·
+❌ open, not implemented, or awaiting a product decision.
 
 ### Current baseline
 
@@ -15,13 +15,19 @@ implemented, or awaiting a product decision.
 - ✅ Focus foreground enforcement remains separate from VPN network enforcement.
 - ✅ The supporting code review is stored beside this primary plan.
 - ✅ Opt-in focus-to-VPN mirroring setting and basic native target derivation are implemented.
-- ❌ Full native ownership and process-death recovery are not implemented.
+- 🚧 Native policy calculation and dispatch now have a dedicated coordinator;
+  full lifecycle ownership and process-death recovery are not implemented.
 
 ### Delivery phases
 
 - ❌ **Phase 0 — Confirm product scope:** resolve the open decisions in Section 13.
-- ❌ **Phase 1 — Native policy contract:** define the durable versioned desired state.
-- ❌ **Phase 2 — Native coordinator and VPN lifecycle:** centralize target calculation and serialized reconfiguration.
+- ✅ **Phase 1 — Native policy contract:** versioned desired state, source reasons,
+  validation failures, and stale-generation behavior are implemented for
+  explicit, standalone, and opt-in focus-mirror sources. Schedule and allowance
+  mirroring remain deferred decisions.
+- 🚧 **Phase 2 — Native coordinator and VPN lifecycle:** target calculation,
+  durable policy persistence, and serialized reconfiguration are centralized;
+  debouncing and full lifecycle ownership remain open.
 - ❌ **Phase 3 — Recovery:** cover process death, boot, unlock, package changes, permission loss, and VPN conflicts.
 - ❌ **Phase 4 — React Native and UI:** add the opt-in setting, persistence, status, and explanatory states.
 - ❌ **Phase 5 — Verification:** complete contract, Kotlin, device, lifecycle, and network evidence.
@@ -38,7 +44,8 @@ implemented, or awaiting a product decision.
 - ✅ Older queued VPN start/stop commands are rejected by policy generation.
 - ✅ VPN recovery gates no longer use ordinary always-on overlay state as a
   substitute for VPN policy.
-- ❌ Full native policy coordinator for explicit, standalone, scheduled, and optional focus-derived targets.
+- 🚧 Native coordinator covers explicit, standalone, and optional focus-derived
+  targets; full lifecycle ownership and schedule sources remain open.
 - ❌ Recurring schedule VPN enforcement, if included in the approved scope.
 
 ## 1. Executive summary
@@ -117,12 +124,13 @@ block, or ordinary always-on overlay policy. The recovery gates now use the
 explicit/standalone VPN policy rather than the ordinary overlay flag, while the
 remaining coordinator work must keep the separate preference sources aligned.
 
-The current native layer also keeps the explicit package list separate from
-the effective list and persists a versioned desired-policy snapshot with a
-generation, timestamp, target packages, and per-package source reasons. Recovery
-commands carry that generation, and the VPN service rejects older queued start
-or stop commands. This is the foundation for the planned coordinator, but a
-single dedicated coordinator class and full lifecycle ownership are still open.
+The current native layer keeps the explicit package list separate from the
+effective list and persists a versioned desired-policy snapshot with a
+generation, timestamp, target packages, and per-package source reasons.
+`VpnPolicyCoordinator` now owns this calculation, persistence, serialized
+dispatch, and short native debounce for the supported sources. Recovery commands
+carry the generation, and the VPN service rejects older queued start or stop
+commands. Full lifecycle ownership remains open.
 
 ### 2.3 Existing React Native sources of VPN packages
 
@@ -420,9 +428,10 @@ for a later retry.
 ## 6. Recovery and lifecycle
 
 The effective policy must not depend on the React process remaining alive. The
-current implementation has native effective-target recalculation, serialized
-sync entry, a durable desired-policy snapshot, generation checks, and watchdog
-hooks. It does not yet have the full lifecycle coordinator described below.
+current implementation has a native coordinator, effective-target
+recalculation, serialized and debounced dispatch, a durable desired-policy
+snapshot, generation checks, and watchdog hooks. It does not yet have the full
+lifecycle coordinator described below.
 
 Recalculation or restoration should occur after:
 
