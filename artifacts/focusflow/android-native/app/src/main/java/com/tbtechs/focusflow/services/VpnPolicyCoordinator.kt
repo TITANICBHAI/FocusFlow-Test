@@ -428,8 +428,8 @@ object VpnPolicyCoordinator {
             previous.optBoolean("enabled", false) == enabled &&
                 previous.optBoolean("vpnEnabled", false) == vpnEnabled &&
                 previous.optString("mode", NetworkBlockerVpnService.MODE_PER_APP) ==
-                    if (global) NetworkBlockerVpnService.MODE_GLOBAL
-                    else NetworkBlockerVpnService.MODE_PER_APP &&
+                    (if (global) NetworkBlockerVpnService.MODE_GLOBAL
+                    else NetworkBlockerVpnService.MODE_PER_APP) &&
                 previousTargets == targets.distinct().sorted()
         } catch (_: Exception) {
             false

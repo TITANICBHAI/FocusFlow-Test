@@ -12,6 +12,7 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.tbtechs.focusflow.services.NetworkBlockerVpnService
 import com.tbtechs.focusflow.services.VpnPolicyCoordinator
+import com.tbtechs.focusflow.services.VpnWatchdogReceiver
 import org.json.JSONObject
 
 /**
