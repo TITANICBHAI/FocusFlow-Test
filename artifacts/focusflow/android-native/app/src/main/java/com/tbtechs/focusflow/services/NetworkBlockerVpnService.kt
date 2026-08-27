@@ -102,6 +102,9 @@ class NetworkBlockerVpnService : VpnService() {
          */
         fun requestSync(context: Context) = VpnPolicyCoordinator.requestSync(context)
 
+        fun requestRecoverySync(context: Context) =
+            VpnPolicyCoordinator.requestRecoverySync(context)
+
         fun hasPersistentVpnConfiguration(prefs: SharedPreferences): Boolean =
             VpnPolicyCoordinator.hasPersistentVpnConfiguration(prefs)
 
@@ -118,6 +121,7 @@ class NetworkBlockerVpnService : VpnService() {
     private var vpnInterface: ParcelFileDescriptor? = null
     private var activePackagesJson: String? = null
     private var activeMode: String? = null
+    private var intentionalStopRequested = false
 
     private fun writeStatus(
         state: String,
@@ -143,6 +147,7 @@ class NetworkBlockerVpnService : VpnService() {
         when (intent?.action) {
             ACTION_STOP -> {
                 if (isStalePolicyCommand(intent)) return START_STICKY
+                intentionalStopRequested = true
                 VpnRecoveryNotifier.clear(this)
                 stopVpn()
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -150,6 +155,7 @@ class NetworkBlockerVpnService : VpnService() {
                 return START_NOT_STICKY
             }
             ACTION_START -> {
+                intentionalStopRequested = false
                 val packagesJson = intent.getStringExtra(EXTRA_PACKAGES) ?: "[]"
                 val mode         = intent.getStringExtra(EXTRA_MODE) ?: MODE_PER_APP
                 val generation = intent.getLongExtra(EXTRA_POLICY_GENERATION, 0L)
@@ -164,7 +170,7 @@ class NetworkBlockerVpnService : VpnService() {
                     // Re-enter through the coordinator so restoration
                     // recalculates every durable policy source and persists a
                     // fresh generation before dispatching the command.
-                    VpnPolicyCoordinator.requestSync(this)
+                    VpnPolicyCoordinator.requestRecoverySync(this)
                 } else {
                     stopSelf()
                     return START_NOT_STICKY
@@ -251,7 +257,7 @@ class NetworkBlockerVpnService : VpnService() {
                     // The coordinator re-reads the same durable sources again
                     // and owns the generation-bearing dispatch. This avoids
                     // racing a newer policy with a hand-built restart intent.
-                    VpnPolicyCoordinator.requestSync(ctx)
+                     VpnPolicyCoordinator.requestRecoverySync(ctx)
                 } catch (_: Exception) {
                     // Session ended or another VPN took over — give up gracefully.
                     // vpn_permission_lost stays true so the UI can show the re-grant prompt.
@@ -263,11 +269,23 @@ class NetworkBlockerVpnService : VpnService() {
     }
 
     override fun onDestroy() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val status = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getString(PREF_STATUS, STATUS_STOPPED)
+        val shouldRearmRecovery = !intentionalStopRequested &&
+            prefs.getBoolean("net_block_enabled", false) &&
+            prefs.getBoolean("net_block_vpn", true) &&
+            prefs.getBoolean("net_block_self_heal", false) &&
+            hasPersistentVpnConfiguration(prefs)
         // Preserve a useful startup failure while the service shuts itself
         // down. Normal running/starting teardown is recorded as stopped.
         stopVpn(updateStatus = status == STATUS_RUNNING || status == STATUS_STARTING)
+        // stopVpn() cancels the watchdog because it is also used for intentional
+        // teardown. An unexpected service destruction must not remove the only
+        // native recovery path while durable policy still requires protection.
+        if (shouldRearmRecovery) {
+            VpnWatchdogReceiver.schedule(applicationContext)
+        }
         super.onDestroy()
     }
 

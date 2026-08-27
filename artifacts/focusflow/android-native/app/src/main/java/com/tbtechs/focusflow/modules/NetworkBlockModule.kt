@@ -477,6 +477,11 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
             prefs.edit().putBoolean("net_block_self_heal", enabled).apply()
             if (!enabled) {
                 VpnWatchdogReceiver.cancel(reactContext)
+            } else {
+                // Enabling self-healing must also wake an existing durable
+                // policy. Otherwise a configured but currently stopped VPN
+                // would wait for a watchdog that may not be scheduled yet.
+                NetworkBlockerVpnService.requestRecoverySync(reactContext)
             }
             promise.resolve(null)
         } catch (e: Exception) {

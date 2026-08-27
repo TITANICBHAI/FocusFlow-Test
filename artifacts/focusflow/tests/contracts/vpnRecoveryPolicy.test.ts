@@ -79,13 +79,13 @@ describe('VPN effective-policy recovery contract', () => {
     );
 
     expect(watchdog).toContain('val pkgs   = NetworkBlockerVpnService.effectivePackagesJson(context, prefs)');
-    expect(watchdog).toContain('VpnPolicyCoordinator.requestSync(context)');
+    expect(watchdog).toContain('VpnPolicyCoordinator.requestRecoverySync(context)');
     expect(revoke).toContain('val pkgs = effectivePackagesJson(ctx, currentPrefs)');
     expect(revoke).toContain('Re-read every policy source after the teardown delay');
-    expect(revoke).toContain('VpnPolicyCoordinator.requestSync(ctx)');
-    expect(accessibilityHeal).toContain('VpnPolicyCoordinator.requestSync(this)');
-    expect(foregroundHeal).toContain('VpnPolicyCoordinator.requestSync(this)');
-    expect(vpnService).toContain('VpnPolicyCoordinator.requestSync(this)');
+    expect(revoke).toContain('VpnPolicyCoordinator.requestRecoverySync(ctx)');
+    expect(accessibilityHeal).toContain('VpnPolicyCoordinator.requestRecoverySync(this)');
+    expect(foregroundHeal).toContain('VpnPolicyCoordinator.requestRecoverySync(this)');
+    expect(vpnService).toContain('VpnPolicyCoordinator.requestRecoverySync(this)');
     expect(networkBlockModule).toContain('VpnPolicyCoordinator.requestSync(reactContext)');
     expect(watchdog).not.toContain('val alwaysOn = prefs.getBoolean("always_block_active", false)');
     expect(accessibilityHeal).not.toContain('PREF_ALWAYS_BLOCK');
@@ -183,7 +183,23 @@ describe('VPN effective-policy recovery contract', () => {
     expect(coordinator).toContain('val serviceStateChanged = !sameServiceState(');
     expect(coordinator).toContain('if (persisted.serviceStateChanged || recoveryNeeded)');
     expect(coordinator).toContain('NetworkBlockerVpnService.isRunning');
-    expect(coordinator).toContain('status == NetworkBlockerVpnService.STATUS_RUNNING');
+    expect(coordinator).toContain(
+      'status != NetworkBlockerVpnService.STATUS_STARTING',
+    );
+  });
+
+  it('rearms self-healing after unexpected VPN service destruction', () => {
+    expect(vpnService).toContain('private var intentionalStopRequested = false');
+    expect(vpnService).toContain('intentionalStopRequested = true');
+    expect(vpnService).toContain('val shouldRearmRecovery = !intentionalStopRequested');
+    expect(vpnService).toContain('VpnWatchdogReceiver.schedule(applicationContext)');
+  });
+
+  it('reconciles durable policy immediately when self-healing is enabled', () => {
+    expect(networkBlockModule).toContain(
+      'NetworkBlockerVpnService.requestRecoverySync(reactContext)',
+    );
+    expect(networkBlockModule).toContain('VpnWatchdogReceiver.cancel(reactContext)');
   });
 
   it('keeps package-removal recovery durable through Expo prebuild', () => {

@@ -868,7 +868,7 @@ class ForegroundTaskService : Service() {
 
         try {
             // The coordinator owns recovery dispatch and generation ordering.
-            VpnPolicyCoordinator.requestSync(this)
+            VpnPolicyCoordinator.requestRecoverySync(this)
         } catch (e: Exception) {
             blockPrefs.edit()
                 .putString("vpn_status", NetworkBlockerVpnService.STATUS_STARTUP_FAILED)

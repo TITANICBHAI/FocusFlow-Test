@@ -3,6 +3,8 @@
 Every claim below is pinned to a specific file and line in the actual source.
 No invented facts. Where something is uncertain, it is marked.
 
+**Tracker reconciled:** 2026-08-27
+
 ## Review tracker
 
 **Legend:** ✅ confirmed in the current codebase · ❌ unresolved, missing, or
@@ -11,22 +13,34 @@ not implemented.
 ### Confirmed behavior
 
 - ✅ Explicit per-app VPN targets block foreground and background traffic.
-- ✅ Focus-blocked packages are not currently mirrored into the VPN list.
+- ✅ Focus-blocked packages are mirrored into the VPN list only when the opt-in
+  focus-mirroring setting is enabled.
 - ✅ Recurring schedule VPN fields are currently unused.
-- ✅ Always-on-only watchdog rearm is missing after boot.
+- ✅ Always-on-only watchdog recovery is rearmed after boot when persistent VPN
+  protection and self-healing are enabled.
 - ✅ `isRunning` is process-local and transient after process death.
-- ✅ The 400 ms focus-stop delay is only a best-effort race workaround.
+- ✅ The old 400 ms focus-stop race workaround is no longer used; coordinator
+  dispatch now serializes policy teardown and reconfiguration.
 - ✅ Accessibility-triggered enforcement uses the VPN path, not Wi-Fi/mobile-data disabling.
 - ✅ FocusFlow already avoids rebuilding an unchanged VPN target set.
 
-### Open gaps to track through implementation
+### Implementation status
 
-- ❌ Fix always-on-only watchdog rearm.
-- ❌ Resolve the two competing `net_block_packages` write paths.
-- ❌ Keep overlay and VPN state from diverging.
-- ❌ Update the VPN target set when packages are installed during standalone blocking.
-- ❌ Add the native policy coordinator and durable desired-state contract.
-- ❌ Add opt-in focus mirroring.
+- ✅ Always-on-only watchdog rearm is implemented.
+- ✅ The former competing VPN package write paths now feed explicit and
+  standalone VPN source slots owned by the coordinator; the coordinator alone
+  produces the effective compatibility snapshot.
+- ✅ Overlay and VPN sources have explicit separate ownership; intentional
+  differences between an overlay list and a VPN list are preserved.
+- ✅ Package install/removal broadcasts trigger effective-policy recalculation
+  without treating ordinary standalone overlay packages as VPN targets.
+- ✅ Native policy coordinator and durable desired-state contract are implemented,
+  including source reasons, failed-package metadata, debounce, and generations.
+- ✅ Opt-in focus mirroring is implemented with an off default.
+- ✅ Unexpected VPN service destruction re-arms self-healing, and the coordinator
+  can retry stopped or failed service states without duplicating an in-flight start.
+- ✅ Enabling self-healing immediately reconciles an existing durable VPN policy;
+  disabling it still cancels the watchdog.
 - ❌ Decide and implement recurring schedule VPN support if approved.
 - ❌ Complete lifecycle, device, and real network verification.
 
@@ -52,24 +66,22 @@ for that specific behaviour.
 
 ---
 
-### 1.2 The critical gap: focus-blocked apps are NOT in the VPN list
+### 1.2 Opt-in focus mirroring adds focus-blocked apps to the VPN list
 
-**Plan claim:** The VPN list comes only from `alwaysOnVpnPackages` and
-`standaloneVpnPackages`. Apps blocked only by the Accessibility focus rule do not get
-network-blocked.
+**Current behavior:** The VPN list includes `alwaysOnVpnPackages` and active
+`standaloneVpnPackages`, plus focus-blocked packages when the opt-in
+`focusMirrorVpnEnabled` setting is enabled. With that setting disabled, apps
+blocked only by the Accessibility focus rule remain network-allowed.
 
 **Code confirmation:**
-`AppContext.tsx:718-720` — the only merge that writes `net_block_packages`:
-```typescript
-const alwaysOnVpnPkgs = settings.alwaysOnVpnPackages ?? [];
-const sessionVpnPkgs  = settings.standaloneVpnPackages ?? [];
-const mergedVpnPkgs   = Array.from(new Set([...alwaysOnVpnPkgs, ...sessionVpnPkgs]));
-```
-`settings.allowedInFocus` (the focus block list) is never merged here or anywhere else.
+`NetworkBlockModule.kt:198-212` persists the explicit VPN list, standalone VPN
+source, and focus-mirroring preference. `VpnPolicyCoordinator.kt:244-258`
+derives the focus targets from the persisted allow-list when mirroring is on,
+and `:305-307` records the `focus_blocked` reason.
 
-**Conclusion:** Plan is correct. An app blocked by Accessibility during focus gets the
-overlay but its background network keeps working unless it is also explicitly added to
-the VPN list by the user.
+**Conclusion:** The original gap is addressed as an opt-in feature. Focus-blocked
+apps continue to have background network access when mirroring is off, and are
+added to the per-app VPN target set when mirroring is on.
 
 ---
 
@@ -90,29 +102,25 @@ fields exist and do nothing.
 
 ---
 
-### 1.4 Boot watchdog rearm does NOT cover always-on-only config
+### 1.4 Boot watchdog rearm covers always-on-only config
 
-**Plan claim:** `BootReceiver` only rearms the VPN watchdog alarm in the focus-session
-branch. If the device only has an always-on VPN config and no active focus session,
-the watchdog is not rearmed after reboot. The VPN will not restart.
+**Current behavior:** `BootReceiver` checks the durable VPN policy before its
+focus-session branch and rearms the watchdog for persistent always-on-only
+configurations when self-healing is enabled.
 
 **Code confirmation:**
-`BootReceiver.kt:85-97` — The watchdog rearm is inside the `if (sessionValid &&
-endTimeMs > 0L)` block:
+`BootReceiver.kt:54-77` obtains
+`NetworkBlockerVpnService.hasPersistentVpnConfiguration(prefs)` and calls
+`VpnWatchdogReceiver.schedule(context)` when the persistent VPN policy,
+`net_block_enabled`, and self-healing are all enabled:
 ```kotlin
-val netBlockEnabled = prefs.getBoolean("net_block_enabled", false)
-val selfHeal        = prefs.getBoolean("net_block_self_heal", false)
-if (netBlockEnabled && selfHeal) {
+if (persistentVpn && netBlockEnabled && selfHeal) {
     VpnWatchdogReceiver.schedule(context)
 }
 ```
-The `else` branch (lines 98-113) starts the idle foreground service and does not call
-`VpnWatchdogReceiver.schedule()` at all. `hasPersistentVpnConfiguration()` is not
-checked here.
 
-**Conclusion:** Confirmed real bug. A user with only an always-on VPN list and
-`net_block_self_heal=true` will have no VPN enforcement after reboot until they open
-the app.
+**Conclusion:** The always-on-only boot-recovery gap is fixed in source. Actual
+reboot behavior still requires generated Android/device verification.
 
 ---
 
@@ -128,37 +136,33 @@ the process is killed, it resets to false even if Android still holds an active 
 ```
 This is a JVM static field. It is initialised to `false` on class load, which happens
 on every fresh process start. `checkAndHealVpn()` (`AppBlockerAccessibilityService.kt:1466`)
-and `VpnWatchdogReceiver` (`VpnWatchdogReceiver.kt` line that checks `isRunning`) both
-gate on this field. After a process kill, they will see `false` and attempt a restart
-even when a tunnel may already be active, causing a redundant TUN rebuild. The early-
-return guard in `startVpn()` (lines 285-289) catches the duplicate only if the service
-process itself is still alive and `vpnInterface != null`.
+and `VpnWatchdogReceiver` (`VpnWatchdogReceiver.kt:144`) still use it as the
+in-process fast path. The coordinator also consults the durable `vpn_status` and
+the persisted desired policy: when the policy expects a running VPN but
+`isRunning` is false while status is `running`, it schedules recovery.
 
-**Conclusion:** Confirmed. `vpn_status` in SharedPrefs is the durable signal; `isRunning`
-is transient.
+**Conclusion:** Confirmed. `vpn_status` and the desired policy are the durable
+recovery signals; `isRunning` remains transient and is not sufficient by itself.
 
 ---
 
-### 1.6 The 400 ms delay after focus stop is a documented race, not a fix
+### 1.6 Coordinator dispatch replaces the old focus-stop delay workaround
 
-**Plan claim:** The stop-then-restart sequence in `stopFocusMode` has a race condition
-that a 400 ms delay only partially addresses.
+**Previous behavior:** The stop-then-restart sequence used a 400 ms delay as a
+best-effort race workaround.
 
 **Code confirmation:**
-`AppContext.tsx:1620-1635`:
+`AppContext.tsx:1606-1627` now performs focus teardown through the native
+service/coordinator path, while `VpnPolicyCoordinator.kt:158-173` debounces
+and coalesces native dispatch. The coordinator recalculates after durable
+source updates instead of relying on an arbitrary JavaScript delay.
 ```typescript
 await NetworkBlockModule.stopNetworkBlock(pinHash);
-// ...
-await new Promise<void>((resolve) => setTimeout(resolve, 400));
-void NetworkBlockModule.startNetworkBlock(JSON.stringify(mergedVpnPkgs)).catch(...);
 ```
-The comment at line 1626 explicitly calls this out:
-> "A short delay is required here: ACTION_STOP is processed asynchronously by
-> NetworkBlockerVpnService. Without it, the always-on startNetworkBlock call can race
-> with the teardown of the previous TUN interface."
 
-This is a best-effort workaround. On a slow device or under memory pressure, 400 ms
-is not guaranteed to be enough. The plan's characterisation is accurate.
+**Conclusion:** The JavaScript timing workaround has been removed. The native
+coordinator provides serialization and debounce; no device-level claim is made
+until Android lifecycle and handoff tests are run.
 
 ---
 
@@ -222,67 +226,65 @@ if (vpnInterface != null &&
 FocusFlow **already has this guard**. The VPN is not rebuilt unless the package JSON
 string or mode changes. The plan treats this as a missing feature. It is not missing.
 
-The string-equality check is slightly fragile (list ordering matters, `["a","b"]` ≠
-`["b","a"]`), but the behaviour is already there. The only improvement worth making
-is to normalise/sort the JSON before comparison.
+The coordinator now sorts the effective target list before serializing it, so source
+ordering does not cause unnecessary reconfiguration. The equality guard remains a
+service-level no-op for an unchanged healthy tunnel.
 
 ---
 
 ## 3. GAPS THE PLAN MISSES ENTIRELY
 
-### 3.1 PackageInstallReceiver does not update the VPN list
+### 3.1 PackageInstallReceiver now recalculates policy on package changes
 
-**What happens today:**
-`PackageInstallReceiver.kt:73-80` — when a new app is installed during a standalone
-block, the receiver appends it to `PREF_SA_PKGS` (standalone overlay block list).
-It does NOT touch `net_block_packages`.
+**Current behavior:**
+`PackageInstallReceiver.kt` handles package add, removal, and fully-removed
+broadcasts. It commits any standalone overlay-list update before calling
+`NetworkBlockerVpnService.requestSync(context)`, and removal events recalculate
+even when a persistent explicit VPN selection is the only active source.
 
-**Effect:**
-A newly installed app during a standalone session gets the overlay block. Its network
-traffic is not VPN-blocked unless `net_block_packages` happens to be empty (which
-triggers the single-app fallback path in `triggerNetworkBlock`). The plan discusses
-package install/uninstall risks but does not identify this specific write omission.
+**Important separation:**
+An app installed during an ordinary standalone overlay block is not automatically
+added to the timed standalone VPN source. That is intentional: the current policy
+keeps overlay packages and standalone VPN selections independent. A package that
+is explicitly selected for VPN protection is revalidated through the same
+recalculation path when package availability changes.
 
-**Fix needed:** When a new package is appended to `PREF_SA_PKGS`, also rebuild and
-write `net_block_packages` to include it (using the same merge logic as AppContext).
-
----
-
-### 3.2 Two separate write paths to `net_block_packages` can clobber each other
-
-**Path A:** `NetworkBlockModule.setNetworkBlockSettings()` — called from
-`AppContext.tsx:721-726` during `_syncGuardRails()`. Writes the merged
-`alwaysOnVpnPkgs + sessionVpnPkgs` set.
-
-**Path B:** `SharedPrefsModule.setVpnSelectedPackages()` — called from
-`AppContext.tsx:1873` inside `setStandaloneBlockAndAllowance()`. Writes
-`resolvedVpnPackages` (standalone VPN packages only, without the always-on packages).
-
-Both write to `net_block_packages` as the canonical key. If `setStandaloneBlockAndAllowance`
-runs while `_syncGuardRails` has already written a merged list, the second write from
-Path B replaces the merged set with a subset. The VPN service and watchdog then
-restart with an incomplete package set. The plan does not identify this specific
-collision.
+**Conclusion:** The package-change recalculation gap is addressed. Automatic
+promotion of every standalone overlay package into the VPN target set is not part
+of the approved independent-source behavior.
 
 ---
 
-### 3.3 `always_block_active` / `PREF_ALWAYS_BLOCK_PKGS` vs `net_block_packages` can diverge
+### 3.2 VPN package writes are now coordinator-owned
 
-The watchdog (`VpnWatchdogReceiver`) checks `always_block_active` to decide it
-should restart. It then reads `net_block_packages` to decide what packages to restart
-with. These are two separate SharedPrefs keys written by two separate code paths:
+The former collision was between:
 
-- `PREF_ALWAYS_BLOCK_PKGS` is written by `SharedPrefsModule.setAlwaysBlockActive()`
-  (lines 297-305) — this is the overlay block list.
-- `net_block_packages` is written by `NetworkBlockModule.setNetworkBlockSettings()`
-  — this is the VPN block list.
+- `NetworkBlockModule.setNetworkBlockSettings()`, which writes durable VPN source
+  inputs; and
+- the legacy `SharedPrefsModule.setVpnSelectedPackages()` bridge, which is now a
+  compatibility writer for the explicit source slot and is not called by the
+  current React synchronization path.
 
-These lists are conceptually related but independently maintained. If the user has
-`alwaysOnPackages = [Instagram]` but `alwaysOnVpnPackages = []`, the watchdog will
-fire, see `always_block_active = true`, and restart the VPN with
-`net_block_packages = []` — which in PER_APP mode aborts immediately
-(`NetworkBlockerVpnService.kt:335-341`). No network enforcement happens despite the
-watchdog firing. The plan does not flag this specific combination.
+`VpnPolicyCoordinator.requestSync()` is the native owner that computes and writes
+the effective `net_block_packages` snapshot from the durable source slots. Recovery
+recalculates from those source slots rather than trusting the snapshot.
+
+---
+
+### 3.3 Overlay and VPN lists are intentionally independent
+
+`always_block_active` / `PREF_ALWAYS_BLOCK_PKGS` remain the Accessibility overlay
+source, while `net_block_explicit_packages` and
+`net_block_standalone_vpn_packages` are VPN sources. This separation is deliberate:
+
+- an ordinary always-on overlay package need not be VPN-blocked;
+- an explicit VPN-only package remains protected when overlay enforcement is
+  disabled; and
+- the watchdog and all recovery paths use the coordinator's VPN policy gate,
+  not the ordinary overlay flag.
+
+The previous watchdog gate mismatch is therefore resolved without collapsing the
+two product policies into one.
 
 ---
 
@@ -298,58 +300,47 @@ is fine.
 
 ---
 
-## 5. WHAT IS NOT YET BUILT (confirmed absent from codebase)
+## 5. WHAT IS NOW BUILT OR STILL OPEN (confirmed against the current codebase)
 
-The following items are recommended by the plan but do not exist in any source file:
+The original absence table is retained below as a reconciled status table:
 
 | Feature | Plan Section | Status |
 |---|---|---|
-| Native policy coordinator class | Step 1 / Step 2 | Not present |
-| Versioned state contract (`generation`, `updatedAt`, `reason` fields) | Step 3 | Not present |
-| Native debounce for rapid VPN rebuilds | Step 5 | Not present |
+| Native policy coordinator class | Step 1 / Step 2 | Implemented |
+| Versioned state contract (`generation`, `updatedAt`, `reason` fields) | Step 3 | Implemented |
+| Native debounce for rapid VPN rebuilds | Step 5 | Implemented |
 | Recurring schedule → VPN package consumption | Step 1 | Dead code, not wired |
-| Boot rearm for always-on-only config | Gaps section | Bug, not fixed |
-| PackageInstallReceiver VPN list update | Gaps section | Not present |
+| Boot rearm for always-on-only config | Gaps section | Implemented |
+| Package availability policy recalculation | Gaps section | Implemented |
 
 ---
 
 ## 6. IMPLEMENTATION PRIORITY (based on actual code gaps)
 
-**Must fix before shipping the feature:**
+**Previously identified blockers — now addressed in the current source:**
 
-1. **Boot rearm for always-on config** (`BootReceiver.kt:98-113`): Add
-   `VpnWatchdogReceiver.schedule(context)` in the `else` branch when
-   `hasPersistentVpnConfiguration(prefs)` is true. Without this, always-on VPN
-   stops working after every reboot unless the user opens the app.
+1. **Boot rearm for always-on config:** `BootReceiver` now schedules the watchdog
+   from the persistent VPN gate before the focus-session branch.
 
-2. **Resolve the two-write-path collision** (`AppContext.tsx:721` vs `:1873`):
-   Consolidate `net_block_packages` writes to one function that always computes the
-   full merged set. The `setVpnSelectedPackages` call in `setStandaloneBlockAndAllowance`
-   must use the same merge logic as `_syncGuardRails`, not just the standalone subset.
+2. **Resolve the two-write-path collision:** React writes durable VPN source
+   inputs through `setNetworkBlockSettings`; `VpnPolicyCoordinator` computes the
+   single effective snapshot and owns recovery dispatch.
 
-3. **PackageInstallReceiver VPN update** (`PackageInstallReceiver.kt:73-80`):
-   When appending to `PREF_SA_PKGS`, also rebuild and write `net_block_packages`.
+3. **Package-change handling:** package add/removal broadcasts now trigger native
+   policy recalculation. Ordinary standalone overlay installs remain separate from
+   VPN selection by design.
 
-**Should fix (correctness, not blocking):**
+**Remaining correctness and delivery work:**
 
-4. **Sort-normalise package JSON before VPN equality check** (`NetworkBlockerVpnService.kt:284`):
-   `["a","b"]` and `["b","a"]` are the same effective set but trigger an unnecessary
-   VPN rebuild due to string inequality.
+4. **Complete lifecycle ownership and process-death proof:** the coordinator and
+   durable recovery hooks exist, but Android service lifecycle behavior is not
+   device-verified.
 
-5. **`isRunning` post-process-death divergence**: Add a cross-process check using
-   the persisted `vpn_status` SharedPref alongside `isRunning` when deciding whether
-   a restart is needed.
+5. **Recurring schedule VPN support:** still requires a product decision and a
+   native scheduler if approved.
 
-**Implement as the actual new feature:**
-
-6. **Native policy coordinator**: A single native class that owns the computation of
-   `effectiveVpnTargets` from all sources (always-on, standalone, schedules, focus
-   mirror if opted in). The JS layer submits policy inputs; the coordinator owns the
-   merge and the single write to `net_block_packages`.
-
-7. **Recurring schedule VPN**: Wire `sched.vpnEnabled` and `sched.vpnPackages` into
-   the policy coordinator. This requires a native scheduler that recalculates when
-   schedule windows open and close, independent of the JS layer.
+6. **Device and real-network verification:** lifecycle, VPN permission/conflict,
+   packet behavior, package removal, handoff, and OEM/Doze scenarios remain open.
 
 ---
 

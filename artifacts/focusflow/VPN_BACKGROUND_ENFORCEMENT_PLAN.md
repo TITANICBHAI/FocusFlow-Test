@@ -69,6 +69,11 @@
   and Accessibility health path from compiling.
 - ✅ Recovery gates honor persisted focus expiry timestamps and remove stale
   watchdog alarms when self-healing is disabled.
+- ✅ Unexpected VPN service destruction preserves self-healing recovery when
+  durable VPN policy still requires protection, while intentional stops remain
+  canceled.
+- ✅ Enabling VPN self-healing immediately reconciles an existing durable policy
+  instead of waiting for a future watchdog tick.
 - ✅ Native coordinator covers explicit, timed standalone VPN, and optional
   focus-derived targets without routing ordinary standalone overlay packages;
   full lifecycle ownership and schedule sources remain open.

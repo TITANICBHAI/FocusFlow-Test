@@ -1496,7 +1496,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             // Health recovery is a policy sync, not a second VPN command
             // pipeline. The coordinator recalculates and dispatches the
             // current generation after this permission check.
-            VpnPolicyCoordinator.requestSync(this)
+            VpnPolicyCoordinator.requestRecoverySync(this)
         } catch (e: Exception) {
             prefs.edit()
                 .putString("vpn_status", NetworkBlockerVpnService.STATUS_STARTUP_FAILED)

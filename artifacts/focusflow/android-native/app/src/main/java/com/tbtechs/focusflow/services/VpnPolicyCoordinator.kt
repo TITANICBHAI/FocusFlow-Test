@@ -106,6 +106,22 @@ object VpnPolicyCoordinator {
      * prevents a delayed stop/start from applying an older policy.
      */
     fun requestSync(context: Context) {
+        requestSyncInternal(context, forceRecovery = false)
+    }
+
+    /**
+     * Re-dispatches the current durable policy from a recovery path.
+     *
+     * A service can die while vpn_status is still "starting". Ordinary source
+     * synchronization avoids duplicating that in-flight start, but a watchdog,
+     * service recreation, or health check has evidence that the old attempt is
+     * no longer alive and must be allowed to retry it.
+     */
+    fun requestRecoverySync(context: Context) {
+        requestSyncInternal(context, forceRecovery = true)
+    }
+
+    private fun requestSyncInternal(context: Context, forceRecovery: Boolean) {
         synchronized(syncLock) {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val enabled = prefs.getBoolean("net_block_enabled", false)
@@ -141,9 +157,15 @@ object VpnPolicyCoordinator {
                 "vpn_status",
                 NetworkBlockerVpnService.STATUS_STOPPED,
             )
+            // A fresh process can observe STOPPED or a persisted failure even
+            // though durable policy still requires protection. Do not wait for
+            // the status to say RUNNING before recovering; that is exactly the
+            // state that is lost after process death or a failed establish().
+            // STARTING is the one deliberate exception so a slow, in-flight
+            // start is not duplicated by a concurrent source update.
             val recoveryNeeded = expectsRunning &&
                 !NetworkBlockerVpnService.isRunning &&
-                status == NetworkBlockerVpnService.STATUS_RUNNING
+                (forceRecovery || status != NetworkBlockerVpnService.STATUS_STARTING)
 
             // Persist every source/reason/failure update, but do not issue a
             // service command when the effective service state is unchanged

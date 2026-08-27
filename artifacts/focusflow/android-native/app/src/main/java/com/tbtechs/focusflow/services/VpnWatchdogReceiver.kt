@@ -167,7 +167,7 @@ class VpnWatchdogReceiver : BroadcastReceiver() {
         try {
             // Recovery must use the coordinator's durable-source calculation
             // and serialized, generation-bearing dispatch.
-            VpnPolicyCoordinator.requestSync(context)
+            VpnPolicyCoordinator.requestRecoverySync(context)
         } catch (e: Exception) {
             prefs.edit()
                 .putString("vpn_status", NetworkBlockerVpnService.STATUS_STARTUP_FAILED)
