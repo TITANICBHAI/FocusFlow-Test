@@ -1838,6 +1838,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const active = packages.length > 0 && untilMs !== null && untilMs > Date.now();
     await SharedPrefsModule.setStandaloneBlock(active, packages, untilMs ?? 0, pinHash);
     await SharedPrefsModule.setDailyAllowanceConfig(allowanceEntries);
+    await NetworkBlockModule.setNetworkBlockSettings({
+      enabled: newSettings.vpnBlockEnabled ?? false,
+      vpn: newSettings.vpnBlockEnabled ?? false,
+      packages: getExplicitVpnPackages(newSettings),
+      focusMirrorEnabled: newSettings.focusMirrorVpnEnabled ?? false,
+      defensePinHash: pinHash,
+    });
     // Sync always-on enforcement using the dedicated alwaysOnPackages list
     const alwaysOnActive2 = (newSettings.alwaysOnEnforcementEnabled !== false) &&
       ((newSettings.alwaysOnPackages ?? []).length > 0 || allowanceEntries.length > 0);

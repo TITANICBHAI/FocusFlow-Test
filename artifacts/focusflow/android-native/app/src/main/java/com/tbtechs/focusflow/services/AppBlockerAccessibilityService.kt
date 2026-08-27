@@ -1493,7 +1493,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             return
         }
 
-        val pkgs   = prefs.getString("net_block_packages", "[]") ?: "[]"
+        val pkgs   = NetworkBlockerVpnService.effectivePackagesJson(this, prefs)
         val global = prefs.getBoolean("net_block_global", false)
         val mode   = if (global) NetworkBlockerVpnService.MODE_GLOBAL
                      else        NetworkBlockerVpnService.MODE_PER_APP
@@ -2837,10 +2837,10 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         if (!prefs.getBoolean("net_block_vpn", true)) return false
         if (NetworkBlockerVpnService.isRunning) return true   // already active
 
-        // net_block_packages is the single canonical list. If it is empty,
-        // protect the app that triggered the event; otherwise protect the
-        // complete configured set so later blocked apps are not omitted.
-        val canonicalJson = prefs.getString("net_block_packages", "[]") ?: "[]"
+        // Recalculate from persisted policy sources. If the effective set is
+        // empty, protect the app that triggered the event; otherwise protect
+        // the complete configured set so later blocked apps are not omitted.
+        val canonicalJson = NetworkBlockerVpnService.effectivePackagesJson(this, prefs)
         val canonicalPackages = try {
             val arr = org.json.JSONArray(canonicalJson)
             (0 until arr.length()).map { arr.optString(it) }.filter { it.isNotBlank() }

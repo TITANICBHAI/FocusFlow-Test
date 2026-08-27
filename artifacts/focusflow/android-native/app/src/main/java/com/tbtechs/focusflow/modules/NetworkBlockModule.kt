@@ -230,6 +230,8 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
                 put("running", NetworkBlockerVpnService.isRunning)
                 put("error", error ?: JSONObject.NULL)
                 put("failedPackages", failed)
+                put("desiredPolicy", prefs.getString("net_block_desired_policy", null) ?: JSONObject.NULL)
+                put("policyGeneration", prefs.getLong("net_block_policy_generation", 0L))
             }
             promise.resolve(obj.toString())
         } catch (e: Exception) {
@@ -365,6 +367,14 @@ class NetworkBlockModule(private val reactContext: ReactApplicationContext) :
             !matchesSessionPin && !matchesDefensePin
         ) {
             promise.reject("PIN_REQUIRED", "A session PIN or Defense Password is required to stop network block")
+            return
+        }
+        // Focus and standalone teardown must not remove an explicitly persistent
+        // VPN policy. Recalculate the effective set instead; this drops only
+        // focus-derived targets while keeping explicit always-on targets alive.
+        if (NetworkBlockerVpnService.hasPersistentVpnConfiguration(prefs)) {
+            NetworkBlockerVpnService.requestSync(reactContext)
+            promise.resolve(null)
             return
         }
         try {

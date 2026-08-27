@@ -872,7 +872,7 @@ class ForegroundTaskService : Service() {
             }
         } catch (_: Exception) { return }
 
-        val pkgs   = prefs.getString("net_block_packages", "[]") ?: "[]"
+        val pkgs   = NetworkBlockerVpnService.effectivePackagesJson(this, prefs)
         val global = prefs.getBoolean("net_block_global", false)
         val mode   = if (global) NetworkBlockerVpnService.MODE_GLOBAL
                      else        NetworkBlockerVpnService.MODE_PER_APP

@@ -277,6 +277,7 @@ class SharedPrefsModule(private val reactContext: ReactApplicationContext) :
             .putString("standalone_blocked_packages", json)
             .putLong("standalone_block_until_ms", untilMs.toLong())
             .apply()
+        NetworkBlockerVpnService.requestSync(reactContext)
         // Standalone block changes are independent of focus mode, so the widget
         // needs an explicit nudge to re-read prefs and switch render mode.
         FocusFlowWidget.pushWidgetUpdate(reactContext)

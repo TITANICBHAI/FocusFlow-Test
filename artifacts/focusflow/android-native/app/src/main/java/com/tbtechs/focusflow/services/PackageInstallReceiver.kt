@@ -81,7 +81,11 @@ class PackageInstallReceiver : BroadcastReceiver() {
             appendToSaBlockedPackages(newPkg, prefs, editor)
         }
 
-        editor.apply()
+        // This receiver can run while the JS process is dead. Commit the
+        // standalone package update before asking the native VPN policy to
+        // recalculate, otherwise requestSync could read the previous list.
+        editor.commit()
+        NetworkBlockerVpnService.requestSync(context)
 
         AversiveActionsManager.onBlockedApp(context)
     }

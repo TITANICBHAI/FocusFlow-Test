@@ -35,6 +35,8 @@ export interface NetworkBlockStatus {
   running: boolean;
   error: string | null;
   failedPackages: string[];
+  desiredPolicy?: string | null;
+  policyGeneration?: number;
 }
 
 export type NetworkBlockStartState =
@@ -217,6 +219,8 @@ export const NetworkBlockModule = {
       running?: boolean;
       error?: string | null;
       failedPackages?: string | string[];
+      desiredPolicy?: string | null;
+      policyGeneration?: number;
     };
     let failedPackages: string[] = [];
     if (Array.isArray(parsed.failedPackages)) {
@@ -232,6 +236,10 @@ export const NetworkBlockModule = {
       running: Boolean(parsed.running),
       error: parsed.error ?? null,
       failedPackages,
+      desiredPolicy:
+        typeof parsed.desiredPolicy === 'string' ? parsed.desiredPolicy : null,
+      policyGeneration:
+        typeof parsed.policyGeneration === 'number' ? parsed.policyGeneration : 0,
     };
   },
 
