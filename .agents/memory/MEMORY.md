@@ -16,3 +16,4 @@
 - [Accessibility restricted recovery](accessibility-restricted-recovery.md) — keep the retry UI after restricted settings unlock until Accessibility is actually granted.
 - [Expo flavor application IDs](expo-flavor-application-id.md) — use a Gradle variable for alternate IDs because Expo rewrites literal applicationId lines during prebuild.
 - [Android signing compatibility](android-signing-compatibility.md) — modern AGP uses enableV3Signing, not v3SigningEnabled, in generated signing configs.
+- [FocusFlow Gradle flavours](gradle-flavor-release.md) — the full repeatable Play/Indus flavour, prebuild, signing, split, and release procedure is documented in the FocusFlow artifact.
