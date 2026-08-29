@@ -12,3 +12,7 @@
 - [VPN enforcement plan authority](vpn-enforcement-independence.md) — read the background-enforcement plan and its code review together before implementing; the review supports the plan.
 - [VPN validation boundary](vpn-validation-boundary.md) — source contracts can run here, but real Kotlin/Gradle/device verification requires a generated Android project and toolchain.
 - [Receiver recovery dispatch](vpn-receiver-recovery-dispatch.md) — boot and watchdog VPN recovery must dispatch before a BroadcastReceiver returns, not only through a delayed handler.
+- [Android backup privacy](android-backup-privacy.md) — keep Android automatic backup disabled; user data moves only through explicit FocusFlow export/import.
+- [Accessibility restricted recovery](accessibility-restricted-recovery.md) — keep the retry UI after restricted settings unlock until Accessibility is actually granted.
+- [Expo flavor application IDs](expo-flavor-application-id.md) — use a Gradle variable for alternate IDs because Expo rewrites literal applicationId lines during prebuild.
+- [Android signing compatibility](android-signing-compatibility.md) — modern AGP uses enableV3Signing, not v3SigningEnabled, in generated signing configs.

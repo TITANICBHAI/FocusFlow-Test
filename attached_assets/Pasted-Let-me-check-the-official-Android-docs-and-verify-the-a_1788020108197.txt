@@ -1,0 +1,98 @@
+Let me check the official Android docs and verify the actual intents in the Kotlin module:
+
+Now I have everything I need. Full verdict:
+
+---
+
+**Answer:**
+
+The underlying Android APIs are solid, but there are **three real problems** worth knowing about. Here's each one with official confirmation.
+
+---
+
+**✅ What checks out against official docs**
+
+**App Info deep link** — Kotlin uses `Settings.ACTION_APPLICATION_DETAILS_SETTINGS` with `Uri.parse("package:${reactContext.packageName}")`. This is the official AOSP intent — the data URI specifies the application package name with the "package" scheme, e.g. "package:com.my.app". [Microsoft Learn](https://learn.microsoft.com/en-us/dotnet/api/android.provider.settings.actionapplicationdetailssettings?view=net-android-35.0) Works on every Android version since API 9. No concerns.
+
+**Accessibility settings deep link** — Kotlin uses `Settings.ACTION_ACCESSIBILITY_SETTINGS`. This is the official `"android.settings.ACCESSIBILITY_SETTINGS"` intent, added at API level 5, documented as an action to show settings for accessibility modules. [mit](https://stuff.mit.edu/afs/sipb/project/android/docs/reference/android/provider/Settings.html) Universal. JS-side fallback `Linking.sendIntent('android.settings.ACCESSIBILITY_SETTINGS')` is the identical string — confirmed. ✅
+
+**Restricted settings detection** — Kotlin checks the `"android:access_restricted_settings"` AppOps string. This restriction is tied to the `ACCESS_RESTRICTED_SETTINGS` AppOp permission. When an app is newly installed via the non-session-based API, the mode is set to "deny" — causing the accessibility toggle to be greyed out. After the user taps the toggle, the mode becomes "ignore" but is still blocked. Only after App Info → ⋮ → "Allow restricted settings" does the mode become "allow". [Android 13](https://www.android13.xyz/2023/01/android-13-new-restricted-settings.html)
+
+The Kotlin checks `mode != AppOpsManager.MODE_ALLOWED`, which correctly catches both the initial "deny" AND the post-dialog "ignore" state. Returns false on any exception (safe failure, no false positives). ✅
+
+---
+
+**🔴 Issue 1 — The UX gap after unlocking [AFFECTS YOUR STATED CONCERN]**
+
+This is the one that directly hits your "don't want users stuck" requirement.
+
+After the user does App Info → ⋮ → Allow restricted settings → returns to FocusFlow:
+
+1. `recheck()` fires → `isRestricted = false`
+2. **Panel self-dismisses** — the "Try Accessibility Settings Again" button disappears with it
+3. User is now looking at the normal Accessibility card
+4. They have to figure out to tap "Give access" again to actually enable it
+
+The panel dismisses correctly, but it takes the primary CTA with it at exactly the moment the user is primed to act. They did the hard part (App Info unlock), came back, and now the big button is gone. A confused user might think they're done when they're not — accessibility is still not enabled.
+
+**Fix:** Keep the "Try Accessibility Settings Again" button visible (or auto-trigger `openAccessibilitySettings()`) when `isRestricted` flips to `false` but accessibility is still not granted. The component's early return gate is:
+
+```typescript
+if (!accessibilityAttempted || !isRestricted) return null;
+```
+
+Change it to something like:
+
+```typescript
+// Still show if: tried + (still restricted OR restriction just cleared but not yet granted)
+if (!accessibilityAttempted) return null;
+if (!isRestricted && !justUnlocked) return null;
+```
+
+Where `justUnlocked` is a `useRef` that flips to `true` when `isRestricted` transitions from `true` to `false`, and resets when accessibility is granted. Or simply: auto-call `openAccessibilitySettings()` inside `recheck()` when it detects `isRestricted` flipping to `false`.
+
+---
+
+**🟡 Issue 2 — JS fallback chain in `handleTryAgain` is dead code**
+
+The plan's catch blocks in `handleTryAgain` and `openAppInfo` will **never execute**. Looking at the actual Kotlin:
+
+```kotlin
+fun openAccessibilitySettings(promise: Promise) {
+    // tries currentActivity, falls back to reactContext
+    // ALWAYS ends with: promise.resolve(null)
+    // NEVER calls promise.reject()
+}
+```
+
+Same for `openAppInfoSettings()` — always resolves. So in JS:
+
+```typescript
+try:
+  await UsageStatsModule.openAccessibilitySettings()  // never throws
+catch:
+  await Linking.sendIntent(...)  // ← dead, never reached
+```
+
+Not a user-facing bug since the Kotlin has its own internal fallback chain. But the plan documents these JS catch paths as active safety nets when they aren't. If `openAccessibilitySettings` silently fails to open anything (Kotlin's last-resort also fails), the JS layer has no way to know and no real recourse either.
+
+---
+
+**🟡 Issue 3 — Targeted accessibility deep link is possible but unused**
+
+The Kotlin file defines:
+
+```kotlin
+private const val ACCESSIBILITY_SERVICE_ID =
+    "com.tbtechs.focusflow/com.tbtechs.focusflow.services.AppBlockerAccessibilityService"
+```
+
+But `openAccessibilitySettings()` just opens the general accessibility list. After unlocking restriction, users land on the full list and have to find FocusFlow manually. There's an undocumented intent extra that jumps directly to the service's toggle page on most stock Android builds — but it's fragile across Samsung/MIUI/ColorOS and would need OEM testing. Not recommending changing it for now, but noting it exists. The general list is the correct safe call for broad compatibility.
+
+---
+
+**Confidence:** 0.88
+
+The AppOps behavior (deny/ignore/allow states), the intent strings, and the Kotlin implementations are all verified. Deducting for: Issue 1 being a behavioral observation not directly verifiable without a physical sideloaded Android 13+ device, and Issue 3 where the targeted deep link behavior varies enough across OEMs that I can't state it definitively from docs alone.
+
+**Caveats:** The `"android:access_restricted_settings"` string handling on heavily modified OEMs (MIUI 14, One UI 6 with custom appops stacks) is the main remaining unknown. The Kotlin's try-catch returning `false` on exception is the right safe failure here.

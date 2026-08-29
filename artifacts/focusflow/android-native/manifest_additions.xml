@@ -54,6 +54,11 @@
     READ_EXTERNAL_STORAGE       (legacy API ≤ 32 — lets WallpaperManager.getDrawable() succeed
                                  when reading the home-screen wallpaper for BlockOverlayActivity)
 
+  Android automatic backup is intentionally disabled:
+     android:allowBackup="false"
+  Do not change this to true. FocusFlow's explicit .focusflow export/import is
+  the only supported way to move user data.
+
   AndroidManifest.xml components (patched automatically):
 
     <service android:name="...services.ForegroundTaskService"

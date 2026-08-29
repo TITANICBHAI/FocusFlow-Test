@@ -39,7 +39,7 @@ import { requestPermissions } from '@/services/notificationService';
 import { ForegroundServiceModule } from '@/native-modules/ForegroundServiceModule';
 import { UsageStatsModule } from '@/native-modules/UsageStatsModule';
 import { ForegroundLaunchModule } from '@/native-modules/ForegroundLaunchModule';
-import { RestrictedSettingsBanner } from '@/components/RestrictedSettingsBanner';
+import { AccessibilityRestrictedRecovery } from '@/components/AccessibilityRestrictedRecovery';
 import { COLORS, FONT, RADIUS, SPACING } from '@/styles/theme';
 
 type PermStatus = 'granted' | 'denied' | 'unknown';
@@ -238,6 +238,7 @@ export default function OnboardingScreen() {
   const [statuses, setStatuses] = useState<Record<string, PermStatus>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [accessibilityAttempted, setAccessibilityAttempted] = useState(false);
   const [pinProtectionChoice, setPinProtectionChoice] = useState(false);
   const [defensePinSet, setDefensePinSet] = useState(false);
   const [pinSetupVisible, setPinSetupVisible] = useState(false);
@@ -295,6 +296,7 @@ export default function OnboardingScreen() {
           await Linking.sendIntent('android.settings.USAGE_ACCESS_SETTINGS');
         }
       } else if (perm.id === 'accessibility') {
+        setAccessibilityAttempted(true);
         await UsageStatsModule.openAccessibilitySettings();
       } else if (perm.id === 'overlay') {
         await ForegroundLaunchModule.requestOverlayPermission();
@@ -375,14 +377,6 @@ export default function OnboardingScreen() {
 
         {step === 'core' && (
           <>
-        {/* Restricted-settings unlock banner — shown above everything else
-            on the first-run flow when the OS is currently locking the
-            Accessibility toggle. Auto-hides the moment the user completes
-            the App Info → ⋮ → Allow restricted settings flow. */}
-        <View style={{ marginHorizontal: SPACING.lg, marginBottom: SPACING.md }}>
-          <RestrictedSettingsBanner />
-        </View>
-
         {/* Why banner */}
         <View style={styles.tutorialBanner}>
           <View style={styles.tutorialIconWrap}>
@@ -563,6 +557,16 @@ export default function OnboardingScreen() {
             </View>
           );
         })}
+
+        {/* Restricted-settings recovery — only shown after the user attempted
+            Accessibility and Android confirmed the restriction is active. */}
+        {statuses['accessibility'] !== 'granted' && (
+          <View style={{ marginHorizontal: SPACING.lg, marginBottom: SPACING.md }}>
+            <AccessibilityRestrictedRecovery
+              accessibilityAttempted={accessibilityAttempted}
+            />
+          </View>
+        )}
 
         {/* Missing required permissions tip */}
         {!allRequiredReady && (

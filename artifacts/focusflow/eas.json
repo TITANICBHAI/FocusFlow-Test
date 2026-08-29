@@ -13,7 +13,8 @@
         "EXPO_ROUTER_APP_ROOT": "app"
       },
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "gradleCommand": ":app:assemblePlayDebug"
       }
     },
     "preview": {
@@ -23,7 +24,8 @@
         "EXPO_ROUTER_APP_ROOT": "app"
       },
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "gradleCommand": ":app:assemblePlayRelease"
       }
     },
     "production": {
@@ -34,7 +36,8 @@
         "EXPO_ROUTER_APP_ROOT": "app"
       },
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundlePlayRelease"
       }
     }
   },

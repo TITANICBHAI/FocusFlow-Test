@@ -18,6 +18,7 @@
  *  14. Adds <queries> block for Android 11+ package visibility
  *  15. Registers FocusDayPackage via withMainApplication (reliable for RN 0.76+)
  *  16. Copies all Kotlin source files from android-native/ into the project
+ *  17. Adds Google Play and Indus Appstore product flavors
  *
  * Applied automatically during `npx expo prebuild --platform android`.
  * No manual XML or Kotlin editing required.
@@ -714,6 +715,44 @@ function withFocusDayBuildConfig(config) {
 
       let content = fs.readFileSync(buildGradlePath, 'utf8');
 
+      // ── Store product flavors ─────────────────────────────────────────────
+      // Keep the Google Play/GitHub package stable while giving the Indus
+      // Appstore build its own installable identity. Kotlin sources stay in
+      // the original package; Android permits that independently of the
+      // applicationId used for each variant.
+      if (!content.includes('com.tbtechsdev.focusflow')) {
+        const flavorBlock = `
+    // FocusFlow store variants
+    flavorDimensions "store"
+    def focusFlowIndusApplicationId = "com.tbtechsdev.focusflow"
+    productFlavors {
+        play {
+            dimension "store"
+            applicationId "com.tbtechs.focusflow"
+        }
+        indus {
+            dimension "store"
+            applicationId focusFlowIndusApplicationId
+        }
+    }
+`;
+        const flavorPatched = content.replace(
+          /(\n\s*buildTypes\s*\{)/,
+          `${flavorBlock}$1`,
+        );
+
+        if (flavorPatched === content) {
+          throw new Error(
+            '[withFocusDayAndroid] Could not find buildTypes block in app/build.gradle to add store flavors.',
+          );
+        }
+
+        content = flavorPatched;
+        console.log(
+          '[withFocusDayAndroid] Added play and indus product flavors.',
+        );
+      }
+
       // ── AndroidX RecyclerView for LauncherActivity's app drawer ───────────
       // LauncherActivity uses RecyclerView and GridLayoutManager directly.
       // Keep this in the config plugin because `expo prebuild --clean`
@@ -817,99 +856,22 @@ function withFocusDayProguard(config) {
   ]);
 }
 
-// ─── 6. Android Auto Backup — SQLite database protection ─────────────────────
+// ─── 6. Android automatic backup — intentionally disabled ────────────────────
 //
-// By default Android backs up app data to Google Drive (allowBackup=true).
-// Without explicit backup rules the agent may:
-//   a) Restore an old/empty DB snapshot on reinstall (looks like a "wipe").
-//   b) Omit the -wal and -shm sidecar files, producing a corrupt restore.
+// FocusFlow contains an explicit, user-controlled .focusflow export/import
+// feature. Android cloud backup and device transfer are intentionally disabled
+// so private app state is not copied outside that flow.
 //
-// This modifier:
-//   1. Writes res/xml/backup_rules.xml  (API < 31) explicitly including the
-//      focusday.db + WAL sidecar so the full database is captured.
-//   2. Writes res/xml/data_extraction_rules.xml (API 31+, Android 12+) with
-//      the same include rules for both cloud-backup and device-transfer.
-//   3. Sets android:fullBackupContent and android:dataExtractionRules on the
-//      <application> element so Android knows which rules file to use.
-//
-// expo-sqlite stores databases under Context.getFilesDir()/SQLite/ which maps
-// to domain="file" in the backup rules XML.
-
-function withFocusDayBackupRules(config) {
-  // Step A: write the XML resource files during prebuild
-  config = withDangerousMod(config, [
-    'android',
-    (cfg) => {
-      const platformRoot = cfg.modRequest.platformProjectRoot;
-      const xmlDir = path.join(platformRoot, 'app', 'src', 'main', 'res', 'xml');
-      fs.mkdirSync(xmlDir, { recursive: true });
-
-      // backup_rules.xml — used on Android < 12 (API level < 31)
-      const backupRules = `<?xml version="1.0" encoding="utf-8"?>
-<!--
-  Full-backup content rules for Android < 12 (API < 31).
-  expo-sqlite stores databases in Context.getFilesDir()/SQLite/
-  so domain="file" with path="SQLite/" covers all DB files.
-  Including the -wal and -shm sidecars ensures the backup is
-  consistent and no recent writes are lost on restore.
--->
-<full-backup-content>
-    <include domain="file" path="SQLite/" />
-    <include domain="sharedpref" path="." />
-</full-backup-content>
-`;
-
-      // data_extraction_rules.xml — used on Android 12+ (API 31+)
-      const dataExtractionRules = `<?xml version="1.0" encoding="utf-8"?>
-<!--
-  Data extraction rules for Android 12+ (API 31+).
-  Covers both cloud backup (Google Drive) and device-to-device
-  transfer (e.g. tap-to-transfer, Setup Wizard).
-  expo-sqlite path: Context.getFilesDir()/SQLite/
--->
-<data-extraction-rules>
-    <cloud-backup>
-        <include domain="file" path="SQLite/" />
-        <include domain="sharedpref" path="." />
-    </cloud-backup>
-    <device-transfer>
-        <include domain="file" path="SQLite/" />
-        <include domain="sharedpref" path="." />
-    </device-transfer>
-</data-extraction-rules>
-`;
-
-      const backupRulesPath = path.join(xmlDir, 'backup_rules.xml');
-      const dataExtractionPath = path.join(xmlDir, 'data_extraction_rules.xml');
-
-      fs.writeFileSync(backupRulesPath, backupRules, 'utf8');
-      fs.writeFileSync(dataExtractionPath, dataExtractionRules, 'utf8');
-
-      console.log('[withFocusDayAndroid] Wrote backup_rules.xml and data_extraction_rules.xml');
-      return cfg;
-    },
-  ]);
-
-  // Step B: set the manifest attributes that point to those XML files
+// IMPORTANT: android:allowBackup must never be changed to "true".
+function withFocusDayBackupDisabled(config) {
   config = withAndroidManifest(config, (cfg) => {
     const app = cfg.modResults.manifest.application[0];
 
-    // android:allowBackup — must be true for Auto Backup to run
-    if (!app.$['android:allowBackup']) {
-      app.$['android:allowBackup'] = 'true';
-    }
-
-    // android:fullBackupContent — API < 31 backup rules
-    if (!app.$['android:fullBackupContent']) {
-      app.$['android:fullBackupContent'] = '@xml/backup_rules';
-      console.log('[withFocusDayAndroid] Set android:fullBackupContent=@xml/backup_rules');
-    }
-
-    // android:dataExtractionRules — API 31+ backup rules
-    if (!app.$['android:dataExtractionRules']) {
-      app.$['android:dataExtractionRules'] = '@xml/data_extraction_rules';
-      console.log('[withFocusDayAndroid] Set android:dataExtractionRules=@xml/data_extraction_rules');
-    }
+    // Privacy invariant: do not preserve a user-provided true value here.
+    app.$['android:allowBackup'] = 'false';
+    delete app.$['android:fullBackupContent'];
+    delete app.$['android:dataExtractionRules'];
+    console.log('[withFocusDayAndroid] Disabled Android automatic backup (allowBackup=false).');
 
     return cfg;
   });
@@ -1004,7 +966,7 @@ module.exports = function withFocusDayAndroid(config) {
   config = withFocusDayPackageRegistration(config);
   config = withFocusDayBuildConfig(config);
   config = withFocusDayProguard(config);
-  config = withFocusDayBackupRules(config);
+  config = withFocusDayBackupDisabled(config);
   config = withFocusFlowFileAssociation(config);
   return config;
 };
