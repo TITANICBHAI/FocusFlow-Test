@@ -18,7 +18,6 @@
  *  14. Adds <queries> block for Android 11+ package visibility
  *  15. Registers FocusDayPackage via withMainApplication (reliable for RN 0.76+)
  *  16. Copies all Kotlin source files from android-native/ into the project
- *  17. Adds Google Play and Indus Appstore product flavors
  *
  * Applied automatically during `npx expo prebuild --platform android`.
  * No manual XML or Kotlin editing required.
@@ -714,44 +713,6 @@ function withFocusDayBuildConfig(config) {
       }
 
       let content = fs.readFileSync(buildGradlePath, 'utf8');
-
-      // ── Store product flavors ─────────────────────────────────────────────
-      // Keep the Google Play/GitHub package stable while giving the Indus
-      // Appstore build its own installable identity. Kotlin sources stay in
-      // the original package; Android permits that independently of the
-      // applicationId used for each variant.
-      if (!content.includes('com.tbtechsdev.focusflow')) {
-        const flavorBlock = `
-    // FocusFlow store variants
-    flavorDimensions "store"
-    def focusFlowIndusApplicationId = "com.tbtechsdev.focusflow"
-    productFlavors {
-        play {
-            dimension "store"
-            applicationId "com.tbtechs.focusflow"
-        }
-        indus {
-            dimension "store"
-            applicationId focusFlowIndusApplicationId
-        }
-    }
-`;
-        const flavorPatched = content.replace(
-          /(\n\s*buildTypes\s*\{)/,
-          `${flavorBlock}$1`,
-        );
-
-        if (flavorPatched === content) {
-          throw new Error(
-            '[withFocusDayAndroid] Could not find buildTypes block in app/build.gradle to add store flavors.',
-          );
-        }
-
-        content = flavorPatched;
-        console.log(
-          '[withFocusDayAndroid] Added play and indus product flavors.',
-        );
-      }
 
       // ── AndroidX RecyclerView for LauncherActivity's app drawer ───────────
       // LauncherActivity uses RecyclerView and GridLayoutManager directly.

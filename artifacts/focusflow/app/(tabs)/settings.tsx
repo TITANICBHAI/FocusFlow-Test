@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ActivityIndicator,
   Linking,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,6 +35,7 @@ import { SharedPrefsModule } from '@/native-modules/SharedPrefsModule';
 import DarkModeToggle from '@/components/DarkModeToggle';
 import { PinVerifyModal } from '@/components/PinVerifyModal';
 import { SessionPinModule } from '@/native-modules/SessionPinModule';
+import { useNavPress } from '@/hooks/useNavPress';
 
 const DURATION_OPTIONS = [30, 45, 60, 90, 120];
 
@@ -48,6 +50,11 @@ function SettingsScreen() {
   const [reportIssueVisible, setReportIssueVisible] = useState(false);
   const [focusPinVisible, setFocusPinVisible] = useState(false);
   const pendingClearAllRef = useRef(false);
+  const navProfile = useNavPress('/user-profile');
+  const navPermissions = useNavPress('/permissions');
+  const navStats = useNavPress('/(tabs)/stats');
+  const navChangelog = useNavPress('/changelog');
+  const navPrivacy = useNavPress('/privacy-policy');
   // Logs are useful in release builds too: WARN/ERROR entries are retained
   // locally and the user can explicitly choose whether to report them.
   const showDiagnostics = true;
@@ -230,7 +237,8 @@ function SettingsScreen() {
                     .join(' · ') || 'Tap to personalise your experience'
                 : 'Name, occupation, daily goal and more'
             }
-            onPress={() => router.push('/user-profile')}
+            onPress={navProfile.onPress}
+            loading={navProfile.loading}
           />
         </Section>
 
@@ -366,7 +374,8 @@ function SettingsScreen() {
             icon="shield-checkmark-outline"
             label="Manage Permissions"
             description="Accessibility, Usage Access, Battery, Notifications"
-            onPress={() => router.push('/permissions' as never)}
+            onPress={navPermissions.onPress}
+            loading={navPermissions.loading}
           />
         </Section>
 
@@ -398,13 +407,15 @@ function SettingsScreen() {
             icon="bar-chart-outline"
             label="Stats"
             description="Yesterday's digest, focus time, completed tasks, blocked apps, streak"
-            onPress={() => router.push('/(tabs)/stats')}
+            onPress={navStats.onPress}
+            loading={navStats.loading}
           />
           <SettingButton
             icon="rocket-outline"
             label="What's New"
             description="Changelog — features, fixes, and improvements"
-            onPress={() => router.push('/changelog')}
+            onPress={navChangelog.onPress}
+            loading={navChangelog.loading}
           />
           {/* Privacy + Terms are now a single combined screen — the
               privacy-policy screen renders both as tabs. */}
@@ -412,7 +423,8 @@ function SettingsScreen() {
             icon="shield-checkmark-outline"
             label="Privacy & Terms"
             description="How FocusFlow handles your data and the rules of use"
-            onPress={() => router.push('/privacy-policy')}
+            onPress={navPrivacy.onPress}
+            loading={navPrivacy.loading}
           />
           <SettingButton
             icon="mail-outline"
@@ -427,7 +439,7 @@ function SettingsScreen() {
         </Section>
 
         <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: theme.muted }]}>FocusFlow v1.1.0 (build 11)</Text>
+          <Text style={[styles.footerText, { color: theme.muted }]}>FocusFlow v1.1.1 (build 12)</Text>
           <Text style={[styles.footerText, { color: theme.muted }]}>All data stored locally on device</Text>
         </View>
       </ScrollView>
@@ -518,22 +530,32 @@ function SettingButton({
   description,
   danger = false,
   onPress,
+  loading = false,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   description?: string;
   danger?: boolean;
   onPress: () => void;
+  loading?: boolean;
 }) {
   const { theme } = useTheme();
   return (
-    <TouchableOpacity style={[styles.settingButton, { borderBottomColor: theme.border }]} onPress={onPress}>
+    <TouchableOpacity
+      style={[styles.settingButton, { borderBottomColor: theme.border }, loading && { opacity: 0.6 }]}
+      onPress={onPress}
+      disabled={loading}
+    >
       <Ionicons name={icon} size={20} color={danger ? COLORS.red : COLORS.primary} />
       <View style={styles.rowText}>
         <Text style={[styles.rowLabel, { color: theme.text }, danger && { color: COLORS.red }]}>{label}</Text>
         {description && <Text style={[styles.rowDesc, { color: theme.muted }]}>{description}</Text>}
       </View>
-      <Ionicons name="chevron-forward" size={16} color={theme.border} />
+      {loading ? (
+        <ActivityIndicator size="small" color={theme.border} />
+      ) : (
+        <Ionicons name="chevron-forward" size={16} color={theme.border} />
+      )}
     </TouchableOpacity>
   );
 }

@@ -1,9 +1,9 @@
-name: Build Release (Play APK × 3 + Play AAB)
+name: Build Release (APK × 3 + AAB)
 
 # Two independent jobs:
-#   apks  — expo prebuild → assemblePlayRelease with ABI splits
+#   apks  — expo prebuild → assembleRelease with ABI splits
 #           produces arm64-v8a APK, armeabi-v7a APK, universal APK
-#   aab   — expo prebuild → bundlePlayRelease (no ABI splits needed)
+#   aab   — expo prebuild → bundleRelease (no ABI splits needed)
 #           produces AAB for Play Store
 #
 # Signing:
@@ -29,7 +29,7 @@ env:
 jobs:
   # ── Job 1: ABI-split APKs (arm64 + arm32 + universal) ─────────────────────
   apks:
-    name: Play Release APKs (arm64 + arm32 + universal)
+    name: Release APKs (arm64 + arm32 + universal)
     runs-on: ubuntu-latest
 
     steps:
@@ -171,30 +171,30 @@ jobs:
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
-          ./gradlew assemblePlayRelease --no-daemon
+          ./gradlew assembleRelease --no-daemon
 
           echo "── APK outputs ──"
-          find app/build/outputs/apk/play/release/ -name "*.apk" -exec ls -lh {} \;
+          find app/build/outputs/apk/release/ -name "*.apk" -exec ls -lh {} \;
 
       - name: Upload arm64-v8a APK
         uses: actions/upload-artifact@v4
         with:
           name: focusflow-arm64-v8a-release-v${{ steps.app-version.outputs.version }}-vc${{ steps.app-version.outputs.versionCode }}-run${{ github.run_number }}
-          path: artifacts/focusflow/android/app/build/outputs/apk/play/release/app-play-arm64-v8a-release.apk
+          path: artifacts/focusflow/android/app/build/outputs/apk/release/app-arm64-v8a-release.apk
           retention-days: 30
 
       - name: Upload armeabi-v7a APK
         uses: actions/upload-artifact@v4
         with:
           name: focusflow-armeabi-v7a-release-v${{ steps.app-version.outputs.version }}-vc${{ steps.app-version.outputs.versionCode }}-run${{ github.run_number }}
-          path: artifacts/focusflow/android/app/build/outputs/apk/play/release/app-play-armeabi-v7a-release.apk
+          path: artifacts/focusflow/android/app/build/outputs/apk/release/app-armeabi-v7a-release.apk
           retention-days: 30
 
       - name: Upload universal APK
         uses: actions/upload-artifact@v4
         with:
           name: focusflow-universal-release-v${{ steps.app-version.outputs.version }}-vc${{ steps.app-version.outputs.versionCode }}-run${{ github.run_number }}
-          path: artifacts/focusflow/android/app/build/outputs/apk/play/release/app-play-universal-release.apk
+          path: artifacts/focusflow/android/app/build/outputs/apk/release/app-universal-release.apk
           retention-days: 30
 
       - name: Remove keystore from runner
@@ -354,16 +354,16 @@ jobs:
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
-          ./gradlew bundlePlayRelease --no-daemon
+          ./gradlew bundleRelease --no-daemon
 
           echo "── AAB output ──"
-          find app/build/outputs/bundle/playRelease/ -name "*.aab" -exec ls -lh {} \;
+          find app/build/outputs/bundle/release/ -name "*.aab" -exec ls -lh {} \;
 
       - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
           name: focusflow-release-aab-v${{ steps.app-version.outputs.version }}-vc${{ steps.app-version.outputs.versionCode }}-run${{ github.run_number }}
-          path: artifacts/focusflow/android/app/build/outputs/bundle/playRelease/app-play-release.aab
+          path: artifacts/focusflow/android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 30
 
       - name: Remove keystore from runner

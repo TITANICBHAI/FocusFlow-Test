@@ -104,15 +104,15 @@ jobs:
       - name: Build debug APK
         working-directory: artifacts/focusflow/android
         run: |
-          ./gradlew assemblePlayDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon
           echo "── Debug APK outputs ──"
-          find app/build/outputs/apk/play/debug/ -name "*.apk" -exec ls -lh {} \;
+          find app/build/outputs/apk/debug/ -name "*.apk" -exec ls -lh {} \;
 
       # ── 8. Upload ──────────────────────────────────────────────────────────
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: focusflow-debug-v${{ steps.app-version.outputs.version }}-vc${{ steps.app-version.outputs.versionCode }}-run${{ github.run_number }}
-          path: artifacts/focusflow/android/app/build/outputs/apk/play/debug/*.apk
+          path: artifacts/focusflow/android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14

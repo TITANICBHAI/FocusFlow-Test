@@ -30,6 +30,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { NetworkBlockModule } from '@/native-modules/NetworkBlockModule';
 import { SessionPinModule } from '@/native-modules/SessionPinModule';
 import { SharedPrefsModule } from '@/native-modules/SharedPrefsModule';
+import { navPush } from '@/utils/nav';
+import { useNavPress } from '@/hooks/useNavPress';
 
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -68,6 +70,11 @@ export default function BlockDefenseScreen() {
   const [defensePinSet, setDefensePinSet] = useState(false);
   const [alwaysOnPinRotationVisible, setAlwaysOnPinRotationVisible] = useState(false);
   const [vpnConsentVisible, setVpnConsentVisible] = useState(false);
+  const navActive = useNavPress('/active');
+  const navPassword = useNavPress('/password-protection');
+  const navAlwaysOn = useNavPress('/always-on');
+  const navVpnList = useNavPress('/vpn-block-list');
+  const navHomeLauncher = useNavPress('/home-launcher');
   // Holds the resolve callback for the VPN consent modal promise
   const vpnConsentResolveRef = React.useRef<((confirmed: boolean) => void) | null>(null);
 
@@ -133,7 +140,7 @@ export default function BlockDefenseScreen() {
         );
       }
       if (tab === 'network') {
-        router.push('/vpn-block-list');
+        navPush('/vpn-block-list');
       }
     }, 400);
     return () => clearTimeout(timeout);
@@ -392,8 +399,13 @@ export default function BlockDefenseScreen() {
         {/* Nothing blocking hint */}
         {!blockProtectionActive && !alwaysOnActive && (
           <TouchableOpacity
-            style={[styles.hintBanner, { backgroundColor: COLORS.primary + '0E', borderColor: COLORS.primary + '33' }]}
-            onPress={() => router.push('/active')}
+            style={[
+              styles.hintBanner,
+              navActive.loading && { opacity: 0.6 },
+              { backgroundColor: COLORS.primary + '0E', borderColor: COLORS.primary + '33' },
+            ]}
+            onPress={navActive.onPress}
+            disabled={navActive.loading}
             activeOpacity={0.8}
           >
             <Ionicons name="pulse-outline" size={16} color={COLORS.primary} />
@@ -424,8 +436,9 @@ export default function BlockDefenseScreen() {
           />
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <TouchableOpacity
-              style={styles.cardButton}
-              onPress={() => router.push('/password-protection')}
+              style={[styles.cardButton, navPassword.loading && { opacity: 0.6 }]}
+              onPress={navPassword.onPress}
+              disabled={navPassword.loading}
               accessibilityRole="button"
               accessibilityLabel="Open Password Protection"
             >
@@ -649,6 +662,15 @@ export default function BlockDefenseScreen() {
               onValueChange={handleAlwaysOnEnforcementToggle}
               theme={theme}
             />
+            {(settings.alwaysOnEnforcementEnabled ?? false) && (settings.alwaysOnPackages ?? []).length === 0 && (
+              <View style={[styles.emptyAlwaysOnHint, { backgroundColor: COLORS.orange + '12', borderTopColor: theme.border }]}>
+                <Ionicons name="information-circle-outline" size={16} color={COLORS.orange} />
+                <Text style={[styles.emptyAlwaysOnHintText, { color: theme.textSecondary }]}>
+                  No apps are in the always-on list, so no apps are blocked 24/7. Only daily allowance limits
+                  {allowanceEntryCount > 0 ? ' (if configured)' : ''} are active right now.
+                </Text>
+              </View>
+            )}
             <SwitchRow
               label="Auto-copy from standalone block"
               description="When you add apps to a standalone block, they are automatically added to this always-on list too — so they stay blocked after the timer ends"
@@ -656,7 +678,11 @@ export default function BlockDefenseScreen() {
               onValueChange={(v) => void update({ autoCopyToAlwaysOn: v })}
               theme={theme}
             />
-            <TouchableOpacity style={styles.cardButton} onPress={() => router.push('/always-on')}>
+            <TouchableOpacity
+              style={[styles.cardButton, navAlwaysOn.loading && { opacity: 0.6 }]}
+              onPress={navAlwaysOn.onPress}
+              disabled={navAlwaysOn.loading}
+            >
               <View style={styles.cardButtonContent}>
                 <Text style={[styles.cardButtonLabel, { color: theme.text }]}>Manage Always-On App List</Text>
                 <Text style={[styles.cardButtonDesc, { color: theme.muted }]}>
@@ -706,7 +732,11 @@ export default function BlockDefenseScreen() {
               }
               theme={theme}
             />
-            <TouchableOpacity style={styles.cardButton} onPress={() => router.push('/vpn-block-list')}>
+            <TouchableOpacity
+              style={[styles.cardButton, navVpnList.loading && { opacity: 0.6 }]}
+              onPress={navVpnList.onPress}
+              disabled={navVpnList.loading}
+            >
               <View style={styles.cardButtonContent}>
                 <Text style={[styles.cardButtonLabel, { color: theme.text }]}>Manage VPN app list</Text>
                 <Text style={[styles.cardButtonDesc, { color: theme.muted }]}>
@@ -774,7 +804,7 @@ export default function BlockDefenseScreen() {
                   Alert.alert('Block is active', 'Launcher settings are locked while a standalone block is running.');
                   return;
                 }
-                router.push('/home-launcher');
+                navPush('/home-launcher');
               }}
             >
               <View style={styles.cardButtonContent}>
@@ -1144,6 +1174,19 @@ const styles = StyleSheet.create({
   },
   switchLabel: { fontSize: FONT.sm, fontWeight: '600' },
   switchDesc: { fontSize: FONT.xs, lineHeight: 16, marginTop: 1 },
+  emptyAlwaysOnHint: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  emptyAlwaysOnHintText: {
+    flex: 1,
+    fontSize: FONT.xs,
+    lineHeight: 17,
+  },
 
   cardButton: {
     flexDirection: 'row',

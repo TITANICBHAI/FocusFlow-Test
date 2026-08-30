@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import {
   Alert,
+  ActivityIndicator,
   Platform,
   ScrollView,
   StyleSheet,
@@ -11,7 +12,6 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -27,6 +27,7 @@ import { withScreenErrorBoundary } from '@/components/withScreenErrorBoundary';
 import { NetworkBlockModule } from '@/native-modules/NetworkBlockModule';
 import { SharedPrefsModule } from '@/native-modules/SharedPrefsModule';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavPress } from '@/hooks/useNavPress';
 
 type DefenseAction = (defensePinHash?: string) => void;
 const DEFENSE_HINT_DISMISSED_KEY = '@focusflow/defenseHintDismissed';
@@ -54,6 +55,12 @@ function DefenseScreen() {
   const vpnConsentResolveRef = useRef<((confirmed: boolean) => void) | null>(null);
   const pendingSetupAction = useRef<DefenseAction | null>(null);
   const protectionNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const navAlwaysOn = useNavPress('/always-on');
+  const navKeyword = useNavPress('/keyword-blocker');
+  const navVpn = useNavPress('/vpn-block-list');
+  const navPassword = useNavPress('/password-protection');
+  const navHowToUse = useNavPress('/how-to-use');
+  const navLauncher = useNavPress('/home-launcher');
 
   React.useEffect(() => {
     void AsyncStorage.getItem(DEFENSE_HINT_DISMISSED_KEY).then((dismissed) => {
@@ -241,12 +248,17 @@ function DefenseScreen() {
               Start with Focus to schedule a task, or open How to Use for a quick walkthrough of blocking and protection.
             </Text>
             <TouchableOpacity
-              onPress={() => router.push('/how-to-use')}
-              style={styles.helpBannerAction}
+              onPress={navHowToUse.onPress}
+              disabled={navHowToUse.loading}
+              style={[styles.helpBannerAction, navHowToUse.loading && { opacity: 0.6 }]}
               activeOpacity={0.75}
             >
               <Text style={[styles.helpBannerActionText, { color: COLORS.primary }]}>Open How to Use</Text>
-              <Ionicons name="arrow-forward" size={14} color={COLORS.primary} />
+              {navHowToUse.loading ? (
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              ) : (
+                <Ionicons name="arrow-forward" size={14} color={COLORS.primary} />
+              )}
             </TouchableOpacity>
           </View>
           <TouchableOpacity
@@ -308,7 +320,8 @@ function DefenseScreen() {
                 ? 'Choose apps that should stay blocked'
                 : `${alwaysOnCount} app${alwaysOnCount === 1 ? '' : 's'} selected`
             }
-            onPress={() => router.push('/always-on')}
+            onPress={navAlwaysOn.onPress}
+            loading={navAlwaysOn.loading}
             theme={theme}
           />
           <SettingButton
@@ -319,7 +332,7 @@ function DefenseScreen() {
                 ? 'Set daily count, time, or interval limits per app'
                 : `${allowanceCount} app${allowanceCount === 1 ? '' : 's'} configured`
             }
-            onPress={() => setDailyAllowanceVisible(true)}
+            onPress={() => requestAnimationFrame(() => setDailyAllowanceVisible(true))}
             theme={theme}
           />
         </Section>
@@ -329,7 +342,8 @@ function DefenseScreen() {
             icon="text-outline"
             label="Keyword Blocker"
             description="Block keywords in URLs, searches, and on-screen text"
-            onPress={() => router.push('/keyword-blocker')}
+            onPress={navKeyword.onPress}
+            loading={navKeyword.loading}
             theme={theme}
           />
           {/* UI label only: this is the existing Greyout Block feature, renamed
@@ -342,7 +356,7 @@ function DefenseScreen() {
               requireDefensePin(
                 'Manage Scheduled Blocks',
                 'Enter your defense password to add, edit, or remove schedule batches.',
-                () => setGreyoutScheduleVisible(true),
+                () => requestAnimationFrame(() => setGreyoutScheduleVisible(true)),
               )
             }
             theme={theme}
@@ -351,7 +365,8 @@ function DefenseScreen() {
             icon="list-outline"
             label="Manage VPN App List"
             description="Choose which apps should have internet access blocked"
-            onPress={() => router.push('/vpn-block-list')}
+            onPress={navVpn.onPress}
+            loading={navVpn.loading}
             theme={theme}
           />
           <SettingButton
@@ -362,7 +377,8 @@ function DefenseScreen() {
                 ? 'Defense password required before disabling protection'
                 : 'Require a password before protections can be disabled'
             }
-            onPress={() => router.push('/password-protection')}
+            onPress={navPassword.onPress}
+            loading={navPassword.loading}
             theme={theme}
           />
         </Section>
@@ -521,7 +537,7 @@ function DefenseScreen() {
                 showProtectionNotice('Home Launcher settings are unavailable while a Standalone block is running.');
                 return;
               }
-              router.push('/home-launcher');
+              navLauncher.onPress();
             }}
             theme={theme}
           />
@@ -709,18 +725,21 @@ function SettingButton({
   label,
   description,
   onPress,
+  loading = false,
   theme,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   description: string;
   onPress: () => void;
+  loading?: boolean;
   theme: ReturnType<typeof useTheme>['theme'];
 }) {
   return (
     <TouchableOpacity
-      style={[styles.button, { borderBottomColor: theme.border }]}
+      style={[styles.button, { borderBottomColor: theme.border }, loading && { opacity: 0.6 }]}
       onPress={onPress}
+      disabled={loading}
       activeOpacity={0.75}
     >
       <Ionicons name={icon} size={20} color={COLORS.primary} />
@@ -728,7 +747,11 @@ function SettingButton({
         <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
         <Text style={[styles.description, { color: theme.muted }]}>{description}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={17} color={theme.muted} />
+      {loading ? (
+        <ActivityIndicator size="small" color={theme.muted} />
+      ) : (
+        <Ionicons name="chevron-forward" size={17} color={theme.muted} />
+      )}
     </TouchableOpacity>
   );
 }

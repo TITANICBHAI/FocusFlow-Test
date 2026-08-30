@@ -14,7 +14,7 @@
  *      `consumePendingTaskNavigation()` on the next app open.
  */
 
-import { router } from 'expo-router';
+import { navPush } from '@/utils/nav';
 
 let pendingTaskId: string | null = null;
 
@@ -27,7 +27,7 @@ let pendingTaskId: string | null = null;
  */
 export function navigateToTask(taskId: string): void {
   try {
-    router.push({ pathname: '/(tabs)', params: { highlightTaskId: taskId } });
+    navPush({ pathname: '/(tabs)', params: { highlightTaskId: taskId } });
   } catch {
     // Navigator not mounted (headless context) — defer until next open.
     pendingTaskId = taskId;
@@ -43,7 +43,7 @@ export function consumePendingTaskNavigation(): void {
   const taskId = pendingTaskId;
   pendingTaskId = null;
   try {
-    router.push({ pathname: '/(tabs)', params: { highlightTaskId: taskId } });
+    navPush({ pathname: '/(tabs)', params: { highlightTaskId: taskId } });
   } catch {
     // Still not ready — ignore; the deferred intent was best-effort.
   }

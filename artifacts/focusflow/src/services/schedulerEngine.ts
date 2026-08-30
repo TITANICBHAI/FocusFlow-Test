@@ -283,6 +283,38 @@ export function compressSchedule(
   });
 }
 
+/**
+ * Remove a future scheduled task's reserved slot and pull later scheduled
+ * tasks forward by the deleted task's full duration.
+ */
+export function compressDeletedTaskGap(
+  deletedTask: Task,
+  allTasks: Task[],
+): Task[] {
+  const deletedStart = dayjs(deletedTask.startTime);
+  const deletedEnd = dayjs(deletedTask.endTime);
+  const savedMinutes = deletedEnd.diff(deletedStart, 'minute');
+
+  if (savedMinutes <= 0) return allTasks;
+
+  return allTasks.map((task) => {
+    if (
+      task.id === deletedTask.id ||
+      task.status !== 'scheduled' ||
+      !dayjs(task.startTime).isAfter(deletedEnd)
+    ) {
+      return task;
+    }
+
+    return {
+      ...task,
+      startTime: dayjs(task.startTime).subtract(savedMinutes, 'minute').toISOString(),
+      endTime: dayjs(task.endTime).subtract(savedMinutes, 'minute').toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  });
+}
+
 // ─── Detect tasks left unfinished (for app restart recovery) ─────────────────
 
 export function getUnfinishedOverdueTasks(tasks: Task[]): Task[] {

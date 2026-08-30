@@ -1,6 +1,6 @@
 name: Release (Tag)
 
-# Builds a signed Google Play release APK + AAB via Expo Prebuild and publishes a
+# Builds a signed release APK + AAB via Expo Prebuild and publishes a
 # GitHub Release whenever a version tag is pushed (e.g. v1.0.0).
 # Skips automatically if the tag ends with -debug (those go to debug-tag.yml).
 #
@@ -175,7 +175,7 @@ jobs:
           echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
           echo "Keystore size: $(du -sh release.keystore)"
 
-      - name: Build Google Play release APK
+      - name: Build release APK
         working-directory: artifacts/focusflow/android
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -184,20 +184,9 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assemblePlayRelease --no-daemon
+          ./gradlew assembleRelease --no-daemon
 
-      # ABI splits can make bundleRelease fail with R8. Keep splits for the
-      # APK build above, then disable them before creating the Play AAB.
-      - name: Disable ABI splits for Google Play AAB
-        working-directory: artifacts/focusflow/android
-        run: |
-          sed -i '/splits\s*{/,/^[[:space:]]*}/ {
-            s/enable\s*true/enable false/g
-          }' app/build.gradle || true
-          echo "android.splits.abi.enable=false" >> gradle.properties
-          echo "android.splits.density.enable=false" >> gradle.properties
-
-      - name: Build Google Play release AAB
+      - name: Build release AAB
         working-directory: artifacts/focusflow/android
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -205,19 +194,19 @@ jobs:
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
-          ./gradlew bundlePlayRelease --no-daemon
+          ./gradlew bundleRelease --no-daemon
 
       - name: Rename build outputs
         run: |
-          APK=$(find artifacts/focusflow/android/app/build/outputs/apk/play/release/ \
-            -name "app-play-universal-release.apk" -o -name "app-play-release.apk" | head -1)
+          APK=$(find artifacts/focusflow/android/app/build/outputs/apk/release/ \
+            -name "app-universal-release.apk" -o -name "app-release.apk" | head -1)
           if [ -z "$APK" ]; then
-            APK=$(find artifacts/focusflow/android/app/build/outputs/apk/play/release/ \
-              -path "*/playRelease/*" -name "*.apk" | head -1)
+            APK=$(find artifacts/focusflow/android/app/build/outputs/apk/release/ \
+              -name "*.apk" | head -1)
           fi
           echo "Using APK: $APK"
           cp "$APK" focusflow-${{ github.ref_name }}.apk
-          cp artifacts/focusflow/android/app/build/outputs/bundle/playRelease/app-play-release.aab \
+          cp artifacts/focusflow/android/app/build/outputs/bundle/release/app-release.aab \
              focusflow-${{ github.ref_name }}.aab
 
       - name: Create GitHub Release

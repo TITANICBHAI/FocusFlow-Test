@@ -14,6 +14,19 @@ type Entry = {
 
 const CHANGELOG: Entry[] = [
   {
+    version: '1.1.1',
+    date: 'August 2026',
+    sections: [
+      {
+        heading: 'Database Reliability',
+        icon: 'server-outline',
+        items: [
+          'Solved database errors that could interrupt app loading and prevent settings or task changes from being saved correctly',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.1.0',
     date: 'August 2026',
     sections: [
@@ -317,6 +330,8 @@ const CHANGELOG: Entry[] = [
     date: 'April 2026',
     sections: [
       {
+        heading: 'Backup and Import',
+        icon: 'cloud-download-outline',
         items: [
           'Two paths in one screen: pick an exported file (JSON / CSV / plain text) OR paste / type the app names yourself for blockers like Stay Focused that don\'t expose an export — names are fuzzy-matched against your installed apps so capitalisation and small typos still resolve',
           'Stay Focused is featured first because it has no public export — paste path is the recommended route for it',

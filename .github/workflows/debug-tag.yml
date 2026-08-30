@@ -104,11 +104,11 @@ jobs:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
         run: |
           chmod +x gradlew
-          ./gradlew assemblePlayDebug --no-daemon --stacktrace
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Verify APK was produced
         run: |
-          APK="artifacts/focusflow/android/app/build/outputs/apk/play/debug/app-play-debug.apk"
+          APK="artifacts/focusflow/android/app/build/outputs/apk/debug/app-debug.apk"
           if [ -f "$APK" ]; then
             echo "APK built successfully: $(du -sh $APK)"
           else
@@ -117,7 +117,7 @@ jobs:
 
       - name: Rename build output
         run: |
-          cp artifacts/focusflow/android/app/build/outputs/apk/play/debug/app-play-debug.apk \
+          cp artifacts/focusflow/android/app/build/outputs/apk/debug/app-debug.apk \
              focusflow-${{ github.ref_name }}.apk
 
       - name: Create GitHub Release

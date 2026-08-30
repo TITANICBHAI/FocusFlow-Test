@@ -41,6 +41,7 @@ import { ErrorAlertBanner } from '@/components/ErrorAlertBanner';
 import { logger } from '@/services/startupLogger';
 import { scheduleTaskRemindersBatch } from '@/services/notificationService';
 import { parseBackupJson, restoreFromJson, type ImportSummary } from '@/services/backupService';
+import { navPush } from '@/utils/nav';
 
 // ─── Deferred notification action store ──────────────────────────────────────
 // Stores action from background notification tap so the app can handle it on resume.
@@ -82,7 +83,7 @@ Notifications.addNotificationResponseReceivedListener((response) => {
 
   // ── Standalone block expiry tap → open app ─────────────────────────────
   if (data?.type === 'standalone-expiry') {
-    try { router.push('/(tabs)/focus'); } catch { /* headless */ }
+    try { navPush('/(tabs)/focus'); } catch { /* headless */ }
     return;
   }
 
@@ -90,7 +91,7 @@ Notifications.addNotificationResponseReceivedListener((response) => {
   // The morning notification is a recap of yesterday, so landing on the
   // Yesterday tab of Stats gives the user the most useful first view.
   if (data?.type === 'morning-digest') {
-    try { router.push('/(tabs)/stats'); } catch { /* headless */ }
+    try { navPush('/(tabs)/stats'); } catch { /* headless */ }
     return;
   }
 
@@ -110,7 +111,7 @@ Notifications.addNotificationResponseReceivedListener((response) => {
   // lets it auto-open the completion sheet for that task.
   if (actionId === 'COMPLETE') {
     try {
-      router.push({ pathname: '/(tabs)', params: { highlightTaskId: taskId, autoComplete: '1' } });
+      navPush({ pathname: '/(tabs)', params: { highlightTaskId: taskId, autoComplete: '1' } });
     } catch {
       pendingNotificationAction.taskId  = taskId;
       pendingNotificationAction.action  = 'complete';
@@ -121,7 +122,7 @@ Notifications.addNotificationResponseReceivedListener((response) => {
   // ── EXTEND button: go directly to the Focus tab so the user can extend ─
   if (actionId === 'EXTEND') {
     try {
-      router.push({ pathname: '/(tabs)/focus', params: { autoExtend: taskId } });
+      navPush({ pathname: '/(tabs)/focus', params: { autoExtend: taskId } });
     } catch {
       pendingNotificationAction.taskId  = taskId;
       pendingNotificationAction.action  = 'extend';

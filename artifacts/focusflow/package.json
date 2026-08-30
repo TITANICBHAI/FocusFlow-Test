@@ -1,6 +1,6 @@
 {
   "name": "@workspace/focusflow",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -9,9 +9,7 @@
     "serve": "node server/serve.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --config vitest.config.ts",
-    "test:watch": "vitest --config vitest.config.ts",
-    "android": "expo run:android",
-    "ios": "expo run:ios"
+    "test:watch": "vitest --config vitest.config.ts"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
@@ -66,9 +64,6 @@
     "expo-sqlite": "~16.0.10",
     "expo-task-manager": "~14.0.9",
     "nanoid": "^5.1.7",
-    "react-native-size-matters": "^0.4.2",
-    "expo": "~54.0.33",
-    "react": "19.1.0",
-    "react-native": "0.81.5"
+    "react-native-size-matters": "^0.4.2"
   }
 }

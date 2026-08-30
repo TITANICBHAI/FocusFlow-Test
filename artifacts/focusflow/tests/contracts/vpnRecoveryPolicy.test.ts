@@ -131,8 +131,9 @@ describe('VPN effective-policy recovery contract', () => {
 
   it('keeps receiver recovery immediate and records rejected starts', () => {
     expect(coordinator).toContain(
-      'if (forceRecovery) dispatchLatest(context.applicationContext)',
+      'if (forceRecovery) {',
     );
+    expect(coordinator).toContain('dispatchLatest(context.applicationContext)');
     expect(coordinator).toContain('Android rejected the VPN service start');
     expect(watchdog).toContain('cancel(context)');
     expect(bootReceiver).toContain('NetworkBlockerVpnService.requestRecoverySync(context)');
@@ -263,8 +264,9 @@ describe('VPN effective-policy recovery contract', () => {
     expect(activeScreen).toContain("case 'startup_failed':");
     expect(activeScreen).toContain('Disabled — manual recovery only');
     expect(activeScreen).toContain('vpnStatus.failedPackages.length');
-    expect(vpnPermissionBanner).toContain('NetworkBlockModule.isAnotherVpnActive()');
-    expect(vpnPermissionBanner).toContain("'Retry VPN'");
+    expect(vpnPermissionBanner).toContain("nextStatus.state === 'another_vpn_active'");
+    expect(vpnPermissionBanner).toContain('NetworkBlockModule.requestVpnPermission()');
+    expect(vpnPermissionBanner).toContain("'Restore VPN'");
     expect(vpnPermissionBanner).toContain('NetworkBlockModule.startNetworkBlock');
   });
 

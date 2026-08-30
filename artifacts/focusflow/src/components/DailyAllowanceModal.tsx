@@ -123,7 +123,8 @@ export function DailyAllowanceModal({
       } catch { /* keep the last known usage */ }
     };
     void refreshUsage(true);
-    const usageTimer = setInterval(() => { void refreshUsage(); }, 5_000);
+    // Match the cache TTL so each timer tick can produce a fresh native read.
+    const usageTimer = setInterval(() => { void refreshUsage(); }, 10_000);
     return () => {
       mounted = false;
       clearInterval(usageTimer);
@@ -208,6 +209,9 @@ export function DailyAllowanceModal({
   );
 
   const updateEntry = useCallback((pkg: string, patch: Partial<DailyAllowanceEntry>) => {
+    // Mode changes intentionally preserve the other mode-specific values.
+    // Switching back restores the user's previous configuration instead of
+    // silently replacing it with defaults.
     setEntriesMap((prev) => {
       const next = new Map(prev);
       const existing = next.get(pkg) ?? makeDefaultEntry(pkg);

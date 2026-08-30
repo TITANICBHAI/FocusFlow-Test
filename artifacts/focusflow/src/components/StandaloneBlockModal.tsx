@@ -238,6 +238,7 @@ export function StandaloneBlockModal({
   const [showSavePreset, setShowSavePreset] = useState(false);
   const [presetNameInput, setPresetNameInput] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showStrongerBlockHint, setShowStrongerBlockHint] = useState(false);
   const [pinVerifyVisible, setPinVerifyVisible] = useState(false);
 
   const defaultUntil = blockUntil ? new Date(blockUntil) : dayjs().add(1, 'day').toDate();
@@ -254,6 +255,9 @@ export function StandaloneBlockModal({
     setSearch('');
     setManualInput('');
     setShowAdvanced(false);
+    // Show the suggestion once per modal opening; dismissing it is not a
+    // permanent preference and it can be useful again in a later flow.
+    setShowStrongerBlockHint(true);
     setUntilDate(blockUntil ? new Date(blockUntil) : dayjs().add(1, 'day').toDate());
 
     // Derive manual packages from existing blocked list before apps load
@@ -1036,19 +1040,30 @@ export function StandaloneBlockModal({
               )}
 
               {/* ── Stronger blocking hint ── */}
-              <View style={[styles.strongerBlockHint, { backgroundColor: COLORS.primary + '10', borderColor: COLORS.primary + '35' }]}>
-                <Ionicons name="shield-checkmark-outline" size={18} color={COLORS.primary} />
-                <View style={styles.strongerBlockHintContent}>
-                  <Text style={[styles.strongerBlockHintTitle, { color: theme.text }]}>
-                    Want a stronger block?
-                  </Text>
-                  <Text style={[styles.strongerBlockHintText, { color: theme.textSecondary }]}>
-                    1. Select <Text style={styles.strongerBlockHintEmphasis}>Settings</Text> in this app list.
-                    {'\n'}
-                    2. In the <Text style={styles.strongerBlockHintEmphasis}>Defense</Text> tab, scroll down a little and turn on <Text style={styles.strongerBlockHintEmphasis}>Protect system controls</Text>.
-                  </Text>
+              {showStrongerBlockHint && (
+                <View style={[styles.strongerBlockHint, { backgroundColor: COLORS.primary + '10', borderColor: COLORS.primary + '35' }]}>
+                  <Ionicons name="shield-checkmark-outline" size={18} color={COLORS.primary} />
+                  <View style={styles.strongerBlockHintContent}>
+                    <Text style={[styles.strongerBlockHintTitle, { color: theme.text }]}>
+                      Want a stronger block?
+                    </Text>
+                    <Text style={[styles.strongerBlockHintText, { color: theme.textSecondary }]}>
+                      1. Select <Text style={styles.strongerBlockHintEmphasis}>Settings</Text> in this app list.
+                      {'\n'}
+                      2. In the <Text style={styles.strongerBlockHintEmphasis}>Defense</Text> tab, scroll down a little and turn on <Text style={styles.strongerBlockHintEmphasis}>Protect system controls</Text>.
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.strongerBlockHintClose}
+                    onPress={() => setShowStrongerBlockHint(false)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Dismiss stronger block suggestion"
+                    hitSlop={8}
+                  >
+                    <Ionicons name="close" size={18} color={theme.muted} />
+                  </TouchableOpacity>
                 </View>
-              </View>
+              )}
 
               {/* Search and installed apps header */}
               <View style={[styles.searchContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -1640,6 +1655,10 @@ const styles = StyleSheet.create({
   },
   strongerBlockHintEmphasis: {
     fontWeight: '700',
+  },
+  strongerBlockHintClose: {
+    padding: 2,
+    marginLeft: SPACING.xs,
   },
 
   // ── Category styles ────────────────────────────────────────────────────────

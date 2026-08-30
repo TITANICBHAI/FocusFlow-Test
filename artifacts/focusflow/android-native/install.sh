@@ -128,44 +128,6 @@ fi
 
 echo "📋  Patching AndroidManifest.xml..."
 
-# ── Store product flavors ─────────────────────────────────────────────────────
-# Keep Google Play/GitHub releases on the existing package while giving Indus
-# Appstore its own installable identity. Kotlin sources remain in the original
-# package and do not need to change.
-if [ -f "$APP_GRADLE" ] && ! grep -q "com.tbtechsdev.focusflow" "$APP_GRADLE"; then
-  python3 - "$APP_GRADLE" <<'PYEOF'
-import re
-import sys
-
-path = sys.argv[1]
-text = open(path, encoding="utf-8").read()
-flavor_block = '''
-    // FocusFlow store variants
-    flavorDimensions "store"
-    def focusFlowIndusApplicationId = "com.tbtechsdev.focusflow"
-    productFlavors {
-        play {
-            dimension "store"
-            applicationId "com.tbtechs.focusflow"
-        }
-        indus {
-            dimension "store"
-            applicationId focusFlowIndusApplicationId
-        }
-    }
-'''
-
-patched, count = re.subn(r'(\n\s*buildTypes\s*\{)', flavor_block + r'\1', text, count=1)
-if count != 1:
-    raise SystemExit("Could not find buildTypes block in app/build.gradle to add store flavors.")
-
-open(path, "w", encoding="utf-8").write(patched)
-PYEOF
-  echo "   ✓ play and indus product flavors added"
-else
-  echo "   ✓ store product flavors already present"
-fi
-
 # RecyclerView is used by LauncherActivity for a recycled, searchable app
 # drawer. Expo/RN projects do not all include it as a direct dependency, so
 # ensure generated Android projects compile the launcher after installation.

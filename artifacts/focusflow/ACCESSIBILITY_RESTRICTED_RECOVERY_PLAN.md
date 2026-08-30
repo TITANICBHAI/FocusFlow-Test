@@ -2,9 +2,9 @@
 
 ## Goal
 
-Help a sideloaded Android 13+ user recover when Android greys out FocusFlow's
-Accessibility toggle, without showing the help panel before the user has tried
-the normal Accessibility action.
+Help an Android user recover when the Accessibility entry is greyed out, without
+showing the recovery helper before the user has tried the normal Accessibility
+action.
 
 The flow applies only to first-run onboarding. The existing Permissions screen
 and its proactive `RestrictedSettingsBanner` remain unchanged.
@@ -41,34 +41,43 @@ and its proactive `RestrictedSettingsBanner` remain unchanged.
 - [x] Render nothing on non-Android platforms.
 - [x] Render nothing before the Accessibility action has been attempted.
 - [x] Render nothing when Accessibility is granted.
-- [x] Detect the Android 13+ restricted-settings wall using
-  `UsageStatsModule.isRestrictedSettingsBlocked()`.
-- [x] Recheck on mount and when the app returns to the foreground.
-- [x] Show the prompt after a failed Accessibility attempt:
-  “Do you need help enabling it?”
-- [x] “Not now” keeps a compact header and a link to reopen the help.
-- [x] “Yes, show me how” shows:
-  - [x] A prominent App Info button.
-  - [x] App Info → ⋮ → Allow restricted settings instructions.
-  - [x] A separate Settings → Apps → FocusFlow → ⋮ fallback route.
-  - [x] A “Try Accessibility Settings Again” button.
-- [x] When the restriction changes from blocked to allowed but Accessibility is
-  still not granted, keep the panel visible, show that the unlock succeeded,
-  and keep the retry action available.
-- [x] Clear the panel once Accessibility becomes granted.
+- [x] Show a greyed-entry question after the user returns from the normal
+  Accessibility attempt, without requiring reliable detection of which system
+  row they tapped.
+- [x] Provide three choices: “Yes, I tapped it”, “No, I haven’t tapped it”, and
+  “Skip Accessibility”.
+- [x] “No, I haven’t tapped it” shows the greyed-entry instructions, deep-links
+  to Accessibility settings, and waits for the user to confirm they are done.
+- [x] “Yes, I tapped it” goes directly to the App Info → ⋮ → Allow restricted
+  settings instructions.
+- [x] Keep a collapsible greyed-entry fallback inside the App Info instructions
+  so an accidental “Yes” selection cannot trap the user.
+- [x] Check `UsageStatsModule.isRestrictedSettingsBlocked()` only after the App
+  Info step is marked done.
+- [x] If restricted settings are allowed, show the final Accessibility enable
+  step and keep it visible until Accessibility is actually granted.
+- [x] “Skip Accessibility” dismisses this recovery helper and lets onboarding
+  continue.
+- [x] Show a dismiss X on every recovery stage; it dismisses only the popup
+  recovery helper and does not mark Accessibility as granted or exit onboarding.
+- [x] Present recovery as a step-based modal popup over onboarding, with a
+  progress indicator and one focused stage at a time.
 
 ## Verification
 
-- [ ] TypeScript/type-level checks for the changed component and screen — blocked
-  because this checkout has no installed `node_modules` or `tsc` binary.
+- [x] TypeScript/type-level checks for the changed component and screen.
+- [x] FocusFlow test suite (90 tests).
+- [x] Expo production-style Android and iOS bundle build.
 - [x] Confirm only onboarding changed; Permissions and the existing banner are
   untouched.
 - [x] Confirm Android/non-Android and pre-attempt render gates.
 - [x] Confirm the retry panel remains after App Info unlock.
+- [x] Confirm recovery can be dismissed from every stage without an async check
+  reopening the helper.
 - [x] Confirm no `allowBackup` changes are part of this accessibility work; the
   prior backup-security changes remain separate.
 - [ ] Run the FocusFlow workflow and inspect logs after implementation — blocked
-  because Expo is not linked while `node_modules` is missing.
+  because no FocusFlow workflow is registered in the workspace workflow list.
 - [ ] Mark device-only Android 13+ verification items below when a device is
   available:
   - [ ] Sideloaded install shows no panel before the Accessibility attempt.
@@ -92,7 +101,7 @@ explicitly in their text.
 - [x] Implement the recovery component.
 - [x] Wire the component into onboarding.
 - [x] Run static validation available in this checkout.
-- [ ] Restart the FocusFlow workflow and inspect logs — blocked by missing
-  dependencies (`expo` is not available).
+- [ ] Restart the FocusFlow workflow and inspect logs — blocked because no
+  FocusFlow workflow is registered in the workspace workflow list.
 - [ ] Complete physical Android 13+ sideload verification — blocked until an
   Android 13+ device/build is available.

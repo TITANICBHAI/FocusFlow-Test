@@ -34,6 +34,7 @@ import { InstalledAppsModule, type InstalledApp } from '@/native-modules/Install
 import { NetworkBlockModule, type NetworkBlockStatus } from '@/native-modules/NetworkBlockModule';
 import { getAllowanceUsageSnapshot } from '@/services/allowanceUsageCache';
 import type { DailyAllowanceEntry, RecurringBlockSchedule } from '@/data/types';
+import { useNavPress } from '@/hooks/useNavPress';
 
 type AllowanceUsage = {
   date?: string;
@@ -61,6 +62,11 @@ function ActiveScreen() {
   const livePulse = useRef(new Animated.Value(1)).current;
   const tasksRef = useRef(state.tasks);
   const refreshInFlight = useRef(false);
+  const navFocus = useNavPress('/(tabs)/focus');
+  const navAlwaysOn = useNavPress('/always-on');
+  const navDefense = useNavPress('/(tabs)/defense');
+  const navKeyword = useNavPress('/keyword-blocker');
+  const navVpn = useNavPress('/vpn-block-list');
 
   useEffect(() => {
     tasksRef.current = state.tasks;
@@ -149,10 +155,13 @@ function ActiveScreen() {
           }
         })();
       };
-      refresh(true);
+      const task = InteractionManager.runAfterInteractions(() => {
+        if (mounted) refresh(true);
+      });
       const timer = setInterval(refresh, 5_000);
       return () => {
         mounted = false;
+        task.cancel();
         clearInterval(timer);
       };
     }, [refreshLiveData, state.isDbReady, state.isDbUnrecoverable]),
@@ -307,7 +316,7 @@ function ActiveScreen() {
           <DetailRow label="Apps" value={standalonePackages.length ? `${standalonePackages.length} blocked` : 'None selected'} theme={theme} />
           <DetailRow label="Until" value={standaloneUntil ? formatDateTime(standaloneUntil) : 'No timer running'} theme={theme} />
           {standaloneActive ? (
-            <TouchableOpacity style={[styles.action, { borderColor: theme.border }]} onPress={() => router.push('/(tabs)/focus')}>
+            <TouchableOpacity style={[styles.action, { borderColor: theme.border }, navFocus.loading && { opacity: 0.6 }]} onPress={navFocus.onPress} disabled={navFocus.loading}>
               <Ionicons name="add-circle-outline" size={16} color={COLORS.primary} />
               <Text style={[styles.actionText, { color: COLORS.primary }]}>Add time or apps</Text>
             </TouchableOpacity>
@@ -322,7 +331,7 @@ function ActiveScreen() {
         <StatusCard icon="infinite-outline" color={alwaysOnActive ? COLORS.orange : theme.muted} title="Always-On Apps" status={alwaysOnActive ? 'Active' : 'Not active'} theme={theme} expandable={alwaysOnPackages.length > 0} expanded={expanded === 'alwaysOn'} onToggle={() => setExpanded(expanded === 'alwaysOn' ? null : 'alwaysOn')}>
           <DetailRow label="Apps" value={alwaysOnPackages.length ? `${alwaysOnPackages.length} blocked continuously` : 'No always-on apps'} theme={theme} />
           {expanded === 'alwaysOn' && <PackageList packages={alwaysOnPackages} appNames={appNames} theme={theme} />}
-          <TouchableOpacity style={[styles.action, { borderColor: theme.border }]} onPress={() => router.push('/always-on')}>
+          <TouchableOpacity style={[styles.action, { borderColor: theme.border }, navAlwaysOn.loading && { opacity: 0.6 }]} onPress={navAlwaysOn.onPress} disabled={navAlwaysOn.loading}>
             <Ionicons name="settings-outline" size={16} color={COLORS.primary} />
             <Text style={[styles.actionText, { color: COLORS.primary }]}>Manage Always-On apps</Text>
           </TouchableOpacity>
@@ -336,7 +345,7 @@ function ActiveScreen() {
           ) : (
             <AllowanceSummary entries={allowanceEntries} usage={allowanceUsage} activeSessionPackage={activeSessionPackage} activeSessionEndMs={activeSessionEndMs} clock={clock} theme={theme} />
           )}
-          <TouchableOpacity style={[styles.action, { borderColor: theme.border }]} onPress={() => router.push('/(tabs)/defense')}>
+          <TouchableOpacity style={[styles.action, { borderColor: theme.border }, navDefense.loading && { opacity: 0.6 }]} onPress={navDefense.onPress} disabled={navDefense.loading}>
             <Ionicons name="settings-outline" size={16} color={COLORS.primary} />
             <Text style={[styles.actionText, { color: COLORS.primary }]}>Manage daily allowance</Text>
           </TouchableOpacity>
@@ -345,7 +354,7 @@ function ActiveScreen() {
         <StatusCard icon="text-outline" color={keywords.length ? COLORS.primary : theme.muted} title="Keyword Blocker" status={keywords.length ? 'Active' : 'Not active'} theme={theme} expandable={keywords.length > 0} expanded={expanded === 'keywords'} onToggle={() => setExpanded(expanded === 'keywords' ? null : 'keywords')}>
           <DetailRow label="Keywords" value={keywords.length ? `${keywords.length} active immediately` : 'No keywords configured'} theme={theme} />
           {expanded === 'keywords' && <View style={styles.chips}>{keywords.map((word) => <View key={word} style={[styles.chip, { backgroundColor: COLORS.primary + '14' }]}><Text style={[styles.chipText, { color: COLORS.primary }]}>{word}</Text></View>)}</View>}
-          <TouchableOpacity style={[styles.action, { borderColor: theme.border }]} onPress={() => router.push('/keyword-blocker')}>
+          <TouchableOpacity style={[styles.action, { borderColor: theme.border }, navKeyword.loading && { opacity: 0.6 }]} onPress={navKeyword.onPress} disabled={navKeyword.loading}>
             <Ionicons name="create-outline" size={16} color={COLORS.primary} />
             <Text style={[styles.actionText, { color: COLORS.primary }]}>Manage keywords</Text>
           </TouchableOpacity>
@@ -380,7 +389,7 @@ function ActiveScreen() {
             />
           )}
           {expanded === 'vpn' && <PackageList packages={vpnPackages} appNames={appNames} theme={theme} />}
-          <TouchableOpacity style={[styles.action, { borderColor: theme.border }]} onPress={() => router.push('/vpn-block-list')}>
+          <TouchableOpacity style={[styles.action, { borderColor: theme.border }, navVpn.loading && { opacity: 0.6 }]} onPress={navVpn.onPress} disabled={navVpn.loading}>
             <Ionicons name="settings-outline" size={16} color={COLORS.primary} />
             <Text style={[styles.actionText, { color: COLORS.primary }]}>Manage VPN blocking</Text>
           </TouchableOpacity>
@@ -422,7 +431,7 @@ function ActiveScreen() {
                 : 'Tap to see configured days, times, and blocked app groups.'}
             </Text>
           )}
-          <TouchableOpacity style={[styles.action, { borderColor: theme.border }]} onPress={() => router.push('/(tabs)/defense')}>
+          <TouchableOpacity style={[styles.action, { borderColor: theme.border }, navDefense.loading && { opacity: 0.6 }]} onPress={navDefense.onPress} disabled={navDefense.loading}>
             <Ionicons name="settings-outline" size={16} color={COLORS.primary} />
             <Text style={[styles.actionText, { color: COLORS.primary }]}>Manage scheduled blocks</Text>
           </TouchableOpacity>

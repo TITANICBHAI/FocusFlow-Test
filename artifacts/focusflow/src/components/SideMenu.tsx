@@ -26,7 +26,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -35,6 +34,7 @@ import type { DailyAllowanceEntry } from '@/data/types';
 
 import { StandaloneBlockModal } from '@/components/StandaloneBlockModal';
 import { DailyAllowanceModal } from '@/components/DailyAllowanceModal';
+import { navPush } from '@/utils/nav';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const MENU_W = Math.min(SCREEN_W * 0.82, 340);
@@ -127,7 +127,7 @@ export function SideMenu({ visible, onOpen, onClose, tabBarHeight }: SideMenuPro
 
   const navigate = useCallback((path: string) => {
     onClose();
-    setTimeout(() => router.push(path as never), 280);
+    setTimeout(() => navPush(path), 280);
   }, [onClose]);
 
   const openModal = useCallback((modal: 'block' | 'daily') => {

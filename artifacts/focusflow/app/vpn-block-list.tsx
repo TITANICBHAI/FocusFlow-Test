@@ -33,6 +33,7 @@ import { InstalledAppsModule, InstalledApp } from '@/native-modules/InstalledApp
 import { SharedPrefsModule } from '@/native-modules/SharedPrefsModule';
 import { PinVerifyModal } from '@/components/PinVerifyModal';
 import { NetworkBlockModule } from '@/native-modules/NetworkBlockModule';
+import { useNavPress } from '@/hooks/useNavPress';
 
 const SYSTEM_NEVER_BLOCK = new Set([
   'com.android.dialer',
@@ -55,6 +56,7 @@ export default function VpnBlockListScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pinVerifyVisible, setPinVerifyVisible] = useState(false);
+  const navBlockDefense = useNavPress('/block-defense?tab=system');
 
   const originalPkgsRef = useRef<Set<string>>(new Set(settings.alwaysOnVpnPackages ?? []));
   const blockProtectionActive =
@@ -261,8 +263,13 @@ export default function VpnBlockListScreen() {
 
       {settings.protectionMode === 'iron' && (
         <TouchableOpacity
-          style={[styles.ironGuide, { backgroundColor: COLORS.orange + '12', borderColor: COLORS.orange + '33' }]}
-          onPress={() => router.push('/block-defense?tab=system')}
+          style={[
+            styles.ironGuide,
+            navBlockDefense.loading && { opacity: 0.6 },
+            { backgroundColor: COLORS.orange + '12', borderColor: COLORS.orange + '33' },
+          ]}
+          onPress={navBlockDefense.onPress}
+          disabled={navBlockDefense.loading}
           activeOpacity={0.8}
         >
           <Ionicons name="flame-outline" size={16} color={COLORS.orange} />

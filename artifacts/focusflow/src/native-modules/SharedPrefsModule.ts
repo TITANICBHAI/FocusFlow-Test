@@ -292,22 +292,30 @@ export const SharedPrefsModule = {
 
   async getAllowanceSnapshot(): Promise<{
     usageJson: string | null;
+    configJson: string | null;
     activeSessionPackage: string | null;
     activeSessionEndMs: number;
   }> {
     if (!hasSharedPrefsMethod('getAllowanceSnapshot')) {
-      return { usageJson: null, activeSessionPackage: null, activeSessionEndMs: 0 };
+      return {
+        usageJson: null,
+        configJson: null,
+        activeSessionPackage: null,
+        activeSessionEndMs: 0,
+      };
     }
     const result = await callNative(
       'getAllowanceSnapshot',
       () => SharedPrefs.getAllowanceSnapshot() as Promise<{
         usageJson: string | null;
+        configJson: string | null;
         activeSessionPackage: string | null;
         activeSessionEndMs: number;
       }>,
     );
     return {
       usageJson: result?.usageJson ?? null,
+      configJson: result?.configJson ?? null,
       activeSessionPackage: result?.activeSessionPackage ?? null,
       activeSessionEndMs: Number(result?.activeSessionEndMs ?? 0) || 0,
     };

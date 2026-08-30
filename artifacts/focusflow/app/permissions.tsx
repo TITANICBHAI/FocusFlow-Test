@@ -24,6 +24,7 @@ import { TroubleshootModal } from '@/components/TroubleshootModal';
 import { RestrictedSettingsBanner } from '@/components/RestrictedSettingsBanner';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
+import { useNavPress } from '@/hooks/useNavPress';
 
 type PermStatus = 'granted' | 'denied' | 'unknown';
 type PermissionId = 'accessibility' | 'usage' | 'battery' | 'notifications' | 'device_admin' | 'overlay' | 'media_files' | 'launcher' | 'vpn';
@@ -320,6 +321,7 @@ export default function PermissionsScreen() {
   const [checking, setChecking] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [troubleshootPerm, setTroubleshootPerm] = useState<PermissionId | null>(null);
+  const navLauncher = useNavPress('/home-launcher');
 
   const checkAll = useCallback(async () => {
     setChecking(true);
@@ -557,8 +559,9 @@ export default function PermissionsScreen() {
                   {/* Launcher-specific: quick link to launcher settings when granted */}
                   {perm.id === 'launcher' && status === 'granted' && (
                     <TouchableOpacity
-                      style={styles.launcherConfigBtn}
-                      onPress={() => router.push('/home-launcher')}
+                      style={[styles.launcherConfigBtn, navLauncher.loading && { opacity: 0.6 }]}
+                      onPress={navLauncher.onPress}
+                      disabled={navLauncher.loading}
                       activeOpacity={0.8}
                     >
                       <Ionicons name="settings-outline" size={14} color={COLORS.primary} />
