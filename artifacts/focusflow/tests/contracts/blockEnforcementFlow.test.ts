@@ -65,6 +65,27 @@ describe('blocked-app system interaction contract', () => {
     expect(simulated.state).toBe('home');
   });
 
+  it('uses the permission-gated application overlay and retains activity fallback', () => {
+    const overlayStart = accessibilityService.indexOf('private fun showWindowOverlay(');
+    const overlayEnd = accessibilityService.indexOf('\n    private fun dismissWindowOverlay()', overlayStart);
+    const overlaySource = accessibilityService.slice(overlayStart, overlayEnd);
+    const launchStart = accessibilityService.indexOf('private fun launchBlockOverlay(');
+    const launchEnd = accessibilityService.indexOf('\n    private fun isBlockedPackageStillActive', launchStart);
+    const launchSource = accessibilityService.slice(launchStart, launchEnd);
+
+    expect(overlaySource).toContain('Settings.canDrawOverlays(this)');
+    expect(overlaySource).toContain('TYPE_APPLICATION_OVERLAY');
+    expect(overlaySource).toContain('TYPE_PHONE');
+    expect(overlaySource).not.toContain('TYPE_ACCESSIBILITY_OVERLAY');
+    expect(overlaySource).not.toContain('FLAG_NOT_FOCUSABLE');
+    expect(overlaySource).toContain('): Boolean');
+    expect(overlaySource).toContain('return false');
+    expect(overlaySource).toContain('return true');
+    expect(launchSource).toContain('if (showWindowOverlay(blockedPackage, appName, blockReason))');
+    expect(launchSource).toContain('Fallback: full-screen notification PendingIntent');
+    expect(launchSource).not.toContain('canUseWindowOverlay()');
+  });
+
   it('does not let a delayed retry kick an allowed app after the user switches processes', () => {
     const retryStart = accessibilityService.indexOf('private fun scheduleRetryCheck(');
     const retryEnd = accessibilityService.indexOf('\n    }', retryStart);
@@ -76,10 +97,55 @@ describe('blocked-app system interaction contract', () => {
 
     expect(retrySource).toContain('val isBlocked = isPackageBlocked(pkg, focusActive, saActive, alwaysBlock)');
     expect(retrySource).toContain('BlockedAppDismissalPolicy.shouldRetry(');
-    expect(retrySource).toContain('dismissPackage(pkg)');
+    expect(retrySource).toContain('dismissPackage(pkg, requireForegroundMatch = true)');
     expect(policy).toContain('if (lastSeenPackage != blockedPackage) return false');
     expect(policy).toContain('if (!focusActive && !standaloneActive && !alwaysOnActive) return false');
     expect(policy).toContain('return isBlocked || allowanceExhausted');
+  });
+
+  it('uses the canonical block decision for selectable sensitive packages', () => {
+    const branchStart = accessibilityService.indexOf(
+      'if (BLOCKABLE_AFTER_WARNING.any { pkg.equals(it, ignoreCase = true) })',
+    );
+    const branchEnd = accessibilityService.indexOf(
+      '\n        // ── System Guard:',
+      branchStart,
+    );
+    const sensitiveBranch = accessibilityService.slice(branchStart, branchEnd);
+    const packageDecision = accessibilityService.indexOf(
+      'private fun isPackageBlocked(',
+    );
+
+    expect(accessibilityService).toContain('"com.android.settings"');
+    expect(accessibilityService).toContain(
+      'if (pkg.equals("com.android.settings", ignoreCase = true)) return false',
+    );
+    expect(sensitiveBranch).toContain(
+      'val blocked = isPackageBlocked(pkg, focusActive, saActive, alwaysBlockActive)',
+    );
+    expect(sensitiveBranch).not.toContain('combinedList');
+    expect(sensitiveBranch).not.toContain('allowedList');
+    expect(packageDecision).toBeGreaterThan(branchEnd);
+  });
+
+  it('does not foreground-guard the initial dismissal chain but guards retries', () => {
+    const dismissalStart = accessibilityService.indexOf(
+      'private fun dismissPackage(',
+    );
+    const dismissalEnd = accessibilityService.indexOf(
+      '\n    private fun postHomeScreenReminder()',
+      dismissalStart,
+    );
+    const dismissalSource = accessibilityService.slice(dismissalStart, dismissalEnd);
+
+    expect(dismissalSource).toContain('requireForegroundMatch: Boolean = false');
+    expect(dismissalSource).toContain('requireForegroundMatch,');
+    expect(accessibilityService).toContain(
+      'dismissPackage(pkg, requireForegroundMatch = true)',
+    );
+    expect(accessibilityService).toContain(
+      'BACK → BACK → HOME → BACK',
+    );
   });
 
   it('keeps watchdog foreground and cooldown state aligned with accessibility events', () => {

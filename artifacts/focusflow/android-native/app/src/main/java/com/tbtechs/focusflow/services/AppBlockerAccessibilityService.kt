@@ -464,9 +464,9 @@ class AppBlockerAccessibilityService : AccessibilityService() {
     // the blocked app is still in the foreground before pressing Home again.
     private var lastSeenPkg: String? = null
 
-    // ── WindowManager overlay (TYPE_APPLICATION_OVERLAY path) ────────────────
-    // Used when SYSTEM_ALERT_WINDOW is granted — draws directly over any app
-    // without switching tasks, so the blocked app is never visually accessible.
+    // ── WindowManager overlay (application-overlay compatibility path) ───────
+    // Owned by this AccessibilityService — draws directly over any app without
+    // switching tasks, so the blocked app is never visually accessible.
     private var wOverlayView: FrameLayout? = null
     private var wOverlayXBtn: TextView? = null
     private var wOverlayNavRow: LinearLayout? = null
@@ -1053,6 +1053,8 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         // package instead of the launcher's package. These packages have no
         // launchable app entry and are Android infrastructure, not user apps.
         // Do not let the Focus Mode allow-list block the device home surface.
+        // Settings is a user-selectable block target even though some OEMs
+        // report it as a system package without a launcher intent.
         if (isNonLaunchableSystemPackage(pkg)) return
 
         // ── NEVER_BLOCK packages ──────────────────────────────────────────────
@@ -1077,41 +1079,21 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         // separately during a focus session.
         if (BLOCKABLE_AFTER_WARNING.any { pkg.equals(it, ignoreCase = true) }) {
 
-            // ── User explicit opt-in ──────────────────────────────────────────
-            // If the user deliberately added a BLOCKABLE_AFTER_WARNING package
-            // (e.g. Settings) to their standalone blocked list or excluded it
-            // from their focus allowed list, honour that choice — the warning
-            // dialog already happened in the UI before they got here.
-            if (saActive || alwaysBlockActive) {
-                val saJson = prefs.getString(PREF_SA_PKGS, "[]") ?: "[]"
-                val alwaysJson = prefs.getString(PREF_ALWAYS_BLOCK_PKGS, "[]") ?: "[]"
-                val combinedList = parseJsonArray(saJson) + parseJsonArray(alwaysJson)
-                if (combinedList.any { it.equals(pkg, ignoreCase = true) }) {
-                    val samePackage = pkg == lastBlockedPkg
-                    val cooldownExpired = (now - lastBlockedAtMs) > 2_000L
-                    if (!samePackage || cooldownExpired) {
-                        lastBlockedPkg = pkg
-                        lastBlockedAtMs = now
-                        handleBlockedApp(pkg, "Blocked by the standalone app block list")
-                        scheduleRetryCheck(pkg, 1, focusActive, saActive, alwaysBlockActive)
-                    }
-                    return
+            // All explicit app policies use the same decision function as
+            // ordinary packages. This keeps Settings consistent with the
+            // block-all sentinel, standalone, Always-On, and Focus allow-list
+            // behavior instead of maintaining a second partial policy.
+            val blocked = isPackageBlocked(pkg, focusActive, saActive, alwaysBlockActive)
+            if (blocked) {
+                val samePackage = pkg == lastBlockedPkg
+                val cooldownExpired = (now - lastBlockedAtMs) > 2_000L
+                if (!samePackage || cooldownExpired) {
+                    lastBlockedPkg = pkg
+                    lastBlockedAtMs = now
+                    handleBlockedApp(pkg, "Blocked by the active app policy")
+                    scheduleRetryCheck(pkg, 1, focusActive, saActive, alwaysBlockActive)
                 }
-            }
-            if (focusActive) {
-                val allowedJson = prefs.getString(PREF_ALLOWED_PKG, "[]") ?: "[]"
-                val allowedList = parseJsonArray(allowedJson)
-                if (allowedList.isNotEmpty() && !allowedList.any { it.equals(pkg, ignoreCase = true) }) {
-                    val samePackage = pkg == lastBlockedPkg
-                    val cooldownExpired = (now - lastBlockedAtMs) > 2_000L
-                    if (!samePackage || cooldownExpired) {
-                        lastBlockedPkg = pkg
-                        lastBlockedAtMs = now
-                        handleBlockedApp(pkg, "Not allowed in the current Focus Mode app list")
-                        scheduleRetryCheck(pkg, 1, focusActive, saActive, alwaysBlockActive)
-                    }
-                    return
-                }
+                return
             }
 
             // System Protection runs continuously whenever the toggle is on.
@@ -1668,7 +1650,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
                 // Re-raise the overlay in case it was dismissed or never rendered,
                 // then kick the app out again.
                 launchBlockOverlay(pkg)
-                dismissPackage(pkg)
+                dismissPackage(pkg, requireForegroundMatch = true)
                 scheduleRetryCheck(pkg, attempt + 1, focusActive, saActive, alwaysBlock)
             }
         }, RETRY_INTERVAL_MS * attempt)
@@ -2904,6 +2886,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
     // ─── Block determination ──────────────────────────────────────────────────
 
     private fun isNonLaunchableSystemPackage(pkg: String): Boolean {
+        if (pkg.equals("com.android.settings", ignoreCase = true)) return false
         return try {
             val appInfo = packageManager.getApplicationInfo(pkg, 0)
             val isSystemPackage = (appInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
@@ -3003,9 +2986,11 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         //    own re-raise on slow phones via onPause(), so this service can back off.
         launchBlockOverlay(blockedPackage, fullReason)
 
-        // 4. Close the blocked app: BACK → HOME (150 ms) → BACK (160 ms).
-        //    These key presses act on the blocked app itself and do not affect the
-        //    overlay, which is a system window that stays on top regardless.
+        // 4. Close the blocked app with the complete initial chain:
+        //    BACK → BACK → HOME → BACK. The live policy is checked before every
+        //    action, but the initial chain intentionally does not require the
+        //    blocked package to remain lastSeenPkg because each action changes
+        //    the foreground package reported by Android.
         dismissPackage(blockedPackage, blockReason)
 
         // 5. Aversive deterrents — screen dim, vibration, alert sound (each gated
@@ -3070,30 +3055,44 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             }
     }
 
-    // ─── WindowManager overlay (TYPE_APPLICATION_OVERLAY) ────────────────────
-
-    /** True when SYSTEM_ALERT_WINDOW ("Appear on top") is granted. */
-    private fun canUseWindowOverlay(): Boolean =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) Settings.canDrawOverlays(this)
-        else true
+    // ─── WindowManager overlay (application-overlay compatibility path) ─────
 
     /**
      * Draws a full-screen block overlay directly over any foreground app using
-     * WindowManager TYPE_APPLICATION_OVERLAY.  Requires SYSTEM_ALERT_WINDOW.
-     * No task switch occurs — the blocked app stays behind our view, invisible.
+     * the application-overlay window type. The explicit SYSTEM_ALERT_WINDOW grant
+     * is required for this path, and no task switch occurs.
+     *
+     * The overlay must remain touchable for its delayed Back/Home/X controls.
+     * Keep the same focusable application-overlay configuration as the known
+     * working implementation; making this window non-focusable changes the
+     * compatibility behavior on affected devices.
+     *
+     * Returns false when the window cannot be added so the caller can use the
+     * full-screen activity fallback.
      */
     @Suppress("DEPRECATION")
-    private fun showWindowOverlay(blockedPackage: String, appName: String, blockReason: String = "") {
+    private fun showWindowOverlay(
+        blockedPackage: String,
+        appName: String,
+        blockReason: String = "",
+    ): Boolean {
         dismissWindowOverlay()   // clear any stale overlay first
 
-        val wm = getSystemService(WindowManager::class.java) ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            !Settings.canDrawOverlays(this)
+        ) {
+            return false
+        }
+
+        val wm = getSystemService(WindowManager::class.java) ?: return false
         val density = resources.displayMetrics.density
         fun dp(v: Int): Int = (v * density + 0.5f).toInt()
 
-        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        else
+        } else {
             WindowManager.LayoutParams.TYPE_PHONE
+        }
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -3341,8 +3340,10 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         wOverlayView = root
         try {
             wm.addView(root, params)
+            return true
         } catch (_: Exception) {
             wOverlayView = null; wOverlayXBtn = null
+            return false
         }
     }
 
@@ -3667,9 +3668,9 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         val appName     = resolveAppDisplayName(blockedPackage)
         val blockReason = blockReasonOverride ?: buildBlockReason(blockedPackage)
 
-        // Prefer WindowManager overlay (appears directly over any app, no task switch)
-        if (canUseWindowOverlay()) {
-            showWindowOverlay(blockedPackage, appName, blockReason)
+        // Prefer the AccessibilityService-owned overlay (no task switch). If
+        // Android/OEM window policy rejects it, retain the activity fallback.
+        if (showWindowOverlay(blockedPackage, appName, blockReason)) {
             return
         }
 
@@ -3717,8 +3718,12 @@ class AppBlockerAccessibilityService : AccessibilityService() {
     private fun shouldContinueDeferredDismissal(
         blockedPackage: String,
         blockReason: String?,
+        requireForegroundMatch: Boolean,
     ): Boolean {
-        if (lastSeenPkg != null && !blockedPackage.equals(lastSeenPkg, ignoreCase = true)) {
+        if (requireForegroundMatch &&
+            lastSeenPkg != null &&
+            !blockedPackage.equals(lastSeenPkg, ignoreCase = true)
+        ) {
             return false
         }
         return when {
@@ -3733,7 +3738,13 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             blockReason?.startsWith("Blocked keyword") == true ->
                 getBlockedWords().isNotEmpty()
             else -> {
-                val focusActive = prefs.getBoolean(PREF_FOCUS_ON, false)
+                val now = System.currentTimeMillis()
+                val focusActive = prefs.getBoolean(PREF_FOCUS_ON, false).let { active ->
+                    if (!active) false
+                    else prefs.getLong("task_end_ms", 0L).let { endMs ->
+                        endMs <= 0L || now <= endMs
+                    }
+                }
                 val saActive = isStandaloneBlockActiveNow()
                 val alwaysBlockActive = prefs.getBoolean(PREF_ALWAYS_BLOCK, false)
                 val sessionActive = focusActive || saActive || alwaysBlockActive
@@ -3749,26 +3760,43 @@ class AppBlockerAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Kicks the user out of [blockedPackage] using both BACK and HOME.
+     * Kicks the user out of [blockedPackage] using BACK → BACK → HOME → BACK.
      *
      * Delayed actions re-check the current enforcement state before firing,
      * so an expired or edited block cannot cause a later unrelated navigation.
+     * The initial chain does not require a foreground-package match because
+     * valid BACK/HOME actions themselves change that package. Retry callers set
+     * [requireForegroundMatch] to true to prevent stale navigation.
      * Installer packages (Play Store, MIUI installer, etc.) only get BACK
      * because HOME can hide an install confirmation without cancelling it.
      */
-    private fun dismissPackage(blockedPackage: String, blockReason: String? = null) {
+    private fun dismissPackage(
+        blockedPackage: String,
+        blockReason: String? = null,
+        requireForegroundMatch: Boolean = false,
+    ) {
         for (dismissal in BlockedAppDismissalPolicy.actionsFor(blockedPackage, INSTALLER_PACKAGES)) {
             val action = when (dismissal.action) {
                 BlockedAppDismissalPolicy.GlobalAction.BACK -> GLOBAL_ACTION_BACK
                 BlockedAppDismissalPolicy.GlobalAction.HOME -> GLOBAL_ACTION_HOME
             }
             if (dismissal.delayMs == 0L) {
-                if (shouldContinueDeferredDismissal(blockedPackage, blockReason)) {
+                if (shouldContinueDeferredDismissal(
+                        blockedPackage,
+                        blockReason,
+                        requireForegroundMatch,
+                    )
+                ) {
                     performGlobalAction(action)
                 }
             } else {
                 handler.postDelayed({
-                    if (shouldContinueDeferredDismissal(blockedPackage, blockReason)) {
+                    if (shouldContinueDeferredDismissal(
+                            blockedPackage,
+                            blockReason,
+                            requireForegroundMatch,
+                        )
+                    ) {
                         performGlobalAction(action)
                     }
                 }, dismissal.delayMs)
@@ -4669,7 +4697,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
                 // Re-raise overlay + kick app on each retry, consistent with the
                 // regular block retry behaviour.
                 launchBlockOverlay(pkg)
-                dismissPackage(pkg)
+                dismissPackage(pkg, requireForegroundMatch = true)
                 scheduleGreyoutRetryCheck(pkg, attempt + 1)
             }
         }, RETRY_INTERVAL_MS * attempt)
