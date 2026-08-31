@@ -8,7 +8,7 @@ const TOKEN =
   process.env.GH_PAT ||
   process.env.PAT;
 const OWNER = 'TITANICBHAI';
-const REPO = 'FocusFlow-Test';
+const REPO = 'FocusFlow';
 const BRANCH = 'main';
 const BASE = '/home/runner/workspace';
 // GitHub's secondary rate limit triggers around ~10 parallel POSTs to /git/blobs.
