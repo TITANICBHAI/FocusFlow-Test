@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync } from 'fs';
 import { join, relative } from 'path';
+import { createHash } from 'crypto';
 
 const TOKEN =
   process.env.GITHUB_PERSONAL_ACCESS_TOKEN ||
@@ -108,14 +109,19 @@ function isExcludedRelativePath(path) {
   return EXCLUDE_PATTERNS.some(pattern => pattern.test(path));
 }
 
-async function getRemoteFilePaths(treeSha) {
+async function getRemoteTree(treeSha) {
   const tree = await ghFetch(`/repos/${OWNER}/${REPO}/git/trees/${treeSha}?recursive=1`);
   if (tree.truncated) {
     throw new Error('GitHub returned a truncated repository tree; refusing to calculate deletions from an incomplete file list.');
   }
-  return (tree.tree || [])
-    .filter(entry => entry.type === 'blob')
-    .map(entry => entry.path);
+  return (tree.tree || []).filter(entry => entry.type === 'blob');
+}
+
+function getGitBlobSha(buffer) {
+  return createHash('sha1')
+    .update(`blob ${buffer.length}\0`)
+    .update(buffer)
+    .digest('hex');
 }
 
 async function processInBatches(items, concurrency, fn) {
@@ -151,6 +157,14 @@ async function run() {
   console.log(`Version:     v${version}`);
   console.log(`versionCode: ${versionCode}\n`);
 
+  console.log('Getting current branch ref...');
+  const refData = await ghFetch(`/repos/${OWNER}/${REPO}/git/ref/heads/${BRANCH}`);
+  const latestSha = refData.object.sha;
+  console.log('Base commit:', latestSha);
+  const baseCommit = await ghFetch(`/repos/${OWNER}/${REPO}/git/commits/${latestSha}`);
+  const remoteTree = await getRemoteTree(baseCommit.tree.sha);
+  const remoteShaByPath = new Map(remoteTree.map(entry => [entry.path, entry.sha]));
+
   console.log('Collecting files...');
   const allFiles = collectFiles(BASE);
   console.log(`Found ${allFiles.length} files`);
@@ -163,15 +177,16 @@ async function run() {
       const isText = !buf.slice(0, 512).includes(0);
       if (isText) { content = buf.toString('utf8'); encoding = 'utf-8'; }
       else { content = buf.toString('base64'); encoding = 'base64'; }
+      return { path: rel, content, encoding, gitSha: getGitBlobSha(buf) };
     } catch { return null; }
-    return { path: rel, content, encoding };
   }).filter(Boolean);
 
-  console.log(`\nCreating ${fileMetas.length} blobs in parallel (batch size ${CONCURRENCY})...`);
+  const changedMetas = fileMetas.filter(meta => remoteShaByPath.get(meta.path) !== meta.gitSha);
+  console.log(`\nCreating ${changedMetas.length} changed blobs in parallel (batch size ${CONCURRENCY})...`);
 
   const treeItems = [];
   const failures = [];
-  await processInBatches(fileMetas, CONCURRENCY, async (meta) => {
+  await processInBatches(changedMetas, CONCURRENCY, async (meta) => {
     try {
       const sha = await createBlob(meta.content, meta.encoding);
       treeItems.push({ path: meta.path, mode: '100644', type: 'blob', sha });
@@ -188,13 +203,7 @@ async function run() {
     process.exit(1);
   }
 
-  console.log(`\nGetting current branch ref...`);
-  const refData = await ghFetch(`/repos/${OWNER}/${REPO}/git/ref/heads/${BRANCH}`);
-  const latestSha = refData.object.sha;
-  console.log('Base commit:', latestSha);
-
-  const baseCommit = await ghFetch(`/repos/${OWNER}/${REPO}/git/commits/${latestSha}`);
-  const remotePaths = await getRemoteFilePaths(baseCommit.tree.sha);
+  const remotePaths = remoteTree.map(entry => entry.path);
   const localPaths = new Set(fileMetas.map(meta => meta.path));
   const deletionItems = remotePaths
     .filter(path => !localPaths.has(path) && !isExcludedRelativePath(path))
@@ -206,6 +215,11 @@ async function run() {
     if (deletionItems.length > 20) console.log(`  ... and ${deletionItems.length - 20} more`);
   } else {
     console.log('No deleted managed files found.');
+  }
+
+  if (treeItems.length === 0 && deletionItems.length === 0) {
+    console.log('\nRemote tree already matches the workspace; no commit needed.');
+    return;
   }
 
   // GitHub's tree API times out on huge replacement trees (~400+ entries).
