@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>.focusflow File Format Reference — FocusFlow Developer Docs | TBTechs</title>
+  <meta name="description" content="Complete reference for the .focusflow backup file format: every JSON field, color code, focusMode mechanics, UTC time handling, SYSTEM_NEVER_BLOCK packages, and import guide." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://focusflowapp.pages.dev/docs/focusflow-file-format/" />
+  <link rel="alternate" hreflang="en"        href="https://focusflowapp.pages.dev/docs/focusflow-file-format/" />
+  <link rel="alternate" hreflang="zh"        href="https://focusflowapp.pages.dev/docs/focusflow-file-format/" />
+  <link rel="alternate" hreflang="de"        href="https://focusflowapp.pages.dev/docs/focusflow-file-format/" />
+  <link rel="alternate" hreflang="fr"        href="https://focusflowapp.pages.dev/docs/focusflow-file-format/" />
+  <link rel="alternate" hreflang="ja"        href="https://focusflowapp.pages.dev/docs/focusflow-file-format/" />
+  <link rel="alternate" hreflang="ko"        href="https://focusflowapp.pages.dev/docs/focusflow-file-format/" />
+  <link rel="alternate" hreflang="es"        href="https://focusflowapp.pages.dev/docs/focusflow-file-format/" />
+  <link rel="alternate" hreflang="x-default" href="https://focusflowapp.pages.dev/docs/focusflow-file-format/" />
+  <meta property="og:title" content=".focusflow File Format Reference — FocusFlow Developer Docs" />
+  <meta property="og:description" content="Every JSON field, color code, focusMode mechanic, UTC conversion, and system-protected package — the complete .focusflow reference." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://focusflowapp.pages.dev/docs/focusflow-file-format/" />
+  <meta property="og:image" content="https://focusflowapp.pages.dev/og-image.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":".focusflow File Format Reference","description":"Complete developer reference for FocusFlow's .focusflow backup and schedule file format.","author":{"@type":"Organization","name":"TBTechs","url":"https://focusflowapp.pages.dev/"},"datePublished":"2026-08-31","url":"https://focusflowapp.pages.dev/docs/focusflow-file-format/","inLanguage":["en","zh","de","fr","ja","ko","es"]}</script>
+  <link rel="icon" href="../../logo-transparent.png" />
+  <meta name="theme-color" content="#0D0D14" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" />
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--accent:#6C63FF;--accent-dark:#4B44CC;--accent-subtle:rgba(108,99,255,0.12);--bg:#0D0D14;--surface:#16161F;--surface2:#1E1E2E;--text:#F0F0FF;--muted:#9090B0;--border:rgba(108,99,255,0.2);--code-bg:#0a0a12}
+    html{scroll-behavior:smooth}
+    body{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden}
+    a{color:var(--accent);text-decoration:none}
+    a:hover{color:var(--text)}
+
+    /* ── Language system ── */
+    .zh,.de,.fr,.ja,.ko,.es{display:none}
+    [data-lang="zh"] .en{display:none}[data-lang="zh"] .zh{display:block}
+    [data-lang="de"] .en{display:none}[data-lang="de"] .de{display:block}
+    [data-lang="fr"] .en{display:none}[data-lang="fr"] .fr{display:block}
+    [data-lang="ja"] .en{display:none}[data-lang="ja"] .ja{display:block}
+    [data-lang="ko"] .en{display:none}[data-lang="ko"] .ko{display:block}
+    [data-lang="es"] .en{display:none}[data-lang="es"] .es{display:block}
+    span.zh,span.de,span.fr,span.ja,span.ko,span.es{display:none}
+    [data-lang="zh"] span.en,[data-lang="de"] span.en,[data-lang="fr"] span.en,[data-lang="ja"] span.en,[data-lang="ko"] span.en,[data-lang="es"] span.en{display:none}
+    [data-lang="zh"] span.zh{display:inline}[data-lang="de"] span.de{display:inline}[data-lang="fr"] span.fr{display:inline}[data-lang="ja"] span.ja{display:inline}[data-lang="ko"] span.ko{display:inline}[data-lang="es"] span.es{display:inline}
+    td.zh,td.de,td.fr,td.ja,td.ko,td.es{display:none}
+    [data-lang="zh"] td.en,[data-lang="de"] td.en,[data-lang="fr"] td.en,[data-lang="ja"] td.en,[data-lang="ko"] td.en,[data-lang="es"] td.en{display:none}
+    [data-lang="zh"] td.zh,[data-lang="de"] td.de,[data-lang="fr"] td.fr,[data-lang="ja"] td.ja,[data-lang="ko"] td.ko,[data-lang="es"] td.es{display:table-cell}
+
+    /* ── Nav ── */
+    nav{display:flex;align-items:center;justify-content:space-between;padding:1.1rem 2rem;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(13,13,20,0.92);backdrop-filter:blur(14px);z-index:100}
+    .nav-logo{display:flex;align-items:center;gap:.6rem;font-size:1.1rem;font-weight:800;color:var(--text);letter-spacing:-.02em}
+    .nav-logo img{width:30px;height:30px;border-radius:7px}
+    .nav-links{display:flex;gap:1.25rem;align-items:center;flex-wrap:wrap}
+    .nav-links a{color:var(--muted);font-size:.9rem;transition:color .2s}
+    .nav-links a:hover,.nav-links a.active{color:var(--text)}
+    .nav-links a.active{color:var(--accent);font-weight:600}
+    .nav-cta{background:var(--accent)!important;color:#fff!important;padding:.4rem 1rem;border-radius:8px;font-weight:600;font-size:.85rem!important}
+    .nav-cta:hover{background:var(--accent-dark)!important;color:#fff!important}
+    .lang-sel{background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:.28rem .6rem;border-radius:6px;cursor:pointer;font-size:.8rem;font-family:inherit}
+    .lang-sel:hover{border-color:var(--accent);color:var(--text)}
+    @media(max-width:760px){nav{flex-direction:column;gap:.85rem;padding:1rem}.nav-links{justify-content:center;gap:.6rem .9rem}}
+
+    /* ── Hero ── */
+    .page-hero{text-align:center;padding:5rem 1.5rem 3rem;position:relative}
+    .page-hero::before{content:'';position:absolute;top:-40px;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(circle,rgba(108,99,255,.11) 0%,transparent 68%);pointer-events:none}
+    .breadcrumb{display:flex;align-items:center;gap:.4rem;justify-content:center;font-size:.8rem;color:var(--muted);margin-bottom:1.5rem}
+    .breadcrumb a{color:var(--muted)}.breadcrumb a:hover{color:var(--accent)}
+    .breadcrumb .sep{color:var(--border)}.breadcrumb .cur{color:var(--accent)}
+    .badge{display:inline-flex;align-items:center;gap:.4rem;background:var(--accent-subtle);border:1px solid var(--border);color:var(--accent);padding:.28rem .85rem;border-radius:999px;font-size:.76rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:1.25rem}
+    h1{font-size:clamp(2rem,5.5vw,3.4rem);font-weight:900;line-height:1.08;letter-spacing:-.03em;margin-bottom:1rem}
+    h1 .acc{color:var(--accent)}
+    .hero-sub{font-size:1.05rem;color:var(--muted);max-width:620px;margin:0 auto 2rem;line-height:1.7}
+    .jump-links{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center;margin-top:.5rem}
+    .jump-link{background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:.32rem .75rem;border-radius:999px;font-size:.78rem;transition:border-color .2s,color .2s}
+    .jump-link:hover{border-color:var(--accent);color:var(--accent)}
+
+    /* ── Sections ── */
+    section{padding:4rem 1.5rem}
+    section:nth-child(even){background:var(--surface)}
+    .si{max-width:960px;margin:0 auto}
+    .slabel{color:var(--accent);font-size:.75rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem}
+    h2{font-size:clamp(1.6rem,3.5vw,2.2rem);font-weight:800;letter-spacing:-.025em;margin-bottom:.65rem;line-height:1.15}
+    h2 .acc{color:var(--accent)}
+    h3{font-size:1.1rem;font-weight:700;margin-bottom:.6rem;margin-top:2rem}
+    p{color:var(--muted);line-height:1.7;margin-bottom:1rem;font-size:.95rem}
+    p:last-child{margin-bottom:0}
+    strong{color:var(--text);font-weight:700}
+    code{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.1rem .35rem;font-size:.82rem;font-family:'JetBrains Mono','Fira Code',Consolas,monospace}
+
+    /* ── Code blocks ── */
+    .cb{background:var(--code-bg);border:1px solid rgba(108,99,255,.25);border-radius:14px;padding:1.5rem;overflow-x:auto;font-family:'JetBrains Mono','Fira Code',Consolas,monospace;font-size:.82rem;line-height:1.65;margin:1.25rem 0;position:relative}
+    .cb-label{position:absolute;top:.6rem;right:.75rem;font-size:.68rem;color:var(--muted);font-family:Inter,sans-serif;letter-spacing:.05em;text-transform:uppercase}
+    .k{color:#e3b341}.s{color:#86efac}.n{color:#fbbf24}.b{color:#f87171}.cm{color:#5a5a7a;font-style:italic}
+
+    /* ── Tables ── */
+    .tw{overflow-x:auto;border-radius:14px;border:1px solid var(--border);margin:1.25rem 0}
+    table{width:100%;border-collapse:collapse;font-size:.85rem}
+    thead tr{background:var(--accent)}
+    thead th{padding:.75rem 1rem;text-align:left;font-weight:700;color:#fff;white-space:nowrap}
+    tbody tr{border-bottom:1px solid var(--border)}
+    tbody tr:last-child{border-bottom:none}
+    tbody tr:hover{background:rgba(108,99,255,.05)}
+    tbody td{padding:.7rem 1rem;color:var(--muted);vertical-align:top;line-height:1.5}
+    tbody td:first-child{color:var(--text);font-family:'JetBrains Mono',Consolas,monospace;font-size:.8rem;white-space:nowrap}
+    .pill{display:inline-block;padding:.15rem .5rem;border-radius:999px;font-size:.72rem;font-weight:700;white-space:nowrap}
+    .req{background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3)}
+    .opt{background:rgba(251,191,36,.12);color:#fbbf24;border:1px solid rgba(251,191,36,.25)}
+
+    /* ── Callouts ── */
+    .callout{border-radius:12px;padding:1rem 1.25rem;margin:1.25rem 0;font-size:.9rem;line-height:1.65}
+    .callout.info{background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.3);color:var(--text)}
+    .callout.warn{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);color:var(--text)}
+    .callout.danger{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:var(--text)}
+    .callout.green{background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);color:var(--text)}
+
+    /* ── Swatch ── */
+    .sw{width:20px;height:20px;border-radius:5px;display:inline-block;border:1px solid rgba(255,255,255,.1);vertical-align:middle;margin-right:.4rem}
+
+    /* ── Steps ── */
+    .step-list{display:grid;gap:1rem;margin:1.25rem 0}
+    .step-item{display:flex;gap:1rem;align-items:flex-start}
+    .step-n{width:28px;height:28px;background:var(--accent);color:#fff;border-radius:50%;font-size:.82rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:.1rem}
+    .step-b{color:var(--muted);font-size:.92rem;line-height:1.6}
+    .step-b strong{color:var(--text)}
+
+    /* ── Pkg list ── */
+    .pkg-list{display:flex;flex-direction:column;gap:.5rem;margin:1rem 0}
+    .pkg-item{display:flex;align-items:flex-start;gap:.75rem;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.65rem .9rem}
+    .pkg-n{font-family:'JetBrains Mono',Consolas,monospace;font-size:.8rem;color:var(--accent);flex-shrink:0;min-width:220px}
+    .pkg-d{color:var(--muted);font-size:.83rem;line-height:1.5}
+
+    /* ── CTA ── */
+    .cta-sec{text-align:center;background:linear-gradient(135deg,rgba(108,99,255,.12),rgba(108,99,255,.04));border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:4rem 1.5rem}
+    .cta-sec h2{margin-bottom:.75rem}
+    .cta-sec p{color:var(--muted);max-width:500px;margin:0 auto 2rem}
+    .btn-group{display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap}
+    .btn-p{display:inline-flex;align-items:center;gap:.4rem;background:var(--accent);color:#fff;padding:.8rem 1.75rem;border-radius:10px;font-weight:700;font-size:.95rem;transition:background .2s,transform .15s}
+    .btn-p:hover{background:var(--accent-dark);transform:translateY(-2px);color:#fff}
+    .btn-g{display:inline-flex;align-items:center;gap:.4rem;background:transparent;border:1px solid var(--border);color:var(--text);padding:.8rem 1.75rem;border-radius:10px;font-weight:600;font-size:.95rem;transition:border-color .2s,transform .15s}
+    .btn-g:hover{border-color:var(--accent);transform:translateY(-2px)}
+
+    /* ── Footer ── */
+    footer{padding:2.25rem 2rem;text-align:center;color:var(--muted);font-size:.82rem;border-top:1px solid var(--border)}
+    footer a{color:var(--accent)}
+    [id]{scroll-margin-top:80px}
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="../../">
+    <img src="../../logo-transparent.png" alt="FocusFlow" />FocusFlow
+  </a>
+  <div class="nav-links">
+    <a href="../../features/">Features</a>
+    <a href="../../compare/">Compare</a>
+    <a href="../../how-it-works/">How it works</a>
+    <a href="../../faq/">FAQ</a>
+    <a href="../../blog/">Blog</a>
+    <a class="active" href="../focusflow-file-format/"><span class="en">Docs</span><span class="zh">文档</span><span class="de">Doku</span><span class="fr">Docs</span><span class="ja">ドキュメント</span><span class="ko">문서</span><span class="es">Docs</span></a>
+    <a class="nav-cta" href="https://apps.gov.in/app-info/2691" target="_blank" rel="noopener noreferrer"><span class="en">Get the app</span><span class="zh">获取应用</span><span class="de">App holen</span><span class="fr">Obtenir l'app</span><span class="ja">アプリを入手</span><span class="ko">앱 받기</span><span class="es">Obtener app</span></a>
+    <select class="lang-sel" onchange="setLang(this.value)">
+      <option value="en">🌐 EN</option><option value="zh">🇨🇳 中文</option><option value="de">🇩🇪 DE</option>
+      <option value="fr">🇫🇷 FR</option><option value="ja">🇯🇵 JA</option><option value="ko">🇰🇷 KO</option><option value="es">🇪🇸 ES</option>
+    </select>
+  </div>
+</nav>
+
+<!-- Hero -->
+<div class="page-hero">
+  <div class="breadcrumb">
+    <a href="../../">Home</a><span class="sep">›</span>
+    <span class="en cur">.focusflow File Format</span><span class="zh cur">.focusflow 文件格式</span><span class="de cur">.focusflow Dateiformat</span><span class="fr cur">Format .focusflow</span><span class="ja cur">.focusflow ファイル形式</span><span class="ko cur">.focusflow 파일 형식</span><span class="es cur">Formato .focusflow</span>
+  </div>
+  <div class="badge">🗂 <span class="en">Developer Reference · v1.0.6</span><span class="zh">开发者参考 · v1.0.6</span><span class="de">Entwicklerreferenz · v1.0.6</span><span class="fr">Référence développeur · v1.0.6</span><span class="ja">開発者リファレンス · v1.0.6</span><span class="ko">개발자 참조 · v1.0.6</span><span class="es">Referencia para desarrolladores · v1.0.6</span></div>
+  <h1><span class="en">The <span class="acc">.focusflow</span> File Format</span><span class="zh"><span class="acc">.focusflow</span> 文件格式</span><span class="de">Das <span class="acc">.focusflow</span> Dateiformat</span><span class="fr">Le format <span class="acc">.focusflow</span></span><span class="ja"><span class="acc">.focusflow</span> ファイル形式</span><span class="ko"><span class="acc">.focusflow</span> 파일 형식</span><span class="es">El formato <span class="acc">.focusflow</span></span></h1>
+  <p class="hero-sub en">Complete reference for FocusFlow's JSON backup and schedule exchange format — every field, every color code, focusMode mechanics, UTC time handling, and system-protected packages. Build integrations, automate schedules, or migrate across devices.</p>
+  <p class="hero-sub zh">FocusFlow JSON 备份和日程交换格式的完整参考——每个字段、每个颜色代码、focusMode 机制、UTC 时间处理以及系统保护的软件包。构建集成、自动化日程或跨设备迁移。</p>
+  <p class="hero-sub de">Vollständige Referenz für FocusFlows JSON-Backup- und Zeitplanformat — jedes Feld, jeder Farbcode, focusMode-Mechanik, UTC-Zeitverarbeitung und systemgeschützte Pakete.</p>
+  <p class="hero-sub fr">Référence complète du format JSON de sauvegarde et d'échange de plannings — chaque champ, code couleur, mécanismes focusMode, gestion UTC et packages protégés.</p>
+  <p class="hero-sub ja">FocusFlowのJSONバックアップおよびスケジュール交換形式の完全なリファレンス — すべてのフィールド、カラーコード、focusModeのしくみ、UTC時刻処理、システム保護パッケージ。</p>
+  <p class="hero-sub ko">FocusFlow의 JSON 백업 및 일정 교환 형식에 대한 완전한 참조 — 모든 필드, 색상 코드, focusMode 메커니즘, UTC 시간 처리 및 시스템 보호 패키지.</p>
+  <p class="hero-sub es">Referencia completa del formato JSON de copia de seguridad e intercambio de horarios — cada campo, código de color, mecánicas focusMode, manejo UTC y paquetes protegidos.</p>
+  <div class="jump-links">
+    <a class="jump-link" href="#overview"><span class="en">Overview</span><span class="zh">概述</span><span class="de">Überblick</span><span class="fr">Vue d'ensemble</span><span class="ja">概要</span><span class="ko">개요</span><span class="es">Resumen</span></a>
+    <a class="jump-link" href="#schema"><span class="en">Top-level schema</span><span class="zh">顶层结构</span><span class="de">Hauptstruktur</span><span class="fr">Structure principale</span><span class="ja">トップレベル構造</span><span class="ko">최상위 스키마</span><span class="es">Esquema principal</span></a>
+    <a class="jump-link" href="#task"><span class="en">Task object</span><span class="zh">任务对象</span><span class="de">Task-Objekt</span><span class="fr">Objet tâche</span><span class="ja">タスクオブジェクト</span><span class="ko">작업 객체</span><span class="es">Objeto tarea</span></a>
+    <a class="jump-link" href="#focusmode">Focus Mode</a>
+    <a class="jump-link" href="#colors"><span class="en">Colors</span><span class="zh">颜色</span><span class="de">Farben</span><span class="fr">Couleurs</span><span class="ja">カラー</span><span class="ko">색상</span><span class="es">Colores</span></a>
+    <a class="jump-link" href="#timezone">UTC / IST</a>
+    <a class="jump-link" href="#protected"><span class="en">Protected packages</span><span class="zh">受保护软件包</span><span class="de">Geschützte Pakete</span><span class="fr">Packages protégés</span><span class="ja">保護パッケージ</span><span class="ko">보호된 패키지</span><span class="es">Paquetes protegidos</span></a>
+    <a class="jump-link" href="#import"><span class="en">Import guide</span><span class="zh">导入指南</span><span class="de">Importanleitung</span><span class="fr">Guide d'import</span><span class="ja">インポートガイド</span><span class="ko">가져오기 가이드</span><span class="es">Guía de importación</span></a>
+    <a class="jump-link" href="#example"><span class="en">Full example</span><span class="zh">完整示例</span><span class="de">Vollständiges Beispiel</span><span class="fr">Exemple complet</span><span class="ja">完全な例</span><span class="ko">전체 예시</span><span class="es">Ejemplo completo</span></a>
+  </div>
+</div>
+
+<!-- 1: Overview -->
+<section id="overview">
+  <div class="si">
+    <p class="slabel en">What is it</p><p class="slabel zh">概述</p><p class="slabel de">Was ist es</p><p class="slabel fr">Présentation</p><p class="slabel ja">概要</p><p class="slabel ko">개요</p><p class="slabel es">¿Qué es?</p>
+    <h2><span class="en">What is a <span class="acc">.focusflow</span> file?</span><span class="zh">什么是 <span class="acc">.focusflow</span> 文件？</span><span class="de">Was ist eine <span class="acc">.focusflow</span>-Datei?</span><span class="fr">Qu'est-ce qu'un fichier <span class="acc">.focusflow</span> ?</span><span class="ja"><span class="acc">.focusflow</span> ファイルとは？</span><span class="ko"><span class="acc">.focusflow</span> 파일이란?</span><span class="es">¿Qué es un archivo <span class="acc">.focusflow</span>?</span></h2>
+    <p class="en">A <code>.focusflow</code> file is a plain UTF-8 JSON document with a <code>.focusflow</code> extension. It is FocusFlow's native backup and schedule exchange format — the app can export its entire state (all tasks, settings, blocking config, and user profile) into one file and reimport it on any device running FocusFlow.</p>
+    <p class="zh"><code>.focusflow</code> 文件是一个具有 <code>.focusflow</code> 扩展名的纯 UTF-8 JSON 文档。它是 FocusFlow 的原生备份和日程交换格式——该应用可以将其全部状态（所有任务、设置、屏蔽配置和用户资料）导出到一个文件中，并在任何运行 FocusFlow 的设备上重新导入。</p>
+    <p class="de">Eine <code>.focusflow</code>-Datei ist ein einfaches UTF-8-JSON-Dokument mit der Erweiterung <code>.focusflow</code>. Es ist das native Backup- und Zeitplanformat von FocusFlow — die App kann ihren gesamten Zustand in eine Datei exportieren und auf jedem Gerät mit FocusFlow reimportieren.</p>
+    <p class="fr">Un fichier <code>.focusflow</code> est un document JSON UTF-8 brut avec l'extension <code>.focusflow</code>. C'est le format natif de sauvegarde et d'échange de plannings de FocusFlow — l'application peut exporter l'intégralité de son état dans un seul fichier et le réimporter sur n'importe quel appareil FocusFlow.</p>
+    <p class="ja"><code>.focusflow</code>ファイルは、<code>.focusflow</code>拡張子を持つプレーンなUTF-8 JSONドキュメントです。FocusFlowのネイティブなバックアップおよびスケジュール交換形式で、アプリはすべての状態を1つのファイルにエクスポートし、任意のデバイスにインポートできます。</p>
+    <p class="ko"><code>.focusflow</code> 파일은 <code>.focusflow</code> 확장자를 가진 일반 UTF-8 JSON 문서입니다. FocusFlow의 기본 백업 및 일정 교환 형식으로, 앱은 전체 상태를 하나의 파일로 내보내고 모든 기기에서 다시 가져올 수 있습니다.</p>
+    <p class="es">Un archivo <code>.focusflow</code> es un documento JSON UTF-8 plano con extensión <code>.focusflow</code>. Es el formato nativo de copia de seguridad e intercambio de horarios de FocusFlow — la aplicación puede exportar su estado completo a un archivo e importarlo en cualquier dispositivo.</p>
+
+    <h3><span class="en">Primary use cases</span><span class="zh">主要使用场景</span><span class="de">Hauptanwendungsfälle</span><span class="fr">Cas d'utilisation principaux</span><span class="ja">主な使用例</span><span class="ko">주요 사용 사례</span><span class="es">Casos de uso principales</span></h3>
+    <div class="tw"><table>
+      <thead><tr>
+        <th><span class="en">Use case</span><span class="zh">使用场景</span><span class="de">Anwendungsfall</span><span class="fr">Cas d'utilisation</span><span class="ja">使用例</span><span class="ko">사용 사례</span><span class="es">Caso de uso</span></th>
+        <th><span class="en">Description</span><span class="zh">描述</span><span class="de">Beschreibung</span><span class="fr">Description</span><span class="ja">説明</span><span class="ko">설명</span><span class="es">Descripción</span></th>
+      </tr></thead>
+      <tbody>
+        <tr><td><span class="en">Device migration</span><span class="zh">设备迁移</span><span class="de">Gerätmigration</span><span class="fr">Migration d'appareil</span><span class="ja">デバイス移行</span><span class="ko">기기 마이그레이션</span><span class="es">Migración de dispositivo</span></td><td class="en">Export from old device, import on new — all tasks, settings and blocking config restored instantly.</td><td class="zh">从旧设备导出，在新设备上导入——所有任务、设置和屏蔽配置立即恢复。</td><td class="de">Von altem Gerät exportieren, auf neuem importieren — alle Daten sofort wiederhergestellt.</td><td class="fr">Exporter depuis l'ancien appareil, importer sur le nouveau — tout restauré instantanément.</td><td class="ja">古いデバイスからエクスポートし、新しいデバイスにインポート。すべてが即座に復元。</td><td class="ko">이전 기기에서 내보내고 새 기기로 가져오기 — 모든 데이터가 즉시 복원됩니다.</td><td class="es">Exportar desde el dispositivo antiguo, importar en el nuevo — todo restaurado instantáneamente.</td></tr>
+        <tr><td><span class="en">AI-assisted scheduling</span><span class="zh">AI 辅助排程</span><span class="de">KI-gestützte Planung</span><span class="fr">Planification par IA</span><span class="ja">AI支援スケジュール作成</span><span class="ko">AI 지원 일정 관리</span><span class="es">Programación asistida por IA</span></td><td class="en">Ask an AI to generate a .focusflow file from your requirements (exam schedule, work sprint, habit plan) and import it directly.</td><td class="zh">让 AI 根据您的需求生成 .focusflow 文件（考试日程、工作冲刺、习惯计划）并直接导入。</td><td class="de">Eine KI bittet, eine .focusflow-Datei aus Ihren Anforderungen zu generieren und direkt zu importieren.</td><td class="fr">Demandez à une IA de générer un fichier .focusflow depuis vos besoins et importez-le directement.</td><td class="ja">AIにあなたの要件から.focusflowファイルを生成させ、直接インポート。</td><td class="ko">AI에게 요구 사항에서 .focusflow 파일을 생성하도록 요청하고 직접 가져오기.</td><td class="es">Pide a una IA que genere un archivo .focusflow desde tus requisitos e impórtalo directamente.</td></tr>
+        <tr><td><span class="en">Programmatic scheduling</span><span class="zh">程序化排程</span><span class="de">Programmgesteuerte Planung</span><span class="fr">Planification programmatique</span><span class="ja">プログラムによるスケジュール作成</span><span class="ko">프로그래밍 방식 일정 관리</span><span class="es">Programación programática</span></td><td class="en">Generate via Python/Node script — build 30-day study plans, work schedules, or recurring routines and import them.</td><td class="zh">通过 Python/Node 脚本生成——构建 30 天学习计划、工作日程或循环日程并导入。</td><td class="de">Per Python/Node-Skript generieren — 30-Tage-Pläne, Arbeitspläne oder Routinen erstellen und importieren.</td><td class="fr">Générer via script Python/Node — créer des plans d'étude 30 jours, des plannings de travail et les importer.</td><td class="ja">Python/Nodeスクリプトで生成 — 30日間の学習計画、作業スケジュールを構築してインポート。</td><td class="ko">Python/Node 스크립트로 생성 — 30일 학습 계획, 작업 일정을 빌드하고 가져오기.</td><td class="es">Generar via script Python/Node — crear planes de estudio de 30 días, horarios de trabajo e importarlos.</td></tr>
+        <tr><td><span class="en">Schedule sharing</span><span class="zh">日程共享</span><span class="de">Zeitplanfreigabe</span><span class="fr">Partage de planning</span><span class="ja">スケジュール共有</span><span class="ko">일정 공유</span><span class="es">Compartir horario</span></td><td class="en">Share a .focusflow file with another user — they import it and get the same task structure, colors, and focus config.</td><td class="zh">与其他用户共享 .focusflow 文件——他们导入后将获得相同的任务结构、颜色和专注配置。</td><td class="de">Eine .focusflow-Datei mit einem anderen Benutzer teilen — er importiert sie und erhält dieselbe Konfiguration.</td><td class="fr">Partager un fichier .focusflow — l'autre utilisateur obtient la même structure de tâches et config.</td><td class="ja">他のユーザーと.focusflowファイルを共有 — 同じタスク構造、色、フォーカス設定を取得。</td><td class="ko">다른 사용자와 .focusflow 파일 공유 — 동일한 작업 구조, 색상, 포커스 구성을 얻음.</td><td class="es">Compartir con otro usuario — obtiene la misma estructura de tareas, colores y configuración de enfoque.</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- 2: Top-level schema -->
+<section id="schema">
+  <div class="si">
+    <p class="slabel en">Structure</p><p class="slabel zh">结构</p><p class="slabel de">Struktur</p><p class="slabel fr">Structure</p><p class="slabel ja">構造</p><p class="slabel ko">구조</p><p class="slabel es">Estructura</p>
+    <h2><span class="en">Top-level <span class="acc">schema</span></span><span class="zh">顶层 <span class="acc">JSON 结构</span></span><span class="de">Haupt<span class="acc">struktur</span></span><span class="fr">Structure <span class="acc">principale</span></span><span class="ja">トップレベル<span class="acc">構造</span></span><span class="ko">최상위 <span class="acc">스키마</span></span><span class="es">Esquema <span class="acc">principal</span></span></h2>
+    <p class="en">Every .focusflow file must contain exactly these top-level keys. The file is standard UTF-8 JSON.</p>
+    <p class="zh">每个 .focusflow 文件必须包含这些顶层键。该文件是标准 UTF-8 JSON。</p>
+    <p class="de">Jede .focusflow-Datei muss genau diese Top-Level-Schlüssel enthalten. Standardmäßiges UTF-8-JSON.</p>
+    <p class="fr">Chaque fichier .focusflow doit contenir exactement ces clés de niveau supérieur. JSON UTF-8 standard.</p>
+    <p class="ja">すべての.focusflowファイルには、これらのトップレベルキーが正確に含まれている必要があります。</p>
+    <p class="ko">모든 .focusflow 파일에는 정확히 이러한 최상위 키가 포함되어야 합니다.</p>
+    <p class="es">Cada archivo .focusflow debe contener exactamente estas claves de nivel superior.</p>
+    <pre class="cb"><span class="cb-label">JSON</span>{
+  <span class="k">"kind"</span>:            <span class="s">"FocusFlowBackupV1"</span>,  <span class="cm">// must be exactly this string</span>
+  <span class="k">"version"</span>:         <span class="n">1</span>,                     <span class="cm">// always 1</span>
+  <span class="k">"exportedAt"</span>:      <span class="s">"2026-08-31T04:30:00.000Z"</span>,  <span class="cm">// ISO 8601 UTC</span>
+  <span class="k">"exportedAtHuman"</span>: <span class="s">"31/08/2026, 10:00:00"</span>,       <span class="cm">// "DD/MM/YYYY, HH:MM:SS"</span>
+  <span class="k">"appVersion"</span>:      <span class="s">"1.0.6"</span>,
+  <span class="k">"platform"</span>:        { <span class="k">"os"</span>: <span class="s">"android"</span> },
+  <span class="k">"settings"</span>:        { <span class="cm">/* AppSettings object */</span> },
+  <span class="k">"tasks"</span>:           [ <span class="cm">/* Task objects array */</span> ],
+  <span class="k">"summary"</span>: {
+    <span class="k">"taskCount"</span>:          <span class="n">46</span>,   <span class="cm">// MUST match tasks.length</span>
+    <span class="k">"blockedWordCount"</span>:    <span class="n">0</span>,
+    <span class="k">"greyoutWindowCount"</span>: <span class="n">0</span>,
+    <span class="k">"dailyAllowanceCount"</span>:<span class="n">0</span>
+  }
+}</pre>
+    <div class="callout warn">⚠️ <strong class="en">summary.taskCount must equal the length of the tasks array.</strong><strong class="zh">summary.taskCount 必须等于 tasks 数组的长度。</strong><strong class="de">summary.taskCount muss der Länge des tasks-Arrays entsprechen.</strong><strong class="fr">summary.taskCount doit être égal à la longueur du tableau tasks.</strong><strong class="ja">summary.taskCountはtasks配列の長さと等しくなければなりません。</strong><strong class="ko">summary.taskCount는 tasks 배열의 길이와 같아야 합니다.</strong><strong class="es">summary.taskCount debe ser igual a la longitud del array tasks.</strong> <span class="en">A mismatch may cause import to fail.</span><span class="zh">不匹配可能导致导入失败。</span><span class="de">Eine Abweichung kann zum Importfehler führen.</span><span class="fr">Une discordance peut faire échouer l'importation.</span><span class="ja">不一致はインポートの失敗を引き起こす可能性があります。</span><span class="ko">불일치는 가져오기 실패를 유발할 수 있습니다.</span><span class="es">Una discrepancia puede causar que la importación falle.</span></div>
+  </div>
+</section>
+
+<!-- 3: Task object -->
+<section id="task">
+  <div class="si">
+    <p class="slabel en">Core data</p><p class="slabel zh">核心数据</p><p class="slabel de">Kerndaten</p><p class="slabel fr">Données principales</p><p class="slabel ja">コアデータ</p><p class="slabel ko">핵심 데이터</p><p class="slabel es">Datos principales</p>
+    <h2><span class="en">Task object — <span class="acc">complete field reference</span></span><span class="zh">任务对象 — <span class="acc">完整字段参考</span></span><span class="de">Task-Objekt — <span class="acc">vollständige Feldreferenz</span></span><span class="fr">Objet tâche — <span class="acc">référence complète des champs</span></span><span class="ja">タスクオブジェクト — <span class="acc">完全フィールドリファレンス</span></span><span class="ko">작업 객체 — <span class="acc">완전한 필드 참조</span></span><span class="es">Objeto tarea — <span class="acc">referencia completa de campos</span></span></h2>
+    <p class="en">Each element of the <code>tasks</code> array must be a valid Task object. All fields are required unless marked <span class="pill opt">OPT</span>.</p>
+    <p class="zh"><code>tasks</code> 数组的每个元素必须是有效的任务对象。除非标记为 <span class="pill opt">OPT</span>，否则所有字段均为必填。</p>
+    <p class="de">Jedes Element des <code>tasks</code>-Arrays muss ein gültiges Task-Objekt sein. Alle Felder sind erforderlich, sofern nicht mit <span class="pill opt">OPT</span> markiert.</p>
+    <p class="fr">Chaque élément du tableau <code>tasks</code> doit être un objet tâche valide. Tous les champs sont requis sauf <span class="pill opt">OPT</span>.</p>
+    <p class="ja"><code>tasks</code>配列の各要素は有効なタスクオブジェクトである必要があります。<span class="pill opt">OPT</span>とマークされていない限り必須。</p>
+    <p class="ko"><code>tasks</code> 배열의 각 요소는 유효한 작업 객체여야 합니다. <span class="pill opt">OPT</span>로 표시되지 않은 한 모든 필드가 필수입니다.</p>
+    <p class="es">Cada elemento del array <code>tasks</code> debe ser un objeto tarea válido. Todos los campos son obligatorios salvo <span class="pill opt">OPT</span>.</p>
+    <div class="tw"><table>
+      <thead><tr>
+        <th><span class="en">Field</span><span class="zh">字段</span><span class="de">Feld</span><span class="fr">Champ</span><span class="ja">フィールド</span><span class="ko">필드</span><span class="es">Campo</span></th>
+        <th>Type</th><th></th>
+        <th><span class="en">Description &amp; valid values</span><span class="zh">描述和有效值</span><span class="de">Beschreibung und gültige Werte</span><span class="fr">Description et valeurs valides</span><span class="ja">説明と有効な値</span><span class="ko">설명 및 유효한 값</span><span class="es">Descripción y valores válidos</span></th>
+      </tr></thead>
+      <tbody>
+        <tr><td>id</td><td>string</td><td><span class="pill req">REQ</span></td><td class="en">Nanoid-style UID, ~21 chars, chars: <code>[a-zA-Z0-9_-]</code>. Example: <code>"MPzb6gCgQWmRJH3RuhTPE"</code>. Must be unique across all tasks in the file.</td><td class="zh">Nanoid 样式 UID，约 21 个字符，字符集：<code>[a-zA-Z0-9_-]</code>。示例：<code>"MPzb6gCgQWmRJH3RuhTPE"</code>。在文件中必须唯一。</td><td class="de">Nanoid-ähnliche UID, ~21 Zeichen aus <code>[a-zA-Z0-9_-]</code>. Muss in der Datei eindeutig sein.</td><td class="fr">UID style Nanoid, ~21 caractères de <code>[a-zA-Z0-9_-]</code>. Doit être unique dans le fichier.</td><td class="ja">Nanoidスタイルのuid、~21文字（<code>[a-zA-Z0-9_-]</code>）。ファイル内で一意である必要あり。</td><td class="ko">Nanoid 스타일 UID, ~21자, <code>[a-zA-Z0-9_-]</code>. 파일 내에서 고유해야 합니다.</td><td class="es">UID estilo Nanoid, ~21 caracteres de <code>[a-zA-Z0-9_-]</code>. Debe ser único en el archivo.</td></tr>
+        <tr><td>title</td><td>string</td><td><span class="pill req">REQ</span></td><td class="en">Display name shown in app lists and notifications. Keep concise.</td><td class="zh">在应用列表和通知中显示的名称。保持简洁。</td><td class="de">Anzeigename in App-Listen und Benachrichtigungen. Kurz halten.</td><td class="fr">Nom affiché dans les listes et notifications. Rester concis.</td><td class="ja">リストと通知に表示される名前。簡潔に。</td><td class="ko">앱 목록 및 알림에 표시되는 이름. 간결하게 유지.</td><td class="es">Nombre mostrado en listas y notificaciones. Mantener conciso.</td></tr>
+        <tr><td>description</td><td>string</td><td><span class="pill req">REQ</span></td><td class="en">Task detail notes. Shown in detail view. Can be empty string <code>""</code> but must be present.</td><td class="zh">任务详细说明。在详情视图中显示。可以是空字符串 <code>""</code>，但必须存在。</td><td class="de">Aufgabennotizen. In Detailansicht angezeigt. Kann leer sein <code>""</code>.</td><td class="fr">Notes de la tâche. Affichées dans la vue détail. Peut être vide <code>""</code>.</td><td class="ja">タスクの詳細ノート。詳細ビューに表示。空文字列<code>""</code>でも可。</td><td class="ko">작업 세부 메모. 상세 보기에 표시. 빈 문자열 <code>""</code> 가능.</td><td class="es">Notas de la tarea. Se muestra en la vista detallada. Puede estar vacío <code>""</code>.</td></tr>
+        <tr><td>startTime</td><td>string</td><td><span class="pill req">REQ</span></td><td class="en">ISO 8601 UTC. Format: <code>"YYYY-MM-DDTHH:MM:SS.000Z"</code>. All times are UTC — see the <a href="#timezone">UTC / IST section</a>.</td><td class="zh">ISO 8601 UTC。格式：<code>"YYYY-MM-DDTHH:MM:SS.000Z"</code>。所有时间均为 UTC——请参阅<a href="#timezone">UTC / IST 部分</a>。</td><td class="de">ISO 8601 UTC, Format: <code>"YYYY-MM-DDTHH:MM:SS.000Z"</code>. Alle Zeiten UTC.</td><td class="fr">ISO 8601 UTC, format : <code>"YYYY-MM-DDTHH:MM:SS.000Z"</code>. Toutes les heures en UTC.</td><td class="ja">ISO 8601 UTC、形式：<code>"YYYY-MM-DDTHH:MM:SS.000Z"</code>。すべてUTC。</td><td class="ko">ISO 8601 UTC, 형식: <code>"YYYY-MM-DDTHH:MM:SS.000Z"</code>. 모든 시간은 UTC.</td><td class="es">ISO 8601 UTC, formato: <code>"YYYY-MM-DDTHH:MM:SS.000Z"</code>. Todos los horarios en UTC.</td></tr>
+        <tr><td>endTime</td><td>string</td><td><span class="pill req">REQ</span></td><td class="en">ISO 8601 UTC. Must be after <code>startTime</code>. Difference must equal <code>durationMinutes × 60000 ms</code>.</td><td class="zh">ISO 8601 UTC。必须在 <code>startTime</code> 之后。差值必须等于 <code>durationMinutes × 60000 ms</code>。</td><td class="de">ISO 8601 UTC. Nach <code>startTime</code>. Differenz = <code>durationMinutes × 60000 ms</code>.</td><td class="fr">ISO 8601 UTC. Après <code>startTime</code>. Différence = <code>durationMinutes × 60000 ms</code>.</td><td class="ja">ISO 8601 UTC。<code>startTime</code>の後。差 = <code>durationMinutes × 60000 ms</code>。</td><td class="ko">ISO 8601 UTC. <code>startTime</code> 이후. 차이 = <code>durationMinutes × 60000 ms</code>.</td><td class="es">ISO 8601 UTC. Después de <code>startTime</code>. Diferencia = <code>durationMinutes × 60000 ms</code>.</td></tr>
+        <tr><td>durationMinutes</td><td>integer</td><td><span class="pill req">REQ</span></td><td class="en">Whole minutes. Must match <code>endTime − startTime</code> in minutes. Min: 1.</td><td class="zh">整分钟数。必须与 <code>endTime − startTime</code> 的分钟数匹配。最小值：1。</td><td class="de">Ganzzahl Minuten. Muss mit <code>endTime − startTime</code> übereinstimmen. Min: 1.</td><td class="fr">Minutes entières. Doit correspondre à <code>endTime − startTime</code>. Min : 1.</td><td class="ja">整数分。<code>endTime − startTime</code>と一致する必要あり。最小：1。</td><td class="ko">정수 분. <code>endTime − startTime</code>과 일치해야 합니다. 최소: 1.</td><td class="es">Minutos enteros. Debe coincidir con <code>endTime − startTime</code>. Mín: 1.</td></tr>
+        <tr><td>status</td><td>string</td><td><span class="pill req">REQ</span></td><td class="en">One of: <code>"scheduled"</code> · <code>"completed"</code> · <code>"active"</code> · <code>"skipped"</code> · <code>"overdue"</code>. Use <code>"scheduled"</code> for all generated tasks.</td><td class="zh">以下之一：<code>"scheduled"</code> · <code>"completed"</code> · <code>"active"</code> · <code>"skipped"</code> · <code>"overdue"</code>。对所有生成的任务使用 <code>"scheduled"</code>。</td><td class="de">Eines von: <code>"scheduled"</code> · <code>"completed"</code> · <code>"active"</code> · <code>"skipped"</code> · <code>"overdue"</code>. Generierte Tasks: <code>"scheduled"</code>.</td><td class="fr">L'un de : <code>"scheduled"</code> · <code>"completed"</code> · <code>"active"</code> · <code>"skipped"</code> · <code>"overdue"</code>. Tâches générées : <code>"scheduled"</code>.</td><td class="ja">次のいずれか：<code>"scheduled"</code> · <code>"completed"</code> · <code>"active"</code> · <code>"skipped"</code> · <code>"overdue"</code>。生成タスクは<code>"scheduled"</code>。</td><td class="ko">다음 중 하나: <code>"scheduled"</code> · <code>"completed"</code> · <code>"active"</code> · <code>"skipped"</code> · <code>"overdue"</code>. 생성된 작업: <code>"scheduled"</code>.</td><td class="es">Uno de: <code>"scheduled"</code> · <code>"completed"</code> · <code>"active"</code> · <code>"skipped"</code> · <code>"overdue"</code>. Tareas generadas: <code>"scheduled"</code>.</td></tr>
+        <tr><td>priority</td><td>string</td><td><span class="pill req">REQ</span></td><td class="en">One of: <code>"critical"</code> · <code>"high"</code> · <code>"medium"</code> · <code>"low"</code>.</td><td class="zh">以下之一：<code>"critical"</code> · <code>"high"</code> · <code>"medium"</code> · <code>"low"</code>。</td><td class="de">Eines von: <code>"critical"</code> · <code>"high"</code> · <code>"medium"</code> · <code>"low"</code>.</td><td class="fr">L'un de : <code>"critical"</code> · <code>"high"</code> · <code>"medium"</code> · <code>"low"</code>.</td><td class="ja">次のいずれか：<code>"critical"</code> · <code>"high"</code> · <code>"medium"</code> · <code>"low"</code>。</td><td class="ko">다음 중 하나: <code>"critical"</code> · <code>"high"</code> · <code>"medium"</code> · <code>"low"</code>.</td><td class="es">Uno de: <code>"critical"</code> · <code>"high"</code> · <code>"medium"</code> · <code>"low"</code>.</td></tr>
+        <tr><td>tags</td><td>string[]</td><td><span class="pill req">REQ</span></td><td class="en">Array of tag strings. Recommended: <code>["bio"]</code>, <code>["phys"]</code>, <code>["chem"]</code>, <code>["rev"]</code>. Can be <code>[]</code>.</td><td class="zh">标签字符串数组。推荐：<code>["bio"]</code>、<code>["phys"]</code>、<code>["chem"]</code>、<code>["rev"]</code>。可以为 <code>[]</code>。</td><td class="de">Tag-Array. Empfohlen: <code>["bio"]</code>, <code>["phys"]</code>, <code>["chem"]</code>, <code>["rev"]</code>. Kann <code>[]</code> sein.</td><td class="fr">Tableau de tags. Recommandé : <code>["bio"]</code>, <code>["phys"]</code>, <code>["chem"]</code>, <code>["rev"]</code>. Peut être <code>[]</code>.</td><td class="ja">タグ配列。推奨：<code>["bio"]</code>、<code>["phys"]</code>、<code>["chem"]</code>、<code>["rev"]</code>。<code>[]</code>でも可。</td><td class="ko">태그 배열. 권장: <code>["bio"]</code>, <code>["phys"]</code>, <code>["chem"]</code>, <code>["rev"]</code>. <code>[]</code> 가능.</td><td class="es">Array de etiquetas. Recomendado: <code>["bio"]</code>, <code>["phys"]</code>, <code>["chem"]</code>, <code>["rev"]</code>. Puede ser <code>[]</code>.</td></tr>
+        <tr><td>reminders</td><td>array</td><td><span class="pill req">REQ</span></td><td class="en">Reminder offset integers (minutes before start). Example: <code>[-10,-5,0]</code> = alerts at 10 min, 5 min, and start. <code>[]</code> = no reminders.</td><td class="zh">提醒偏移整数（开始前分钟数）。示例：<code>[-10,-5,0]</code> = 提前 10 分钟、5 分钟和准时提醒。<code>[]</code> = 无提醒。</td><td class="de">Erinnerungsoffsets. Beispiel: <code>[-10,-5,0]</code> = 10 Min., 5 Min. und pünktlich. <code>[]</code> = keine.</td><td class="fr">Décalages de rappel. Exemple : <code>[-10,-5,0]</code> = 10 min, 5 min et à l'heure. <code>[]</code> = aucun.</td><td class="ja">リマインダーオフセット。例：<code>[-10,-5,0]</code> = 10分前、5分前、開始時。<code>[]</code> = なし。</td><td class="ko">알림 오프셋. 예: <code>[-10,-5,0]</code> = 10분, 5분, 시작 시 알림. <code>[]</code> = 없음.</td><td class="es">Desplazamientos de recordatorio. Ejemplo: <code>[-10,-5,0]</code> = 10 min, 5 min y al inicio. <code>[]</code> = ninguno.</td></tr>
+        <tr><td>color</td><td>string</td><td><span class="pill req">REQ</span></td><td class="en">Hex color string. Controls task card color in app. See the <a href="#colors">Color reference</a> for semantic conventions.</td><td class="zh">十六进制颜色字符串。控制应用中任务卡片的颜色。有关语义约定，请参阅<a href="#colors">颜色参考</a>。</td><td class="de">Hex-Farbstring. Steuert Kartenfarbe. Siehe <a href="#colors">Farbreferenz</a>.</td><td class="fr">Chaîne hex. Contrôle la couleur de la carte. Voir la <a href="#colors">référence couleurs</a>.</td><td class="ja">Hexカラー文字列。カードの色を制御。<a href="#colors">カラーリファレンス</a>参照。</td><td class="ko">16진수 색상 문자열. 카드 색상 제어. <a href="#colors">색상 참조</a> 보기.</td><td class="es">Cadena hex. Controla el color de la tarjeta. Ver <a href="#colors">referencia de colores</a>.</td></tr>
+        <tr><td>focusMode</td><td>boolean</td><td><span class="pill req">REQ</span></td><td class="en"><code>true</code> = app blocking activates when this task starts. <code>false</code> = no blocking. See <a href="#focusmode">Focus Mode</a>.</td><td class="zh"><code>true</code> = 此任务开始时激活应用屏蔽。<code>false</code> = 不屏蔽。参见<a href="#focusmode">专注模式</a>。</td><td class="de"><code>true</code> = Blocking startet mit der Aufgabe. <code>false</code> = kein Blocking. Siehe <a href="#focusmode">Focus Mode</a>.</td><td class="fr"><code>true</code> = blocage activé au démarrage de la tâche. <code>false</code> = pas de blocage. Voir <a href="#focusmode">Focus Mode</a>.</td><td class="ja"><code>true</code> = タスク開始時にブロッキング有効。<code>false</code> = なし。<a href="#focusmode">フォーカスモード</a>参照。</td><td class="ko"><code>true</code> = 작업 시작 시 차단 활성화. <code>false</code> = 차단 없음. <a href="#focusmode">포커스 모드</a> 참조.</td><td class="es"><code>true</code> = bloqueo activo al iniciar la tarea. <code>false</code> = sin bloqueo. Ver <a href="#focusmode">Focus Mode</a>.</td></tr>
+        <tr><td>focusAllowedPackages</td><td>string[]</td><td><span class="pill opt">OPT</span></td><td class="en">Per-task allowed list. Omit (undefined) = use <code>settings.allowedInFocus</code>. Set to a list = only those packages allowed. <strong>Never set to <code>[]</code></strong> — triggers block-all sentinel.</td><td class="zh">每个任务的允许列表。省略（undefined）= 使用 <code>settings.allowedInFocus</code>。设置为列表 = 只允许这些软件包。<strong>切勿设置为 <code>[]</code></strong>——会触发全部屏蔽的哨兵。</td><td class="de">Aufgabenspezifische Erlaubnisliste. Weglassen = globale Einstellung. Niemals <code>[]</code>.</td><td class="fr">Liste par tâche. Omis = paramètre global. Ne jamais mettre <code>[]</code>.</td><td class="ja">タスクごとの許可リスト。省略 = グローバル設定使用。<code>[]</code>は禁止。</td><td class="ko">작업별 허용 목록. 생략 = 전역 설정 사용. <code>[]</code> 사용 금지.</td><td class="es">Lista por tarea. Omitir = configuración global. Nunca <code>[]</code>.</td></tr>
+        <tr><td>createdAt</td><td>string</td><td><span class="pill req">REQ</span></td><td class="en">ISO 8601 UTC creation timestamp. For generated files, use the generation time for all tasks.</td><td class="zh">ISO 8601 UTC 创建时间戳。对于生成的文件，所有任务使用生成时间。</td><td class="de">ISO 8601 UTC Erstellungszeitstempel. Bei generierten Dateien Generierungszeit verwenden.</td><td class="fr">Horodatage UTC de création. Pour les fichiers générés, utiliser l'heure de génération.</td><td class="ja">作成時のISO 8601 UTCタイムスタンプ。生成ファイルでは生成時間を使用。</td><td class="ko">생성 ISO 8601 UTC 타임스탬프. 생성된 파일에는 생성 시간 사용.</td><td class="es">Marca de tiempo UTC de creación ISO 8601. Para archivos generados, usar el tiempo de generación.</td></tr>
+        <tr><td>updatedAt</td><td>string</td><td><span class="pill req">REQ</span></td><td class="en">ISO 8601 UTC last-updated timestamp. For generated files, same as <code>createdAt</code>.</td><td class="zh">ISO 8601 UTC 最后更新时间戳。对于生成的文件，与 <code>createdAt</code> 相同。</td><td class="de">ISO 8601 UTC Aktualisierungszeitstempel. Bei generierten Dateien wie <code>createdAt</code>.</td><td class="fr">Horodatage UTC de mise à jour. Pour les fichiers générés, identique à <code>createdAt</code>.</td><td class="ja">最終更新のISO 8601 UTCタイムスタンプ。生成ファイルでは<code>createdAt</code>と同じ。</td><td class="ko">마지막 업데이트 ISO 8601 UTC 타임스탬프. 생성된 파일은 <code>createdAt</code>과 동일.</td><td class="es">Marca de tiempo UTC de última actualización ISO 8601. Para generados, igual que <code>createdAt</code>.</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- 4: Focus Mode -->
+<section id="focusmode">
+  <div class="si">
+    <p class="slabel en">Blocking</p><p class="slabel zh">屏蔽</p><p class="slabel de">Blockierung</p><p class="slabel fr">Blocage</p><p class="slabel ja">ブロッキング</p><p class="slabel ko">차단</p><p class="slabel es">Bloqueo</p>
+    <h2>Focus Mode &amp; <span class="acc">focusAllowedPackages</span></h2>
+    <p class="en">When a task with <code>focusMode: true</code> starts, FocusFlow's Accessibility Service writes the allowed-package list to SharedPreferences and blocks every foreground app not on it. The blocking is active for the exact duration of the task and released when it ends or is marked complete.</p>
+    <p class="zh">当具有 <code>focusMode: true</code> 的任务开始时，FocusFlow 的无障碍服务将允许的软件包列表写入 SharedPreferences，并屏蔽所有不在列表中的前台应用。屏蔽在任务的确切持续时间内有效，任务结束或标记为完成时释放。</p>
+    <p class="de">Wenn eine Aufgabe mit <code>focusMode: true</code> startet, schreibt FocusFlows Accessibility Service die erlaubte Paketliste in SharedPreferences und blockiert alle Vordergrund-Apps, die nicht darauf stehen.</p>
+    <p class="fr">Quand une tâche avec <code>focusMode: true</code> démarre, l'Accessibility Service de FocusFlow écrit la liste des packages autorisés dans SharedPreferences et bloque toutes les applications en premier plan non répertoriées.</p>
+    <p class="ja"><code>focusMode: true</code>のタスクが開始すると、FocusFlowのアクセシビリティサービスが許可パッケージリストをSharedPreferencesに書き込み、リストにないすべてのフォアグラウンドアプリをブロックします。</p>
+    <p class="ko"><code>focusMode: true</code>인 작업이 시작되면 FocusFlow의 접근성 서비스가 허용 패키지 목록을 SharedPreferences에 쓰고 목록에 없는 모든 포그라운드 앱을 차단합니다.</p>
+    <p class="es">Cuando una tarea con <code>focusMode: true</code> comienza, el Servicio de Accesibilidad de FocusFlow escribe la lista de paquetes permitidos en SharedPreferences y bloquea todas las aplicaciones en primer plano que no estén en ella.</p>
+
+    <h3><span class="en">How the allowed list resolves</span><span class="zh">允许列表如何解析</span><span class="de">Auflösung der erlaubten Liste</span><span class="fr">Résolution de la liste autorisée</span><span class="ja">許可リストの解決方法</span><span class="ko">허용 목록 해결 방법</span><span class="es">Cómo se resuelve la lista permitida</span></h3>
+    <div class="tw"><table>
+      <thead><tr>
+        <th><code>focusAllowedPackages</code></th>
+        <th><span class="en">Result</span><span class="zh">结果</span><span class="de">Ergebnis</span><span class="fr">Résultat</span><span class="ja">結果</span><span class="ko">결과</span><span class="es">Resultado</span></th>
+      </tr></thead>
+      <tbody>
+        <tr><td>undefined <span class="en">(key absent)</span><span class="zh">（键缺失）</span><span class="de">（Schlüssel fehlt）</span><span class="fr">（clé absente）</span><span class="ja">（キーなし）</span><span class="ko">（키 없음）</span><span class="es">（clave ausente）</span></td><td class="en">Uses <code>settings.allowedInFocus</code>. Recommended default for generated files — change the global list once to update all tasks.</td><td class="zh">使用 <code>settings.allowedInFocus</code>。生成文件的推荐默认值——只需更改全局列表即可更新所有任务。</td><td class="de">Verwendet <code>settings.allowedInFocus</code>. Empfohlener Standard.</td><td class="fr">Utilise <code>settings.allowedInFocus</code>. Valeur par défaut recommandée.</td><td class="ja"><code>settings.allowedInFocus</code>を使用。生成ファイルの推奨デフォルト。</td><td class="ko"><code>settings.allowedInFocus</code> 사용. 생성된 파일의 권장 기본값.</td><td class="es">Usa <code>settings.allowedInFocus</code>. Valor predeterminado recomendado para archivos generados.</td></tr>
+        <tr><td><code>["com.pkg.a", "com.pkg.b"]</code></td><td class="en">Only those packages are allowed for this specific task. All others blocked (except SYSTEM_NEVER_BLOCK).</td><td class="zh">仅允许这些软件包用于此特定任务。其他所有软件包均被屏蔽（SYSTEM_NEVER_BLOCK 除外）。</td><td class="de">Nur diese Pakete für diese Aufgabe erlaubt.</td><td class="fr">Seuls ces packages autorisés pour cette tâche spécifique.</td><td class="ja">この特定のタスクのみこれらのパッケージを許可。</td><td class="ko">이 특정 작업에 대해서만 해당 패키지 허용.</td><td class="es">Solo esos paquetes permitidos para esta tarea específica.</td></tr>
+        <tr><td><code>[]</code> <span class="en">(empty — avoid!)</span><span class="zh">（空——避免使用！）</span><span class="de">（leer — vermeiden!）</span><span class="fr">（vide — à éviter !）</span><span class="ja">（空 — 避けること！）</span><span class="ko">（비어 있음 — 피하세요!）</span><span class="es">（vacío — ¡evitar!）</span></td><td class="en">⚠️ Triggers sentinel <code>com.focusflow.internal.blockall</code> — blocks ALL apps including system apps, except SYSTEM_NEVER_BLOCK. Usually unintentional.</td><td class="zh">⚠️ 触发哨兵 <code>com.focusflow.internal.blockall</code>——屏蔽所有应用，包括系统应用（SYSTEM_NEVER_BLOCK 除外）。通常是非预期的。</td><td class="de">⚠️ Löst Sentinel aus — blockiert ALLE Apps außer SYSTEM_NEVER_BLOCK.</td><td class="fr">⚠️ Déclenche le sentinel — bloque TOUTES les apps sauf SYSTEM_NEVER_BLOCK.</td><td class="ja">⚠️ センチネルをトリガー — SYSTEM_NEVER_BLOCKを除くすべてをブロック。</td><td class="ko">⚠️ 센티넬 트리거 — SYSTEM_NEVER_BLOCK 제외 모든 앱 차단.</td><td class="es">⚠️ Activa el centinela — bloquea TODAS las apps excepto SYSTEM_NEVER_BLOCK.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3><span class="en">Recommended settings snippet</span><span class="zh">推荐的设置代码片段</span><span class="de">Empfohlener Settings-Snippet</span><span class="fr">Extrait de paramètres recommandé</span><span class="ja">推奨設定スニペット</span><span class="ko">권장 설정 스니펫</span><span class="es">Fragmento de configuración recomendado</span></h3>
+    <pre class="cb"><span class="cb-label">SETTINGS</span><span class="cm">// Global allowed list in settings — applies to all tasks with no per-task override</span>
+<span class="k">"allowedInFocus"</span>: [
+  <span class="s">"com.android.phone"</span>,       <span class="cm">// calls — also system-protected, can never be blocked anyway</span>
+  <span class="s">"com.android.contacts"</span>,    <span class="cm">// contacts</span>
+  <span class="s">"com.oppo.camera"</span>,         <span class="cm">// camera on OPPO/ColorOS devices</span>
+  <span class="s">"com.android.camera"</span>,      <span class="cm">// camera on stock Android</span>
+  <span class="s">"com.whatsapp"</span>,            <span class="cm">// WhatsApp</span>
+  <span class="s">"com.openai.chatgpt"</span>,      <span class="cm">// ChatGPT</span>
+  <span class="s">"com.adobe.reader"</span>         <span class="cm">// Adobe Acrobat</span>
+],
+
+<span class="cm">// In each task — omit focusAllowedPackages to use the global list above</span>
+{ <span class="k">"focusMode"</span>: <span class="b">true</span> <span class="cm">/* focusAllowedPackages absent → uses settings.allowedInFocus */</span> }</pre>
+  </div>
+</section>
+
+<!-- 5: Colors -->
+<section id="colors">
+  <div class="si">
+    <p class="slabel en">Visual reference</p><p class="slabel zh">视觉参考</p><p class="slabel de">Visuelle Referenz</p><p class="slabel fr">Référence visuelle</p><p class="slabel ja">ビジュアルリファレンス</p><p class="slabel ko">시각적 참조</p><p class="slabel es">Referencia visual</p>
+    <h2><span class="en"><span class="acc">Color</span> codes reference</span><span class="zh"><span class="acc">颜色</span>代码参考</span><span class="de"><span class="acc">Farb</span>code-Referenz</span><span class="fr">Référence des <span class="acc">couleurs</span></span><span class="ja"><span class="acc">カラー</span>コードリファレンス</span><span class="ko"><span class="acc">색상</span> 코드 참조</span><span class="es">Referencia de <span class="acc">colores</span></span></h2>
+    <p class="en">Any valid hex code is accepted. These are the semantic conventions used in official FocusFlow schedules — consistent coloring helps users visually parse busy schedule views at a glance.</p>
+    <p class="zh">任何有效的十六进制代码均被接受。这些是官方 FocusFlow 日程中使用的语义约定——一致的颜色编码帮助用户一眼直观地解析繁忙的日程视图。</p>
+    <p class="de">Jeder gültige Hex-Code wird akzeptiert. Dies sind die semantischen Konventionen in offiziellen FocusFlow-Zeitplänen.</p>
+    <p class="fr">Tout code hexadécimal valide est accepté. Ce sont les conventions sémantiques utilisées dans les plannings officiels FocusFlow.</p>
+    <p class="ja">任意の有効な16進コードが受け入れられます。これらは公式FocusFlowスケジュールで使用されるセマンティックな規約です。</p>
+    <p class="ko">유효한 16진수 코드는 모두 허용됩니다. 이것들은 공식 FocusFlow 일정에서 사용되는 의미론적 규약입니다.</p>
+    <p class="es">Se acepta cualquier código hex válido. Estas son las convenciones semánticas usadas en los horarios oficiales de FocusFlow.</p>
+    <div class="tw"><table>
+      <thead><tr>
+        <th>Hex</th><th><span class="en">Swatch</span><span class="zh">色样</span><span class="de">Muster</span><span class="fr">Échantillon</span><span class="ja">見本</span><span class="ko">견본</span><span class="es">Muestra</span></th>
+        <th><span class="en">Semantic meaning</span><span class="zh">语义含义</span><span class="de">Bedeutung</span><span class="fr">Signification</span><span class="ja">意味</span><span class="ko">의미</span><span class="es">Significado</span></th>
+        <th><span class="en">Typical priority</span><span class="zh">典型优先级</span><span class="de">Priorität</span><span class="fr">Priorité</span><span class="ja">優先度</span><span class="ko">우선순위</span><span class="es">Prioridad</span></th>
+      </tr></thead>
+      <tbody>
+        <tr><td>#22c55e</td><td><span class="sw" style="background:#22c55e"></span></td><td class="en">Biology Pass 1 — read + PYQs same sitting</td><td class="zh">生物第一轮——阅读 + 历年真题</td><td class="de">Biologie Durchlauf 1 — Lesen + PYQs</td><td class="fr">Biologie Passe 1 — lecture + questions</td><td class="ja">生物パス1 — 読み + PYQ</td><td class="ko">생물 패스 1 — 읽기 + PYQ</td><td class="es">Biología Paso 1 — lectura + PYQs</td><td><code>medium</code></td></tr>
+        <tr><td>#86efac</td><td><span class="sw" style="background:#86efac"></span></td><td class="en">Biology Pass 2 — quick re-read only, no PYQs</td><td class="zh">生物第二轮——仅快速重读，无历年真题</td><td class="de">Biologie Durchlauf 2 — nur Wiederlesen</td><td class="fr">Biologie Passe 2 — relecture rapide</td><td class="ja">生物パス2 — 再読のみ</td><td class="ko">생물 패스 2 — 빠른 재읽기만</td><td class="es">Biología Paso 2 — relectura rápida</td><td><code>low</code></td></tr>
+        <tr><td>#3b82f6</td><td><span class="sw" style="background:#3b82f6"></span></td><td class="en">Physics — reading sessions, Flash Recall, Spaced Revisits</td><td class="zh">物理——阅读课节、闪回忆、间隔复习</td><td class="de">Physik — Lesen, Recall, Spaced Revisits</td><td class="fr">Physique — lecture, rappel, révisions</td><td class="ja">物理 — 読書、フラッシュリコール、復習</td><td class="ko">물리 — 독서, 플래시 리콜, 간격 복습</td><td class="es">Física — lectura, recuerdo, revisiones</td><td><code>critical</code></td></tr>
+        <tr><td>#a855f7</td><td><span class="sw" style="background:#a855f7"></span></td><td class="en">Chemistry — reading sessions, Flash Recall, Spaced Revisits</td><td class="zh">化学——阅读课节、闪回忆、间隔复习</td><td class="de">Chemie — Lesen, Recall, Spaced Revisits</td><td class="fr">Chimie — lecture, rappel, révisions</td><td class="ja">化学 — 読書、フラッシュリコール、復習</td><td class="ko">화학 — 독서, 플래시 리콜, 간격 복습</td><td class="es">Química — lectura, recuerdo, revisiones</td><td><code>critical</code> / <code>high</code></td></tr>
+        <tr><td>#f59e0b</td><td><span class="sw" style="background:#f59e0b"></span></td><td class="en">PYQ Blocks, Spaced Revisit sessions, Error Log Review</td><td class="zh">历年真题块、间隔复习课节、错误日志回顾</td><td class="de">PYQ-Blöcke, Spaced-Revisits, Fehlerprotokoll</td><td class="fr">Blocs PYQ, révisions espacées, journal d'erreurs</td><td class="ja">PYQブロック、間隔復習、エラーログ</td><td class="ko">PYQ 블록, 간격 복습, 오류 로그 검토</td><td class="es">Bloques PYQ, revisiones espaciadas, errores</td><td><code>high</code></td></tr>
+        <tr><td>#ec4899</td><td><span class="sw" style="background:#ec4899"></span></td><td class="en">Mocks, Error Analysis, Formula Sheets, Consolidation</td><td class="zh">模拟考试、错误分析、公式表、巩固课节</td><td class="de">Mocks, Fehleranalyse, Formelblätter</td><td class="fr">Examens blancs, analyse, fiches formules</td><td class="ja">模擬試験、エラー分析、公式シート</td><td class="ko">모의고사, 오류 분석, 공식 시트</td><td class="es">Simulacros, análisis, hojas de fórmulas</td><td><code>critical</code> / <code>high</code></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- 6: UTC / IST -->
+<section id="timezone">
+  <div class="si">
+    <p class="slabel en">Time handling</p><p class="slabel zh">时间处理</p><p class="slabel de">Zeitverarbeitung</p><p class="slabel fr">Gestion du temps</p><p class="slabel ja">時刻処理</p><p class="slabel ko">시간 처리</p><p class="slabel es">Manejo del tiempo</p>
+    <h2><span class="en">UTC &amp; time zone <span class="acc">conversion</span></span><span class="zh">UTC 和时区<span class="acc">转换</span></span><span class="de">UTC &amp; <span class="acc">Zeitzonenkonvertierung</span></span><span class="fr">UTC &amp; <span class="acc">conversion de fuseau</span></span><span class="ja">UTC &amp; タイムゾーン<span class="acc">変換</span></span><span class="ko">UTC &amp; 시간대 <span class="acc">변환</span></span><span class="es">UTC &amp; <span class="acc">conversión de zona horaria</span></span></h2>
+    <div class="callout info">ℹ️ <strong class="en">All timestamps in .focusflow files are UTC.</strong><strong class="zh">.focusflow 文件中的所有时间戳均为 UTC。</strong><strong class="de">Alle Zeitstempel in .focusflow-Dateien sind UTC.</strong><strong class="fr">Tous les horodatages dans les fichiers .focusflow sont UTC.</strong><strong class="ja">.focusflowファイルのすべてのタイムスタンプはUTCです。</strong><strong class="ko">.focusflow 파일의 모든 타임스탬프는 UTC입니다.</strong><strong class="es">Todas las marcas de tiempo en archivos .focusflow son UTC.</strong> <span class="en">The app converts to device local time for display. There is no timezone field — FocusFlow infers from the device.</span><span class="zh">应用程序会将显示时间转换为设备本地时间。没有时区字段——FocusFlow 从设备推断。</span><span class="de">Die App konvertiert für die Anzeige in Gerätelokalzeit. Kein Zeitzonenfeld.</span><span class="fr">L'app convertit en heure locale pour l'affichage. Pas de champ fuseau horaire.</span><span class="ja">アプリは表示のためにデバイスのローカル時間に変換します。タイムゾーンフィールドなし。</span><span class="ko">앱은 표시를 위해 기기 현지 시간으로 변환합니다. 시간대 필드 없음.</span><span class="es">La app convierte a hora local del dispositivo para mostrar. Sin campo de zona horaria.</span></div>
+
+    <h3>IST ↔ UTC (UTC+5:30)</h3>
+    <pre class="cb"><span class="cb-label">PYTHON</span><span class="cm"># Convert IST → UTC for startTime / endTime fields</span>
+from datetime import datetime, timedelta
+
+IST = timedelta(hours=5, minutes=30)
+
+def ist_to_utc(date_str, hour, minute):
+    dt = datetime(int(date_str[:4]), int(date_str[5:7]), int(date_str[8:]), hour, minute)
+    return (dt - IST).strftime(<span class="s">"%Y-%m-%dT%H:%M:%S.000Z"</span>)
+
+ist_to_utc(<span class="s">"2026-09-01"</span>,  <span class="n">7</span>,  <span class="n">0</span>)  <span class="cm"># 7:00 AM IST  → "2026-09-01T01:30:00.000Z"</span>
+ist_to_utc(<span class="s">"2026-09-01"</span>, <span class="n">10</span>,  <span class="n">0</span>)  <span class="cm"># 10:00 AM IST → "2026-09-01T04:30:00.000Z"</span>
+ist_to_utc(<span class="s">"2026-09-01"</span>, <span class="n">22</span>, <span class="n">30</span>)  <span class="cm"># 10:30 PM IST → "2026-09-01T17:00:00.000Z"</span></pre>
+
+    <div class="tw"><table>
+      <thead><tr><th>IST <span class="en">(local)</span><span class="zh">（本地）</span><span class="de">(lokal)</span><span class="fr">(local)</span><span class="ja">（現地）</span><span class="ko">(현지)</span><span class="es">(local)</span></th><th>UTC <span class="en">(in file)</span><span class="zh">（文件中）</span><span class="de">(in Datei)</span><span class="fr">(dans fichier)</span><span class="ja">（ファイル内）</span><span class="ko">(파일 내)</span><span class="es">(en archivo)</span></th></tr></thead>
+      <tbody>
+        <tr><td>6:00 AM</td><td>00:30 UTC</td></tr><tr><td>7:00 AM</td><td>01:30 UTC</td></tr>
+        <tr><td>10:00 AM</td><td>04:30 UTC</td></tr><tr><td>1:00 PM</td><td>07:30 UTC</td></tr>
+        <tr><td>7:50 PM</td><td>14:20 UTC</td></tr><tr><td>8:30 PM</td><td>15:00 UTC</td></tr>
+        <tr><td>11:30 PM</td><td>18:00 UTC</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- 7: Protected packages -->
+<section id="protected">
+  <div class="si">
+    <p class="slabel en">Always exempt</p><p class="slabel zh">始终豁免</p><p class="slabel de">Immer ausgenommen</p><p class="slabel fr">Toujours exempt</p><p class="slabel ja">常時除外</p><p class="slabel ko">항상 제외</p><p class="slabel es">Siempre exento</p>
+    <h2><span class="en"><span class="acc">System-protected</span> packages</span><span class="zh"><span class="acc">系统保护</span>的软件包</span><span class="de"><span class="acc">Systemgeschützte</span> Pakete</span><span class="fr">Packages <span class="acc">protégés</span></span><span class="ja"><span class="acc">システム保護</span>パッケージ</span><span class="ko"><span class="acc">시스템 보호</span> 패키지</span><span class="es">Paquetes <span class="acc">protegidos</span> por el sistema</span></h2>
+    <p class="en">These packages are hardcoded in FocusFlow's <code>SYSTEM_NEVER_BLOCK</code> list (source: <code>protectedApps.ts</code>) and can <strong>never</strong> be blocked by any focus configuration. You do not need to include them in your allowed list — they are always accessible regardless.</p>
+    <p class="zh">这些软件包在 FocusFlow 的 <code>SYSTEM_NEVER_BLOCK</code> 列表（来源：<code>protectedApps.ts</code>）中硬编码，任何专注配置都<strong>永远不能</strong>屏蔽它们。您不需要将它们包含在允许列表中——无论如何它们始终可访问。</p>
+    <p class="de">Diese Pakete sind in FocusFlows <code>SYSTEM_NEVER_BLOCK</code>-Liste hardcodiert und können durch keine Konfiguration blockiert werden. Sie müssen nicht in der erlaubten Liste stehen.</p>
+    <p class="fr">Ces packages sont codés en dur dans la liste <code>SYSTEM_NEVER_BLOCK</code> de FocusFlow et ne peuvent jamais être bloqués. Inutile de les inclure dans votre liste autorisée.</p>
+    <p class="ja">これらのパッケージはFocusFlowの<code>SYSTEM_NEVER_BLOCK</code>リストにハードコードされており、どの設定でもブロックできません。許可リストに含める必要はありません。</p>
+    <p class="ko">이러한 패키지는 FocusFlow의 <code>SYSTEM_NEVER_BLOCK</code> 목록에 하드코딩되어 있으며 어떤 구성으로도 차단할 수 없습니다. 허용 목록에 포함할 필요가 없습니다.</p>
+    <p class="es">Estos paquetes están codificados de forma fija en la lista <code>SYSTEM_NEVER_BLOCK</code> de FocusFlow y nunca pueden bloquearse. No necesitas incluirlos en tu lista permitida.</p>
+    <div class="pkg-list">
+      <div class="pkg-item"><span class="pkg-n">com.android.phone<br>com.android.server.telecom<br>com.android.dialer<br>com.google.android.dialer</span><span class="pkg-d en">Phone calls — all dialer variants. Emergency calls are legally protected; FocusFlow additionally protects all calls unconditionally.</span><span class="pkg-d zh">电话通话——所有拨号器变体。紧急电话受法律保护；FocusFlow 额外无条件保护所有通话。</span><span class="pkg-d de">Alle Anruf-Apps. Notrufe sind gesetzlich geschützt; FocusFlow schützt zusätzlich alle Anrufe.</span><span class="pkg-d fr">Tous les dialers. Les appels d'urgence sont légalement protégés ; FocusFlow protège inconditionnellement tous les appels.</span><span class="pkg-d ja">すべてのダイヤラー。緊急通話は法的に保護されています；FocusFlowはすべての通話を無条件に保護します。</span><span class="pkg-d ko">모든 다이얼러. 긴급 통화는 법적으로 보호됩니다; FocusFlow는 모든 통화를 무조건적으로 보호합니다.</span><span class="pkg-d es">Todos los marcadores. Las llamadas de emergencia están legalmente protegidas; FocusFlow protege incondicionalmente todas las llamadas.</span></div>
+      <div class="pkg-item"><span class="pkg-n">com.tbtechs.focusflow</span><span class="pkg-d en">FocusFlow itself — must always be accessible so users can view their schedule, end sessions, and manage tasks during any focus block.</span><span class="pkg-d zh">FocusFlow 本身——必须始终可访问，以便用户在任何专注块中查看日程、结束会话和管理任务。</span><span class="pkg-d de">FocusFlow selbst — immer zugänglich für Zeitplan, Sitzungsende und Aufgabenverwaltung.</span><span class="pkg-d fr">FocusFlow lui-même — toujours accessible pour voir le planning, terminer des sessions et gérer des tâches.</span><span class="pkg-d ja">FocusFlow自体 — スケジュール確認、セッション終了、タスク管理のために常にアクセス可能。</span><span class="pkg-d ko">FocusFlow 자체 — 일정 보기, 세션 종료, 작업 관리를 위해 항상 액세스 가능.</span><span class="pkg-d es">El propio FocusFlow — siempre accesible para ver horario, terminar sesiones y gestionar tareas.</span></div>
+      <div class="pkg-item"><span class="pkg-n">com.google.android.gms</span><span class="pkg-d en">Google Play Services — system-level dependency required by most Android apps and authentication flows.</span><span class="pkg-d zh">Google Play 服务——大多数 Android 应用和身份验证流程所需的系统级依赖项。</span><span class="pkg-d de">Google Play Services — systemweite Abhängigkeit für die meisten Android-Apps.</span><span class="pkg-d fr">Google Play Services — dépendance système requise par la plupart des applications Android.</span><span class="pkg-d ja">Google Playサービス — ほとんどのAndroidアプリに必要なシステムレベルの依存関係。</span><span class="pkg-d ko">Google Play Services — 대부분의 Android 앱에 필요한 시스템 수준 종속성.</span><span class="pkg-d es">Google Play Services — dependencia de nivel de sistema requerida por la mayoría de las apps Android.</span></div>
+      <div class="pkg-item"><span class="pkg-n">com.android.systemui<br><span class="en">All common launchers</span><span class="zh">所有常见启动器</span><span class="de">Alle gängigen Launcher</span><span class="fr">Tous les lanceurs courants</span><span class="ja">すべての一般的なランチャー</span><span class="ko">모든 일반 런처</span><span class="es">Todos los launchers comunes</span></span><span class="pkg-d en">System UI and all standard home screen launchers (Pixel, OPPO/ColorOS, MIUI, Samsung One UI, etc.) — home screen always remains accessible.</span><span class="pkg-d zh">系统 UI 和所有标准主屏幕启动器（Pixel、OPPO/ColorOS、MIUI、Samsung One UI 等）——主屏幕始终保持可访问。</span><span class="pkg-d de">System UI und alle Launcher — Startbildschirm immer zugänglich.</span><span class="pkg-d fr">UI système et tous les lanceurs — écran d'accueil toujours accessible.</span><span class="pkg-d ja">システムUIとすべてのランチャー — ホーム画面は常にアクセス可能。</span><span class="pkg-d ko">시스템 UI와 모든 런처 — 홈 화면은 항상 액세스 가능.</span><span class="pkg-d es">UI del sistema y todos los launchers — pantalla de inicio siempre accesible.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 8: Import -->
+<section id="import">
+  <div class="si">
+    <p class="slabel en">Getting it in</p><p class="slabel zh">导入方法</p><p class="slabel de">Importieren</p><p class="slabel fr">Importation</p><p class="slabel ja">インポート</p><p class="slabel ko">가져오기</p><p class="slabel es">Importar</p>
+    <h2><span class="en">How to <span class="acc">import</span> a .focusflow file</span><span class="zh">如何<span class="acc">导入</span> .focusflow 文件</span><span class="de">So <span class="acc">importieren</span> Sie eine .focusflow-Datei</span><span class="fr">Comment <span class="acc">importer</span> un fichier .focusflow</span><span class="ja">.focusflow ファイルの<span class="acc">インポート</span>方法</span><span class="ko">.focusflow 파일 <span class="acc">가져오기</span> 방법</span><span class="es">Cómo <span class="acc">importar</span> un archivo .focusflow</span></h2>
+    <div class="step-list">
+      <div class="step-item"><div class="step-n">1</div><div class="step-b"><strong class="en">Save with <code>.focusflow</code> extension</strong><strong class="zh">保存为 <code>.focusflow</code> 扩展名</strong><strong class="de">Mit <code>.focusflow</code>-Erweiterung speichern</strong><strong class="fr">Enregistrer avec l'extension <code>.focusflow</code></strong><strong class="ja"><code>.focusflow</code>拡張子で保存</strong><strong class="ko"><code>.focusflow</code> 확장자로 저장</strong><strong class="es">Guardar con extensión <code>.focusflow</code></strong> — <span class="en">validate it is UTF-8 JSON (run through jsonlint.com if unsure).</span><span class="zh">验证其为 UTF-8 JSON（如不确定，可通过 jsonlint.com 验证）。</span><span class="de">Validieren als UTF-8 JSON (jsonlint.com).</span><span class="fr">Valider comme JSON UTF-8 (jsonlint.com).</span><span class="ja">UTF-8 JSONとして検証（不明な場合はjsonlint.com）。</span><span class="ko">UTF-8 JSON으로 검증 (jsonlint.com).</span><span class="es">Validar como JSON UTF-8 (jsonlint.com).</span></div></div>
+      <div class="step-item"><div class="step-n">2</div><div class="step-b"><strong class="en">Transfer to your Android device</strong><strong class="zh">传输到您的 Android 设备</strong><strong class="de">Auf Android-Gerät übertragen</strong><strong class="fr">Transférer sur l'appareil Android</strong><strong class="ja">Androidデバイスに転送</strong><strong class="ko">Android 기기로 전송</strong><strong class="es">Transferir al dispositivo Android</strong> — <span class="en">USB, Google Drive, WhatsApp, email, or any file sharing method. File just needs to be in the device file system.</span><span class="zh">USB、Google Drive、WhatsApp、电子邮件或任何文件共享方式。文件只需在设备文件系统中。</span><span class="de">USB, Google Drive, WhatsApp, E-Mail oder beliebige Dateifreigabe.</span><span class="fr">USB, Google Drive, WhatsApp, email ou tout partage de fichier.</span><span class="ja">USB、Google Drive、WhatsApp、メールなど任意の方法。</span><span class="ko">USB, Google Drive, WhatsApp, 이메일 또는 모든 파일 공유 방법.</span><span class="es">USB, Google Drive, WhatsApp, correo o cualquier método de intercambio.</span></div></div>
+      <div class="step-item"><div class="step-n">3</div><div class="step-b"><strong class="en">Open FocusFlow → menu → Settings</strong><strong class="zh">打开 FocusFlow → 菜单 → 设置</strong><strong class="de">FocusFlow öffnen → Menü → Einstellungen</strong><strong class="fr">Ouvrir FocusFlow → menu → Paramètres</strong><strong class="ja">FocusFlowを開く → メニュー → 設定</strong><strong class="ko">FocusFlow 열기 → 메뉴 → 설정</strong><strong class="es">Abrir FocusFlow → menú → Configuración</strong></div></div>
+      <div class="step-item"><div class="step-n">4</div><div class="step-b"><strong class="en">Tap "Import Backup"</strong><strong class="zh">点击「导入备份」</strong><strong class="de">„Backup importieren" antippen</strong><strong class="fr">Appuyer sur « Importer la sauvegarde »</strong><strong class="ja">「バックアップをインポート」をタップ</strong><strong class="ko">「백업 가져오기」탭</strong><strong class="es">Tocar "Importar copia de seguridad"</strong> — <span class="en">select the .focusflow file. The app validates and restores all tasks, settings, and blocking configuration.</span><span class="zh">选择 .focusflow 文件。应用验证并恢复所有任务、设置和屏蔽配置。</span><span class="de">.focusflow-Datei auswählen. Die App validiert und importiert alles.</span><span class="fr">Sélectionner le fichier .focusflow. L'app valide et importe tout.</span><span class="ja">.focusflowファイルを選択。アプリが検証してすべてをインポート。</span><span class="ko">.focusflow 파일 선택. 앱이 검증하고 모든 것을 가져옵니다.</span><span class="es">Seleccionar el archivo .focusflow. La app valida e importa todo.</span></div></div>
+    </div>
+    <div class="callout danger">⚠️ <strong class="en">Importing replaces all existing data.</strong><strong class="zh">导入将替换所有现有数据。</strong><strong class="de">Importieren ersetzt alle vorhandenen Daten.</strong><strong class="fr">L'importation remplace toutes les données existantes.</strong><strong class="ja">インポートすると既存のデータがすべて置き換えられます。</strong><strong class="ko">가져오기는 기존 데이터를 모두 대체합니다.</strong><strong class="es">Importar reemplaza todos los datos existentes.</strong> <span class="en">Export your current schedule first: Settings → Export Backup.</span><span class="zh">先导出当前日程：设置 → 导出备份。</span><span class="de">Zuerst aktuellen Zeitplan exportieren: Einstellungen → Backup exportieren.</span><span class="fr">Exportez d'abord votre planning actuel : Paramètres → Exporter la sauvegarde.</span><span class="ja">まず現在のスケジュールをエクスポート：設定 → バックアップをエクスポート。</span><span class="ko">먼저 현재 일정 내보내기: 설정 → 백업 내보내기.</span><span class="es">Exporta primero tu horario actual: Configuración → Exportar copia de seguridad.</span></div>
+  </div>
+</section>
+
+<!-- 9: Full example -->
+<section id="example">
+  <div class="si">
+    <p class="slabel en">Code</p><p class="slabel zh">代码</p><p class="slabel de">Code</p><p class="slabel fr">Code</p><p class="slabel ja">コード</p><p class="slabel ko">코드</p><p class="slabel es">Código</p>
+    <h2><span class="en">Complete minimal <span class="acc">example</span></span><span class="zh">完整最小<span class="acc">示例</span></span><span class="de">Vollständiges minimales <span class="acc">Beispiel</span></span><span class="fr">Exemple minimal <span class="acc">complet</span></span><span class="ja">完全な最小<span class="acc">例</span></span><span class="ko">완전한 최소 <span class="acc">예시</span></span><span class="es"><span class="acc">Ejemplo</span> completo mínimo</span></h2>
+    <p class="en">A valid single-task .focusflow file with all required fields, focusMode enabled, and per-task allowed packages.</p>
+    <p class="zh">一个有效的单任务 .focusflow 文件，包含所有必填字段、启用专注模式以及每个任务的允许软件包。</p>
+    <p class="de">Eine gültige Einzelaufgaben-.focusflow-Datei mit allen Pflichtfeldern, aktiviertem Focus Mode und aufgabenspezifischer Paketliste.</p>
+    <p class="fr">Un fichier .focusflow valide à une tâche avec tous les champs requis, focus mode activé et liste de packages par tâche.</p>
+    <p class="ja">必須フィールドがすべて含まれ、フォーカスモードが有効で、タスクごとの許可パッケージリストを持つ有効な単一タスク.focusflowファイル。</p>
+    <p class="ko">모든 필수 필드, 포커스 모드 활성화, 작업별 허용 패키지가 있는 유효한 단일 작업 .focusflow 파일.</p>
+    <p class="es">Un archivo .focusflow válido de una tarea con todos los campos requeridos, modo de enfoque activado y paquetes permitidos por tarea.</p>
+    <pre class="cb"><span class="cb-label">focusflow-example.focusflow</span>{
+  <span class="k">"kind"</span>:            <span class="s">"FocusFlowBackupV1"</span>,
+  <span class="k">"version"</span>:         <span class="n">1</span>,
+  <span class="k">"exportedAt"</span>:      <span class="s">"2026-09-01T01:30:00.000Z"</span>,
+  <span class="k">"exportedAtHuman"</span>: <span class="s">"01/09/2026, 07:00:00"</span>,
+  <span class="k">"appVersion"</span>:      <span class="s">"1.0.6"</span>,
+  <span class="k">"platform"</span>:        { <span class="k">"os"</span>: <span class="s">"android"</span> },
+  <span class="k">"settings"</span>: {
+    <span class="k">"allowedInFocus"</span>:          [<span class="s">"com.android.phone"</span>, <span class="s">"com.android.contacts"</span>, <span class="s">"com.oppo.camera"</span>, <span class="s">"com.whatsapp"</span>],
+    <span class="k">"focusModeEnabled"</span>:        <span class="b">true</span>,
+    <span class="k">"defaultDuration"</span>:         <span class="n">60</span>,
+    <span class="k">"defaultReminderOffsets"</span>:  [<span class="n">-10</span>, <span class="n">-5</span>, <span class="n">0</span>],
+    <span class="k">"darkMode"</span>:                <span class="b">false</span>,
+    <span class="k">"pomodoroEnabled"</span>:         <span class="b">false</span>,
+    <span class="k">"notificationsEnabled"</span>:    <span class="b">true</span>,
+    <span class="k">"onboardingComplete"</span>:      <span class="b">true</span>,
+    <span class="k">"standaloneBlockPackages"</span>: [],
+    <span class="k">"dailyAllowanceEntries"</span>:   [],
+    <span class="k">"blockedWords"</span>:            [],
+    <span class="k">"greyoutSchedule"</span>:         [],
+    <span class="k">"blockPresets"</span>:            [],
+    <span class="k">"recurringBlockSchedules"</span>: [],
+    <span class="k">"userProfile"</span>: {
+      <span class="k">"name"</span>: <span class="s">"Himanshu"</span>, <span class="k">"occupation"</span>: <span class="s">"student"</span>, <span class="k">"dailyGoalHours"</span>: <span class="n">6</span>,
+      <span class="k">"wakeUpTime"</span>: <span class="s">"07:00"</span>, <span class="k">"sleepTime"</span>: <span class="s">"00:00"</span>, <span class="k">"chronotype"</span>: <span class="s">"night"</span>,
+      <span class="k">"focusSessionLength"</span>: <span class="n">60</span>, <span class="k">"breakStyle"</span>: <span class="s">"short_frequent"</span>
+    }
+  },
+  <span class="k">"tasks"</span>: [{
+    <span class="k">"id"</span>:               <span class="s">"MPzb6gCgQWmRJH3RuhTPE"</span>,
+    <span class="k">"title"</span>:            <span class="s">"Chemical Thermodynamics — First Pass"</span>,
+    <span class="k">"description"</span>:     <span class="s">"Gibbs energy, entropy, Hess law, first and second law. NCERT XI Ch 6."</span>,
+    <span class="k">"startTime"</span>:       <span class="s">"2026-09-01T01:30:00.000Z"</span>,  <span class="cm">// 7:00 AM IST</span>
+    <span class="k">"endTime"</span>:         <span class="s">"2026-09-01T04:30:00.000Z"</span>,  <span class="cm">// 10:00 AM IST</span>
+    <span class="k">"durationMinutes"</span>: <span class="n">180</span>,
+    <span class="k">"status"</span>:          <span class="s">"scheduled"</span>,
+    <span class="k">"priority"</span>:        <span class="s">"critical"</span>,
+    <span class="k">"tags"</span>:            [<span class="s">"chem"</span>],
+    <span class="k">"reminders"</span>:       [],
+    <span class="k">"color"</span>:           <span class="s">"#a855f7"</span>,
+    <span class="k">"focusMode"</span>:       <span class="b">true</span>,
+    <span class="k">"focusAllowedPackages"</span>: [
+      <span class="s">"com.android.phone"</span>, <span class="s">"com.android.contacts"</span>, <span class="s">"com.oppo.camera"</span>,
+      <span class="s">"com.whatsapp"</span>, <span class="s">"com.openai.chatgpt"</span>, <span class="s">"com.adobe.reader"</span>
+    ],
+    <span class="k">"createdAt"</span>: <span class="s">"2026-08-31T05:00:00.000Z"</span>,
+    <span class="k">"updatedAt"</span>: <span class="s">"2026-08-31T05:00:00.000Z"</span>
+  }],
+  <span class="k">"summary"</span>: { <span class="k">"taskCount"</span>: <span class="n">1</span>, <span class="k">"blockedWordCount"</span>: <span class="n">0</span>, <span class="k">"greyoutWindowCount"</span>: <span class="n">0</span>, <span class="k">"dailyAllowanceCount"</span>: <span class="n">0</span> }
+}</pre>
+    <div class="callout green">💡 <strong class="en">Build tip:</strong><strong class="zh">构建提示：</strong><strong class="de">Build-Tipp:</strong><strong class="fr">Conseil :</strong><strong class="ja">ビルドのヒント：</strong><strong class="ko">빌드 팁:</strong><strong class="es">Consejo de construcción:</strong> <span class="en">Generate IDs using Python's <code>secrets.token_urlsafe(15)</code> (~21 chars) or any nanoid library. Never reuse IDs across tasks in the same file.</span><span class="zh">使用 Python 的 <code>secrets.token_urlsafe(15)</code>（约 21 个字符）或任何 nanoid 库生成 ID。切勿在同一文件中跨任务重用 ID。</span><span class="de">IDs mit <code>secrets.token_urlsafe(15)</code> oder nanoid-Bibliothek generieren. Nie wiederverwenden.</span><span class="fr">Générez des IDs avec <code>secrets.token_urlsafe(15)</code> ou nanoid. Ne jamais réutiliser.</span><span class="ja"><code>secrets.token_urlsafe(15)</code>またはnanoidライブラリでIDを生成。再利用禁止。</span><span class="ko"><code>secrets.token_urlsafe(15)</code> 또는 nanoid 라이브러리로 ID 생성. 재사용 금지.</span><span class="es">Genera IDs con <code>secrets.token_urlsafe(15)</code> o nanoid. Nunca reutilizar.</span></div>
+  </div>
+</section>
+
+<!-- CTA -->
+<div class="cta-sec">
+  <div class="si">
+    <h2><span class="en">Ready to build?</span><span class="zh">准备好构建了吗？</span><span class="de">Bereit zu bauen?</span><span class="fr">Prêt à construire ?</span><span class="ja">構築する準備はできましたか？</span><span class="ko">빌드할 준비가 됐나요?</span><span class="es">¿Listo para construir?</span></h2>
+    <p><span class="en">Get FocusFlow free on the DigiLocker App Store, export your first backup, and start building programmatic schedules.</span><span class="zh">在 DigiLocker 应用商店免费获取 FocusFlow，导出您的第一个备份，然后开始构建程序化日程。</span><span class="de">FocusFlow kostenlos im DigiLocker App Store holen, erstes Backup exportieren und starten.</span><span class="fr">Obtenez FocusFlow gratuitement sur le DigiLocker App Store, exportez votre première sauvegarde et commencez.</span><span class="ja">DigiLocker App StoreでFocusFlowを無料で入手し、最初のバックアップをエクスポートして構築を始めましょう。</span><span class="ko">DigiLocker App Store에서 FocusFlow를 무료로 받고, 첫 번째 백업을 내보내고, 빌드를 시작하세요.</span><span class="es">Obtén FocusFlow gratis en DigiLocker App Store, exporta tu primera copia de seguridad y empieza a construir.</span></p>
+    <div class="btn-group">
+      <a class="btn-p" href="https://apps.gov.in/app-info/2691" target="_blank" rel="noopener noreferrer">🇮🇳 <span class="en">Get FocusFlow Free</span><span class="zh">免费获取 FocusFlow</span><span class="de">FocusFlow kostenlos</span><span class="fr">Obtenir gratuitement</span><span class="ja">無料で入手</span><span class="ko">무료로 받기</span><span class="es">Obtener gratis</span></a>
+      <a class="btn-g" href="https://github.com/TITANICBHAI/FocusFlow" target="_blank" rel="noopener noreferrer">⚡ <span class="en">View source on GitHub</span><span class="zh">在 GitHub 上查看源码</span><span class="de">Quellcode auf GitHub</span><span class="fr">Code source GitHub</span><span class="ja">GitHubでソース</span><span class="ko">GitHub 소스 보기</span><span class="es">Ver fuente en GitHub</span></a>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p>FocusFlow by TBTechs — <span class="en">open source under AGPL v3.0</span><span class="zh">AGPL v3.0 开源</span><span class="de">Open Source unter AGPL v3.0</span><span class="fr">open source sous AGPL v3.0</span><span class="ja">AGPL v3.0でオープンソース</span><span class="ko">AGPL v3.0 오픈 소스</span><span class="es">código abierto bajo AGPL v3.0</span> ·
+  <a href="../../privacy-policy/"><span class="en">Privacy</span><span class="zh">隐私</span><span class="de">Datenschutz</span><span class="fr">Confidentialité</span><span class="ja">プライバシー</span><span class="ko">개인정보</span><span class="es">Privacidad</span></a> ·
+  <a href="../../terms-of-service/"><span class="en">Terms</span><span class="zh">条款</span><span class="de">Nutzungsbedingungen</span><span class="fr">CGU</span><span class="ja">利用規約</span><span class="ko">이용약관</span><span class="es">Términos</span></a> ·
+  <a href="https://github.com/TITANICBHAI/FocusFlow">GitHub</a></p>
+</footer>
+
+<script>
+(function(){
+  var LANGS=['en','zh','de','fr','ja','ko','es'];
+  window.setLang=function(l){
+    if(LANGS.indexOf(l)<0)l='en';
+    document.documentElement.setAttribute('data-lang',l==='en'?'':l);
+    document.documentElement.lang=l;
+    localStorage.setItem('ff-doc-lang',l);
+    var s=document.querySelector('.lang-sel');
+    if(s)s.value=l;
+  };
+  var stored=localStorage.getItem('ff-doc-lang');
+  var nav=(navigator.language||'').slice(0,2).toLowerCase();
+  setLang(stored||(LANGS.indexOf(nav)>0?nav:'en'));
+})();
+</script>
+</body>
+</html>
