@@ -103,8 +103,10 @@ jobs:
       # ── 7. Build ───────────────────────────────────────────────────────────
       - name: Build debug APK
         working-directory: artifacts/focusflow/android
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=512m -Dorg.gradle.daemon=false"
         run: |
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon --max-workers=2
           echo "── Debug APK outputs ──"
           find app/build/outputs/apk/debug/ -name "*.apk" -exec ls -lh {} \;
 
